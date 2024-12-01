@@ -157,7 +157,7 @@ func newValueToken(input []byte, cur, end, col, line int) (*Token, int) {
 	}
 
 	// expect null
-	if v == "null" {
+	if v == "null" || v == "NULL" || v == "Null" {
 		token, cur = newNullToken(cur, col, line)
 		return token, cur
 	}

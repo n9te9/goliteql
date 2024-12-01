@@ -364,6 +364,43 @@ func TestLexer_Lex(t *testing.T) {
 			},
 		},
 		{
+			name: "Field with default nested list value",
+			input: []byte(`type Query {
+				getIds(ids: [ID] = [["id1", "id2"], ["id3", "id4", NULL]])
+			}`),
+			expected: []*schema.Token{
+				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
+				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
+				{Type: schema.Field, Value: []byte("getIds"), Column: 5, Line: 2},
+				{Type: schema.ParenOpen, Value: []byte("("), Column: 11, Line: 2},
+				{Type: schema.Field, Value: []byte("ids"), Column: 12, Line: 2},
+				{Type: schema.Colon, Value: []byte(":"), Column: 15, Line: 2},
+				{Type: schema.BracketOpen, Value: []byte("["), Column: 17, Line: 2},
+				{Type: schema.Identifier, Value: []byte("ID"), Column: 18, Line: 2},
+				{Type: schema.BracketClose, Value: []byte("]"), Column: 20, Line: 2},
+				{Type: schema.Equal, Value: []byte("="), Column: 22, Line: 2},
+				{Type: schema.BracketOpen, Value: []byte("["), Column: 24, Line: 2},
+				{Type: schema.BracketOpen, Value: []byte("["), Column: 25, Line: 2},
+				{Type: schema.String, Value: []byte(`"id1"`), Column: 26, Line: 2},
+				{Type: schema.Comma, Value: []byte(","), Column: 31, Line: 2},
+				{Type: schema.String, Value: []byte(`"id2"`), Column: 33, Line: 2},
+				{Type: schema.BracketClose, Value: []byte("]"), Column: 38, Line: 2},
+				{Type: schema.Comma, Value: []byte(","), Column: 39, Line: 2},
+				{Type: schema.BracketOpen, Value: []byte("["), Column: 41, Line: 2},
+				{Type: schema.String, Value: []byte(`"id3"`), Column: 42, Line: 2},
+				{Type: schema.Comma, Value: []byte(","), Column: 47, Line: 2},
+				{Type: schema.String, Value: []byte(`"id4"`), Column: 49, Line: 2},
+				{Type: schema.Comma, Value: []byte(","), Column: 54, Line: 2},
+				{Type: schema.Null, Value: []byte("null"), Column: 56, Line: 2},
+				{Type: schema.BracketClose, Value: []byte("]"), Column: 60, Line: 2},
+				{Type: schema.BracketClose, Value: []byte("]"), Column: 61, Line: 2},
+				{Type: schema.ParenClose, Value: []byte(")"), Column: 62, Line: 2},
+				{Type: schema.CurlyClose, Value: []byte("}"), Column: 4, Line: 3},
+				{Type: schema.EOF, Value: nil, Column: 5, Line: 3},
+			},
+		},
+		{
 			name: "Field with nested lists",
 			input: []byte(`type Query {
 				getNestedLists(ids: [[ID]])
