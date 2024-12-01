@@ -110,40 +110,49 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int) (*FieldDefinition,
 	}
 
 	cur++
-	if tokens[cur].Type != Identifier {
-		return nil, 0, fmt.Errorf("expected identifier but got %s", tokens[cur].Type)
+	switch tokens[cur].Type {
+	case Identifier, BracketOpen:
+		fieldType, newCur, err := p.parseFieldType(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		cur = newCur
+		definition.Type = fieldType	
+	default:
+			return nil, 0, fmt.Errorf("expected identifier or '[' but got %s", tokens[cur].Type)
 	}
-	
-	fieldType, newCur, err := p.parseFieldType(tokens, cur)
-	if err != nil {
-		return nil, 0, err
-	}
-	cur = newCur
-	definition.Type = fieldType
 
 	return definition, cur, nil
 }
 
 func (p *Parser) parseFieldType(tokens Tokens, cur int) (*FieldType, int, error) {
 	fieldType := &FieldType{
-		Name: tokens[cur].Value,
+		Nullable: true,
 	}
 
-	cur++
-	if tokens[cur].Type == Exclamation {
-		fieldType.Nullable = false
+	if tokens[cur].Type == Identifier {
+		fieldType.Name = tokens[cur].Value
 		cur++
 	}
 
+	// for nested list types
 	if tokens[cur].Type == BracketOpen {
-		fieldType.IsList = true
-		cur++
-		listType, newCur, err := p.parseFieldType(tokens, cur)
+		listType, newCur, err := p.parseFieldType(tokens, cur + 1)
 		if err != nil {
 			return nil, 0, err
 		}
 		cur = newCur
 		fieldType.ListType = listType
+		fieldType.IsList = true
+	}
+
+	if tokens[cur].Type == Exclamation {
+		fieldType.Nullable = false
+		cur++
+	}
+
+	if tokens[cur].Type == BracketClose {
+		cur++
 	}
 
 	return fieldType, cur, nil

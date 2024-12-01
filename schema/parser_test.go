@@ -16,10 +16,11 @@ func TestParser_Parse(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "parse simple type schema",
+			name: "simple type with scalar fields",
 			input: []byte(`type User {
 				id: ID!
 				name: String!
+				age: Int
 			}`),
 			want: &schema.Schema{
 				Types: []*schema.TypeDefinition{
@@ -29,17 +30,134 @@ func TestParser_Parse(t *testing.T) {
 							{
 								Name: []byte("id"),
 								Type: &schema.FieldType{
-									Name: []byte("ID"),
+									Name:     []byte("ID"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 							},
 							{
 								Name: []byte("name"),
 								Type: &schema.FieldType{
-									Name: []byte("String"),
+									Name:     []byte("String"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
+								},
+							},
+							{
+								Name: []byte("age"),
+								Type: &schema.FieldType{
+									Name:     []byte("Int"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		}, {
+			name: "type with list fields",
+			input: []byte(`type User {
+				friends: [User!]!
+				posts: [Post]
+			}`),
+			want: &schema.Schema{
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("User"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("friends"),
+								Type: &schema.FieldType{
+									Name:     nil,
+									Nullable: false,
+									IsList:   true,
+									ListType: &schema.FieldType{
+										Name: []byte("User"),
+										Nullable: false,
+										IsList: false,
+									},
+								},
+							},
+							{
+								Name: []byte("posts"),
+								Type: &schema.FieldType{
+									Name:     nil,
+									Nullable: true,
+									IsList:   true,
+									ListType: &schema.FieldType{
+										Name: []byte("Post"),
+										Nullable: true,
+										IsList: false,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		}, {
+			name: "type with deeply nested list",
+			input: []byte(`type Data {
+				matrix: [[[Int!]!]!]!
+			}`),
+			want: &schema.Schema{
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("Data"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("matrix"),
+								Type: &schema.FieldType{
+									IsList:   true,
+									Nullable: false,
+									ListType: &schema.FieldType{
+										IsList:   true,
+										Nullable: false,
+										ListType: &schema.FieldType{
+											IsList:   true,
+											Nullable: false,
+											ListType: &schema.FieldType{
+												Name:     []byte("Int"),
+												Nullable: false,
+												IsList:   false,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "type with nullable nested list",
+			input: []byte(`type Example {
+				data: [[String]]
+			}`),
+			want: &schema.Schema{
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("Example"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("data"),
+								Type: &schema.FieldType{
+									IsList:   true,
+									Nullable: true,
+									ListType: &schema.FieldType{
+										IsList:   true,
+										Nullable: true,
+										ListType: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+											IsList:   false,
+										},
+									},
 								},
 							},
 						},
@@ -60,8 +178,8 @@ func TestParser_Parse(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(schema.Schema{}, schema.TypeDefinition{}, schema.FieldDefinition{})); diff != "" {
-				t.Errorf("Parse() got = %v, want %v", got, tt.want)
+			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(schema.Schema{}, schema.TypeDefinition{})); diff != "" {
+				t.Errorf("Parse() mismatch (-got +want):\n%s", diff)
 			}
 		})
 	}
