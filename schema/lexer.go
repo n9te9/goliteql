@@ -42,6 +42,7 @@ const (
 	BracketOpen  Type = "BRACKET_OPEN"  // '['
 	BracketClose Type = "BRACKET_CLOSE" // ']'
 	Exclamation  Type = "EXCLAMATION"   // '!'
+	Pipe         Type = "PIPE"          // '|'
 )
 
 type Token struct {
@@ -264,6 +265,77 @@ func newDirectiveArgumentTokens(input []byte, cur, col, line int) (Tokens, int) 
 	return tokens, cur
 }
 
+func newEnumTokens(input []byte, cur, col, line int) (Tokens, int, int, int) {
+	tokens := make(Tokens, 0)
+
+	var token *Token
+	for cur < len(input) && input[cur] != '}' {
+		switch input[cur] {
+		case ' ', '\t':
+			cur++
+			col++
+			continue
+		case '\n':
+			cur++
+			line++
+			col = 1
+			continue
+		}
+
+		switch input[cur] {
+		case '{', ',':
+			token, cur = newPunctuatorToken(input, punctuators[punctuator(input[cur])], cur, col, line)
+			tokens = append(tokens, token)
+			col++
+			continue
+		}
+
+		token, cur = newIdentifierToken(input, cur, col, line)
+		tokens = append(tokens, token)
+		col += len(token.Value)
+	}
+
+	return tokens, cur, line, col
+}
+
+func newUnionTokens(input []byte, cur, col, line int) (Tokens, int, int, int) {
+	tokens := make(Tokens, 0)
+
+	var token *Token
+	for cur < len(input) {
+		switch input[cur] {
+		case ' ', '\t':
+			cur++
+			col++
+			continue
+		case '\n':
+			cur++
+			line++
+			col = 1
+			continue
+		}
+
+		switch input[cur] {
+		case '|', '=':
+			token, cur = newPunctuatorToken(input, punctuators[punctuator(input[cur])], cur, col, line)
+			tokens = append(tokens, token)
+			col++
+			continue
+		}
+
+		if token != nil && token.Type != Pipe && token.Type != Equal {
+			break
+		}
+
+		token, cur = newIdentifierToken(input, cur, col, line)
+		tokens = append(tokens, token)
+		col += len(token.Value)
+		continue
+	}
+
+	return tokens, cur, line, col
+}
+
 type Tokens []*Token
 
 func (t Tokens) isType() bool {
@@ -326,6 +398,24 @@ func (t Tokens) isDirectiveArgument() bool {
 		lastToken.Type == ParenOpen
 }
 
+func (t Tokens) isEnum() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	lastToken := t[len(t)-1]
+	return lastToken.Type == Enum
+}
+
+func (t Tokens) isUnion() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	lastToken := t[len(t)-1]
+	return lastToken.Type == Union
+}
+
 type Lexer struct{}
 
 func NewLexer() *Lexer {
@@ -349,6 +439,24 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 			cur++
 			line++
 			col = 1
+			continue
+		}
+
+		if tokens.isEnum() {
+			newTokens, newCur, newLine, newCol := newEnumTokens(input, cur, col, line)
+			tokens = append(tokens, newTokens...)
+			line = newLine
+			col = newCol
+			cur = newCur
+			continue
+		}
+
+		if tokens.isUnion() {
+			newTokens, newCur, newLine, newCol := newUnionTokens(input, cur, col, line)
+			tokens = append(tokens, newTokens...)
+			line = newLine
+			col = newCol
+			cur = newCur
 			continue
 		}
 
@@ -459,6 +567,7 @@ var punctuators = map[punctuator]Type{
 	'=': Equal,
 	'[': BracketOpen,
 	']': BracketClose,
+	'|': Pipe,
 }
 
 func keywordEnd(input []byte, cur int) int {

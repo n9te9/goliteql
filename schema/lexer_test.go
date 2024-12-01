@@ -8,11 +8,11 @@ import (
 )
 
 func TestLexer_Lex(t *testing.T) {
-	tests := []struct{
-		name string
-		input []byte
+	tests := []struct {
+		name     string
+		input    []byte
 		expected []*schema.Token
-		wantErr error
+		wantErr  error
 	}{
 		{
 			name: "Lex simple schema",
@@ -237,7 +237,7 @@ func TestLexer_Lex(t *testing.T) {
 				{Type: schema.CurlyClose, Value: []byte("}"), Column: 4, Line: 3},
 				{Type: schema.EOF, Value: nil, Column: 5, Line: 3},
 			},
-		},		
+		},
 		{
 			name: "Lex simple Mutate schema",
 			input: []byte(`type Mutate {
@@ -439,7 +439,71 @@ func TestLexer_Lex(t *testing.T) {
 				{Type: schema.CurlyClose, Value: []byte("}"), Column: 4, Line: 3},
 				{Type: schema.EOF, Value: nil, Column: 5, Line: 3},
 			},
-		},		
+		},
+		{
+			name: "Lex enum type",
+			input: []byte(`enum Status {
+					ACTIVE
+					INACTIVE
+					PENDING
+			}`),
+			expected: []*schema.Token{
+				{Type: schema.Enum, Value: []byte("enum"), Column: 1, Line: 1},
+				{Type: schema.Identifier, Value: []byte("Status"), Column: 6, Line: 1},
+				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 13, Line: 1},
+				{Type: schema.Identifier, Value: []byte("ACTIVE"), Column: 6, Line: 2},
+				{Type: schema.Identifier, Value: []byte("INACTIVE"), Column: 6, Line: 3},
+				{Type: schema.Identifier, Value: []byte("PENDING"), Column: 6, Line: 4},
+				{Type: schema.CurlyClose, Value: []byte("}"), Column: 4, Line: 5},
+				{Type: schema.EOF, Value: nil, Column: 5, Line: 5},
+			},
+		},
+		{
+			name:  "Lex union type1",
+			input: []byte(`union SearchResult = User | Post`),
+			expected: []*schema.Token{
+				{Type: schema.Union, Value: []byte("union"), Column: 1, Line: 1},
+				{Type: schema.Identifier, Value: []byte("SearchResult"), Column: 7, Line: 1},
+				{Type: schema.Equal, Value: []byte("="), Column: 20, Line: 1},
+				{Type: schema.Identifier, Value: []byte("User"), Column: 22, Line: 1},
+				{Type: schema.Pipe, Value: []byte("|"), Column: 27, Line: 1},
+				{Type: schema.Identifier, Value: []byte("Post"), Column: 29, Line: 1},
+				{Type: schema.EOF, Value: nil, Column: 33, Line: 1},
+			},
+		},
+		{
+			name: "Lex union type2",
+			input: []byte(`union SearchResult = User |
+				Post |
+				Comment`),
+			expected: []*schema.Token{
+				{Type: schema.Union, Value: []byte("union"), Column: 1, Line: 1},
+				{Type: schema.Identifier, Value: []byte("SearchResult"), Column: 7, Line: 1},
+				{Type: schema.Equal, Value: []byte("="), Column: 20, Line: 1},
+				{Type: schema.Identifier, Value: []byte("User"), Column: 22, Line: 1},
+				{Type: schema.Pipe, Value: []byte("|"), Column: 27, Line: 1},
+				{Type: schema.Identifier, Value: []byte("Post"), Column: 5, Line: 2},
+				{Type: schema.Pipe, Value: []byte("|"), Column: 10, Line: 2},
+				{Type: schema.Identifier, Value: []byte("Comment"), Column: 5, Line: 3},
+				{Type: schema.EOF, Value: nil, Column: 12, Line: 3},
+			},
+		},
+		{
+			name: "Lex union type3",
+			input: []byte(`union SearchResult = 
+				| User
+				| Post`),
+			expected: []*schema.Token{
+				{Type: schema.Union, Value: []byte("union"), Column: 1, Line: 1},
+				{Type: schema.Identifier, Value: []byte("SearchResult"), Column: 7, Line: 1},
+				{Type: schema.Equal, Value: []byte("="), Column: 20, Line: 1},
+				{Type: schema.Pipe, Value: []byte("|"), Column: 5, Line: 2},
+				{Type: schema.Identifier, Value: []byte("User"), Column: 7, Line: 2},
+				{Type: schema.Pipe, Value: []byte("|"), Column: 5, Line: 3},
+				{Type: schema.Identifier, Value: []byte("Post"), Column: 7, Line: 3},
+				{Type: schema.EOF, Value: nil, Column: 11, Line: 3},
+			},
+		},
 	}
 
 	for _, tt := range tests {
