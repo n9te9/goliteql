@@ -10,6 +10,7 @@ type Type string
 
 const (
 	ReservedType Type = "TYPE"
+	ReservedSchema Type = "SCHEMA"
 	Identifier   Type = "IDENTIFIER"
 	Field        Type = "FIELD"
 
