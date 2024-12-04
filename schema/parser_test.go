@@ -237,6 +237,63 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "interface with nested lists",
+			input: []byte(`interface Nested {
+				items: [[Item!]!]!
+			}`),
+			want: &schema.Schema{
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Nested"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("items"),
+								Type: &schema.FieldType{
+									IsList: true,
+									ListType: &schema.FieldType{
+										IsList: true,
+										ListType: &schema.FieldType{
+											Name:     []byte("Item"),
+											Nullable: false,
+										},
+										Nullable: false,
+									},
+									Nullable: false,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "interface without fields",
+			input: []byte(`interface Empty {}`),
+			want: &schema.Schema{
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name:   []byte("Empty"),
+						Fields: []*schema.FieldDefinition{},
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "invalid interface (missing opening curly brace)",
+			input: []byte(`interface Node id: ID!}`),
+			want:  nil,
+			wantErr: errors.New("expected '{' but got id"),
+		},
+		{
+			name: "invalid interface (missing closing curly brace)",
+			input: []byte(`interface Node {
+				id: ID!`),
+			want: nil,
+			wantErr: errors.New("unexpected end of input"),
+		},
 	}
 
 	for _, tt := range tests {

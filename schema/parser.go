@@ -62,13 +62,13 @@ func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, i
 
 	cur++
 	if tokens[cur].Type != Identifier {
-		return nil, 0, fmt.Errorf("expected identifier but got %s", tokens[cur].Type)
+		return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
 	}
 	definition.Name = tokens[cur].Value
 
 	cur++
 	if tokens[cur].Type != CurlyOpen {
-		return nil, 0, fmt.Errorf("expected '{' but got %s", tokens[cur].Type)
+		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
 	}
 
 	cur++
@@ -94,16 +94,17 @@ func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, i
 func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDefinition, int, error) {
 	cur++
 	if tokens[cur].Type != Identifier {
-		return nil, 0, fmt.Errorf("expected identifier but got %s", tokens[cur].Type)
+		return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Type))
 	}
 
 	interfaceDefinition := &InterfaceDefinition{
 		Name: tokens[cur].Value,
+		Fields: make([]*FieldDefinition, 0),
 	}
 	cur++
 
 	if tokens[cur].Type != CurlyOpen {
-		return nil, 0, fmt.Errorf("expected '{' but got %s", tokens[cur].Type)
+		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
 	}
 
 	cur++
@@ -141,6 +142,8 @@ func (p *Parser) parseFieldDefinitions(tokens Tokens, cur int) ([]*FieldDefiniti
 			cur = newCur
 		case CurlyClose:
 			return definitions, cur, nil
+		case EOF:
+			return nil, 0, fmt.Errorf("unexpected end of input")
 		}
 	}
 	
@@ -154,7 +157,7 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int) (*FieldDefinition,
 
 	cur++
 	if tokens[cur].Type != Colon {
-		return nil, 0, fmt.Errorf("expected ':' but got %s", tokens[cur].Type)
+		return nil, 0, fmt.Errorf("expected ':' but got %s", string(tokens[cur].Value))
 	}
 
 	cur++
@@ -167,7 +170,7 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int) (*FieldDefinition,
 		cur = newCur
 		definition.Type = fieldType	
 	default:
-			return nil, 0, fmt.Errorf("expected identifier or '[' but got %s", tokens[cur].Type)
+			return nil, 0, fmt.Errorf("expected identifier or '[' but got %s", string(tokens[cur].Value))
 	}
 
 	return definition, cur, nil
@@ -209,7 +212,7 @@ func (p *Parser) parseFieldType(tokens Tokens, cur int) (*FieldType, int, error)
 func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition, int, error) {
 	cur++
 	if tokens[cur].Type != Identifier {
-		return nil, 0, fmt.Errorf("expected identifier but got %s", tokens[cur].Type)
+		return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
 	}
 
 	unionDefinition := &UnionDefinition{
@@ -218,7 +221,7 @@ func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition,
 	cur++
 
 	if tokens[cur].Type != Equal {
-		return nil, 0, fmt.Errorf("expected '=' but got %s", tokens[cur].Type)
+		return nil, 0, fmt.Errorf("expected '=' but got %s", string(tokens[cur].Value))
 	}
 	prev := tokens[cur]
 	cur++
@@ -230,7 +233,7 @@ func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition,
 				prev = tokens[cur]
 				cur++
 			} else {
-				return nil, 0, fmt.Errorf("unexpected token %s", tokens[cur].Type)
+				return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
 			}
 		case Identifier:
 			if prev.Type == Equal ||  prev.Type == Pipe {
@@ -247,7 +250,7 @@ func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition,
 		case ReservedType, Union, Enum, Interface, Input, Extend, ReservedSchema:
 			return unionDefinition, cur, nil
 		default:
-			return nil, 0, fmt.Errorf("unexpected token %s", tokens[cur].Type)
+			return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
 		}
 	}
 
