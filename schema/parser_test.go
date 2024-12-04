@@ -1,6 +1,7 @@
 package schema_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -166,6 +167,76 @@ func TestParser_Parse(t *testing.T) {
 			},
 			wantErr: nil,
 		},
+		{
+			name: "simple union type",
+			input: []byte(`union SearchResult = User | Post`),
+			want: &schema.Schema{
+				Unions: []*schema.UnionDefinition{
+					{
+						Name: []byte("SearchResult"),
+						Types: [][]byte{
+							[]byte("User"),
+							[]byte("Post"),
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "multi-line union type",
+			input: []byte(`union SearchResult = User
+				| Post
+				| Comment`),
+			want: &schema.Schema{
+				Unions: []*schema.UnionDefinition{
+					{
+						Name: []byte("SearchResult"),
+						Types: [][]byte{
+							[]byte("User"),
+							[]byte("Post"),
+							[]byte("Comment"),
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "invalid union type",
+			input: []byte(`union SearchResult = User |`),
+			want: nil,
+			wantErr: errors.New("unexpected end of input"),
+		},
+		{
+			name: "empty union type",
+			input: []byte(`union SearchResult =`),
+			want: nil,
+			wantErr: errors.New("unexpected end of input"),
+		},
+		{
+			name: "simple interface type",
+			input: []byte(`interface Node {
+				id: ID!
+			}`),
+			want: &schema.Schema{
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -173,7 +244,7 @@ func TestParser_Parse(t *testing.T) {
 			lexer := schema.NewLexer()
 			parser := schema.NewParser(lexer)
 			got, err := parser.Parse(tt.input)
-			if err != tt.wantErr {
+			if tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
 				t.Errorf("Parse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

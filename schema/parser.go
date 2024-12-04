@@ -32,6 +32,20 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			cur = newCur
 			schema.Types = append(schema.Types, typeDefinition)
+		case Interface:
+			interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur)
+			if err != nil {
+				return nil, err
+			}
+			cur = newCur
+			schema.Interfaces = append(schema.Interfaces, interfaceDefinition)
+		case Union:
+			unionDefinition, newCur, err := p.parseUnionDefinition(tokens, cur)
+			if err != nil {
+				return nil, err
+			}
+			cur = newCur
+			schema.Unions = append(schema.Unions, unionDefinition)
 		case EOF:
 			return schema, nil
 		}
@@ -71,6 +85,40 @@ func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, i
 			definition.tokens = tokens[start:cur]
 			cur++
 			return definition, cur, nil
+		}
+	}
+	
+	return nil, 0, fmt.Errorf("unexpected end of input")
+}
+
+func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDefinition, int, error) {
+	cur++
+	if tokens[cur].Type != Identifier {
+		return nil, 0, fmt.Errorf("expected identifier but got %s", tokens[cur].Type)
+	}
+
+	interfaceDefinition := &InterfaceDefinition{
+		Name: tokens[cur].Value,
+	}
+	cur++
+
+	if tokens[cur].Type != CurlyOpen {
+		return nil, 0, fmt.Errorf("expected '{' but got %s", tokens[cur].Type)
+	}
+
+	cur++
+	for cur < len(tokens) {
+		switch tokens[cur].Type {
+		case Field:
+			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur)
+			if err != nil {
+				return nil, 0, err
+			}
+			interfaceDefinition.Fields = append(interfaceDefinition.Fields, fieldDefinitions...)
+			cur = newCur
+		case CurlyClose:
+			cur++
+			return interfaceDefinition, cur, nil
 		}
 	}
 	
@@ -157,3 +205,52 @@ func (p *Parser) parseFieldType(tokens Tokens, cur int) (*FieldType, int, error)
 
 	return fieldType, cur, nil
 }
+
+func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition, int, error) {
+	cur++
+	if tokens[cur].Type != Identifier {
+		return nil, 0, fmt.Errorf("expected identifier but got %s", tokens[cur].Type)
+	}
+
+	unionDefinition := &UnionDefinition{
+		Name: tokens[cur].Value,
+	}
+	cur++
+
+	if tokens[cur].Type != Equal {
+		return nil, 0, fmt.Errorf("expected '=' but got %s", tokens[cur].Type)
+	}
+	prev := tokens[cur]
+	cur++
+
+	for cur < len(tokens) {
+		switch tokens[cur].Type {
+		case Pipe:
+			if prev.Type == Equal || prev.Type == Identifier {
+				prev = tokens[cur]
+				cur++
+			} else {
+				return nil, 0, fmt.Errorf("unexpected token %s", tokens[cur].Type)
+			}
+		case Identifier:
+			if prev.Type == Equal ||  prev.Type == Pipe {
+				unionDefinition.Types = append(unionDefinition.Types, tokens[cur].Value)
+				prev = tokens[cur]
+				cur++
+			}
+		case EOF:
+			if prev.Type != Identifier {
+				return nil, 0, fmt.Errorf("unexpected end of input")
+			}
+
+			return unionDefinition, cur, nil
+		case ReservedType, Union, Enum, Interface, Input, Extend, ReservedSchema:
+			return unionDefinition, cur, nil
+		default:
+			return nil, 0, fmt.Errorf("unexpected token %s", tokens[cur].Type)
+		}
+	}
+
+	return nil, 0, fmt.Errorf("unexpected end of input")
+}
+
