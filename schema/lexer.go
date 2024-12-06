@@ -79,10 +79,28 @@ func newFieldToken(input []byte, cur, col, line int) (*Token, int) {
 	return &Token{Type: Field, Value: input[start:cur], Column: col, Line: line}, cur
 }
 
+var (
+	queryValue = []byte(`Query`)
+	mutateValue = []byte(`Mutate`)
+	subscriptionValue = []byte(`Subscription`)
+)
+
 func newIdentifierToken(input []byte, cur, col, line int) (*Token, int) {
 	start := cur
 	for cur < len(input) && unicode.IsLetter(rune(input[cur])) {
 		cur++
+	}
+
+	if string(input[start:cur]) == string(queryValue) {
+		return &Token{Type: Query, Value: queryValue, Column: col, Line: line}, cur
+	}
+
+	if string(input[start:cur]) == string(mutateValue) {
+		return &Token{Type: Mutate, Value: mutateValue, Column: col, Line: line}, cur
+	}
+
+	if string(input[start:cur]) == string(subscriptionValue) {
+		return &Token{Type: Subscription, Value: subscriptionValue, Column: col, Line: line}, cur
 	}
 
 	return &Token{Type: Identifier, Value: input[start:cur], Column: col, Line: line}, cur

@@ -294,6 +294,40 @@ func TestParser_Parse(t *testing.T) {
 			want: nil,
 			wantErr: errors.New("unexpected end of input"),
 		},
+		{
+			name: "simple Query operation",
+			input: []byte(`type Query {
+				user(id: ID!): User
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.QueryOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("user"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte("id"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte("User"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

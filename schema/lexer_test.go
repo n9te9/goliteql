@@ -162,7 +162,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("getUser"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 12, Line: 2},
@@ -184,7 +184,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("getUsers"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 13, Line: 2},
@@ -213,7 +213,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("getUsers"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 13, Line: 2},
@@ -245,7 +245,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Mutate"), Column: 6, Line: 1},
+				{Type: schema.Mutate, Value: []byte("Mutate"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 13, Line: 1},
 				{Type: schema.Field, Value: []byte("createUser"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 15, Line: 2},
@@ -267,7 +267,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Subscription"), Column: 6, Line: 1},
+				{Type: schema.Subscription, Value: []byte("Subscription"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 19, Line: 1},
 				{Type: schema.Field, Value: []byte("messageAdded"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 17, Line: 2},
@@ -289,7 +289,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("getUsers"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 13, Line: 2},
@@ -343,7 +343,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("getIds"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 11, Line: 2},
@@ -370,7 +370,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("getIds"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 11, Line: 2},
@@ -407,7 +407,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("getNestedLists"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 19, Line: 2},
@@ -430,7 +430,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("users"), Column: 5, Line: 2},
 				{Type: schema.Colon, Value: []byte(":"), Column: 10, Line: 2},
@@ -455,7 +455,7 @@ func TestLexer_Lex(t *testing.T) {
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Identifier, Value: []byte("Query"), Column: 6, Line: 1},
+				{Type: schema.Query, Value: []byte("Query"), Column: 6, Line: 1},
 				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
 				{Type: schema.Field, Value: []byte("users"), Column: 5, Line: 2},
 				{Type: schema.Colon, Value: []byte(":"), Column: 10, Line: 2},

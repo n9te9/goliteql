@@ -27,17 +27,16 @@ type FieldDefinition struct {
 	Type *FieldType
 }
 
+type ArgumentDefinition struct {
+	Name []byte
+	Default []byte
+	Type *FieldType
+}
+
 type OperationDefinition struct {
 	OperationType OperationType
 	Name []byte
 	Fields []*FieldDefinition
-	Type []byte
-}
-
-type ArgumentDefinition struct {
-	Name []byte
-	Type []byte
-	DefaultValue any
 }
 
 type EnumDefinition struct {
@@ -57,7 +56,7 @@ type InterfaceDefinition struct {
 
 type DirectiveDefinition struct {
 	Name []byte
-	Arguments []*ArgumentDefinition
+	Arguments []*FieldDefinition
 	Locations [][]byte
 }
 
