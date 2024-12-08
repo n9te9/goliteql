@@ -449,6 +449,123 @@ func TestParser_Parse(t *testing.T) {
 			},
 		},
 		{
+			name: "non-argument Mutation operation",
+			input: []byte(`type Mutation {
+				addAnonymousUser: Boolean
+				deleteUsers: Boolean
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.MutationOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("addAnonymousUser"),
+								Arguments: []*schema.ArgumentDefinition{},
+								Type: &schema.FieldType{
+									Name:     []byte("Boolean"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+							{
+								Name: []byte("deleteUsers"),
+								Arguments: []*schema.ArgumentDefinition{},
+								Type: &schema.FieldType{
+									Name:     []byte("Boolean"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "default argument Mutation operation",
+			input: []byte(`type Mutation {
+				updateUser(id: ID!, name: String = "John Doe"): Boolean
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.MutationOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("updateUser"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte("id"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+									{
+										Name: []byte("name"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+											IsList:   false,
+										},
+										Default: []byte(`"John Doe"`),
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte("Boolean"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "non-argument Subscription operation",
+			input: []byte(`type Subscription {
+				newUser: User
+				newUsers: [User]
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.SubscriptionOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("newUser"),
+								Arguments: []*schema.ArgumentDefinition{},
+								Type: &schema.FieldType{
+									Name:     []byte("User"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+							{
+								Name: []byte("newUsers"),
+								Arguments: []*schema.ArgumentDefinition{},
+								Type: &schema.FieldType{
+									Name:     nil,
+									Nullable: true,
+									IsList:   true,
+									ListType: &schema.FieldType{
+										Name:     []byte("User"),
+										Nullable: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "simple Subscription operation",
 			input: []byte(`type Subscription {
 				userFollowed(followerId: ID!, followeeId: ID!): Notification
@@ -477,6 +594,57 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: false,
 											IsList:   false,
 										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte("Notification"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "simple default argument Subscription operation",
+			input: []byte(`type Subscription {
+				userFollowed(followerId: ID!, followeeId: ID!, notify: Boolean = true): Notification
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.SubscriptionOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("userFollowed"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte("followerId"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+									{
+										Name: []byte("followeeId"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+									{
+										Name: []byte("notify"),
+										Type: &schema.FieldType{
+											Name:     []byte("Boolean"),
+											Nullable: true,
+											IsList:   false,
+										},
+										Default: []byte("true"),
 									},
 								},
 								Type: &schema.FieldType{
