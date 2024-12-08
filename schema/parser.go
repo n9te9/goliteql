@@ -203,7 +203,7 @@ func (p *Parser) parseArguments(tokens Tokens, cur int) ([]*ArgumentDefinition, 
 	args := make([]*ArgumentDefinition, 0)
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
-		case ParenOpen:
+		case ParenOpen, Comma:
 			cur++
 			continue
 		case Field:

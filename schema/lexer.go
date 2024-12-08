@@ -81,7 +81,7 @@ func newFieldToken(input []byte, cur, col, line int) (*Token, int) {
 
 var (
 	queryValue = []byte(`Query`)
-	mutateValue = []byte(`Mutate`)
+	mutateValue = []byte(`Mutation`)
 	subscriptionValue = []byte(`Subscription`)
 )
 

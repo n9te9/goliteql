@@ -240,13 +240,13 @@ func TestLexer_Lex(t *testing.T) {
 		},
 		{
 			name: "Lex simple Mutate schema",
-			input: []byte(`type Mutate {
+			input: []byte(`type Mutation {
 				createUser(name: String!): User
 			}`),
 			expected: []*schema.Token{
 				{Type: schema.ReservedType, Value: []byte("type"), Column: 1, Line: 1},
-				{Type: schema.Mutate, Value: []byte("Mutate"), Column: 6, Line: 1},
-				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 13, Line: 1},
+				{Type: schema.Mutate, Value: []byte("Mutation"), Column: 6, Line: 1},
+				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 15, Line: 1},
 				{Type: schema.Field, Value: []byte("createUser"), Column: 5, Line: 2},
 				{Type: schema.ParenOpen, Value: []byte("("), Column: 15, Line: 2},
 				{Type: schema.Field, Value: []byte("name"), Column: 16, Line: 2},

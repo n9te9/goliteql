@@ -328,6 +328,90 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "simple Mutation operation",
+			input: []byte(`type Mutation {
+				createUser(mail: String!, name: String!): Boolean
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.MutationOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("createUser"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte("mail"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+									{
+										Name: []byte("name"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte("Boolean"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "simple Subscription operation",
+			input: []byte(`type Subscription {
+				userFollowed(followerId: ID!, followeeId: ID!): Notification
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.SubscriptionOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("userFollowed"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte("followerId"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+									{
+										Name: []byte("followeeId"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte("Notification"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
