@@ -29,7 +29,11 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 		switch tokens[cur].Type {
 		case ReservedType:
 			cur++
-			if cur < len(tokens) && tokens[cur].Type == Identifier {
+			if cur >= len(tokens) {
+				return nil, fmt.Errorf("unexpected end of input")
+			}
+
+			if tokens[cur].Type == Identifier {
 				typeDefinition, newCur, err := p.parseTypeDefinition(tokens, cur)
 				if err != nil {
 					return nil, err
@@ -39,7 +43,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				continue
 			}
 
-			if cur < len(tokens) {
+			if tokens[cur].Type == Query || tokens[cur].Type == Mutate || tokens[cur].Type == Subscription {
 				operationDefinition, newCur, err := p.parseOperationDefinition(tokens, cur)
 				if err != nil {
 					return nil, err
@@ -51,6 +55,14 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 
 			return nil, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
+		case Enum:
+				enumDefinition, newCur, err := p.parseEnumDefinition(tokens, cur)
+				if err != nil {
+					return nil, err
+				}
+				cur = newCur
+				schema.Enums = append(schema.Enums, enumDefinition)
+				continue
 		case Interface:
 			interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur)
 			if err != nil {
@@ -102,6 +114,38 @@ func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, i
 		}
 	}
 	
+	return nil, 0, fmt.Errorf("unexpected end of input")
+}
+
+func (p *Parser) parseEnumDefinition(tokens Tokens, cur int) (*EnumDefinition, int, error) {
+	cur++
+	if tokens[cur].Type != Identifier {
+		return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+	}
+
+	enumDefinition := &EnumDefinition{
+		Name: tokens[cur].Value,
+	}
+	cur++
+
+	if tokens[cur].Type != CurlyOpen {
+		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
+	}
+
+	cur++
+	for cur < len(tokens) {
+		switch tokens[cur].Type {
+		case Identifier:
+			enumDefinition.Values = append(enumDefinition.Values, tokens[cur].Value)
+			cur++
+		case CurlyClose:
+			cur++
+			return enumDefinition, cur, nil
+		default:
+				return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
+		}
+	}
+
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 

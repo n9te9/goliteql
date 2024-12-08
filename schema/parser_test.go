@@ -658,6 +658,26 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "simple enum type",
+			input: []byte(`enum Role {
+				ADMIN
+				USER
+				GUEST
+			}`),
+			want: &schema.Schema{
+				Enums: []*schema.EnumDefinition{
+					{
+						Name: []byte("Role"),
+						Values: [][]byte{
+							[]byte("ADMIN"),
+							[]byte("USER"),
+							[]byte("GUEST"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
