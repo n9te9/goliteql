@@ -295,6 +295,45 @@ func TestParser_Parse(t *testing.T) {
 			wantErr: errors.New("unexpected end of input"),
 		},
 		{
+			name: "simple non-argument Query operation",
+			input: []byte(`type Query {
+				user: User
+				users: [User]
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.QueryOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("user"),
+								Arguments: []*schema.ArgumentDefinition{},
+								Type: &schema.FieldType{
+									Name:     []byte("User"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+							{
+								Name: []byte("users"),
+								Arguments: []*schema.ArgumentDefinition{},
+								Type: &schema.FieldType{
+									Name:     nil,
+									Nullable: true,
+									IsList:   true,
+									ListType: &schema.FieldType{
+										Name:     []byte("User"),
+										Nullable: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "simple Query operation",
 			input: []byte(`type Query {
 				user(id: ID!): User
@@ -321,6 +360,45 @@ func TestParser_Parse(t *testing.T) {
 									Name:     []byte("User"),
 									Nullable: true,
 									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "simple default argument Query operation",
+			input: []byte(`type Query {
+				users(offset: INT = 1): [User]
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.QueryOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("users"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte("offset"),
+										Type: &schema.FieldType{
+											Name:     []byte("INT"),
+											Nullable: true,
+											IsList:   false,
+										},
+										Default: []byte("1"),
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     nil,
+									Nullable: true,
+									IsList:   true,
+									ListType: &schema.FieldType{
+										Name:     []byte("User"),
+										Nullable: true,
+									},
 								},
 							},
 						},

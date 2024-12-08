@@ -213,6 +213,8 @@ func (p *Parser) parseArguments(tokens Tokens, cur int) ([]*ArgumentDefinition, 
 			}
 			args = append(args, arg)
 			cur = newCur
+		case Colon:
+			return args, cur, nil
 		case ParenClose:
 			cur++
 			return args, cur, nil
@@ -239,6 +241,17 @@ func (p *Parser) parseArgument(tokens Tokens, cur int) (*ArgumentDefinition, int
 	}
 	arg.Type = fieldType
 	cur = newCur
+
+	if tokens[cur].Type == Equal {
+		cur++
+		switch tokens[cur].Type {
+		case String, Int, Boolean, Float, Null:
+			arg.Default = tokens[cur].Value
+			cur++
+		default:
+			return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
+		}
+	}
 
 	return arg, cur, nil
 }
