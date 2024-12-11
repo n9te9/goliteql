@@ -260,30 +260,121 @@ func (p *Parser) parseOperationFields(tokens Tokens, cur int) ([]*FieldDefinitio
 func (p *Parser) parseOperationField(tokens Tokens, cur int) (*FieldDefinition, int, error) {
 	definition := &FieldDefinition{
 		Name: tokens[cur].Value,
+		Arguments: make([]*ArgumentDefinition, 0),
 		Type: nil,
 	}
 	cur++
 
-	args, newCur, err := p.parseArguments(tokens, cur)
-	if err != nil {
-		return nil, 0, err
+	if tokens[cur].Type == ParenOpen {
+		args, newCur, err := p.parseArguments(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		definition.Arguments = args
+		cur = newCur
 	}
-	definition.Arguments = args
-	cur = newCur
+
+	if tokens[cur].Type == Colon {
+		cur++
+
+		fieldType, newCur, err := p.parseFieldType(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		definition.Type = fieldType
+		cur = newCur
+
+		directiveDefinitions, newCur, err := p.parseDirectiveDefinitions(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		definition.Directives = directiveDefinitions
+		cur = newCur
+	}
+	
+	return definition, cur, nil
+}
+
+func (p *Parser) parseDirectiveDefinitions(tokens Tokens, cur int) ([]*DirectiveDefinition, int, error) {
+	definitions := make([]*DirectiveDefinition, 0)
+
+	var err error
+	for cur < len(tokens) {
+		switch tokens[cur].Type {
+		case At:
+			cur++
+			var definition *DirectiveDefinition
+			if cur < len(tokens) && tokens[cur].Type == Identifier {
+				definition = &DirectiveDefinition{
+					Name: tokens[cur].Value,
+				}
+				cur++
+			} else {
+				return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+			}
+
+			if tokens[cur].Type == ParenOpen {
+				definition.Arguments, cur, err = p.parseDirectiveArguments(tokens, cur)
+				if err != nil {
+					return nil, 0, err
+				}
+			}
+
+			definitions = append(definitions, definition)
+		default:
+			return definitions, cur, nil
+		}
+	}
+
+	return nil, 0, fmt.Errorf("unexpected end of input")
+}
+
+func (p *Parser) parseDirectiveArguments(tokens Tokens, cur int) ([]*ArgumentDefinition, int, error) {
+	args := make([]*ArgumentDefinition, 0)
+	for cur < len(tokens) {
+		switch tokens[cur].Type {
+		case ParenOpen, Comma:
+			cur++
+			continue
+		case Field:
+			arg, newCur, err := p.parseDirectiveArgument(tokens, cur)
+			if err != nil {
+				return nil, 0, err
+			}
+			args = append(args, arg)
+			cur = newCur
+		case Colon:
+			return args, cur, nil
+		case ParenClose:
+			cur++
+			return args, cur, nil
+		}
+	}
+
+	return nil, 0, fmt.Errorf("unexpected end of input")
+}
+
+func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*ArgumentDefinition, int, error) {
+	arg := &ArgumentDefinition{
+		Name: tokens[cur].Value,
+	}
+	cur++
 
 	if tokens[cur].Type != Colon {
 		return nil, 0, fmt.Errorf("expected ':' but got %s", string(tokens[cur].Value))
 	}
 	cur++
 
-	fieldType, newCur, err := p.parseFieldType(tokens, cur)
-	if err != nil {
-		return nil, 0, err
+	switch tokens[cur].Type {
+	case String, Int, Boolean, Float, Null:
+		arg.Default = tokens[cur].Value
+		arg.Type = buildFieldType(tokens[cur].Type)
+		cur++
+	default:
+		return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
 	}
-	definition.Type = fieldType
-	cur = newCur
-	
-	return definition, cur, nil
+
+	return arg, cur, nil
 }
 
 func (p *Parser) parseArguments(tokens Tokens, cur int) ([]*ArgumentDefinition, int, error) {
@@ -425,7 +516,46 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int) (*FieldDefinition,
 			return nil, 0, fmt.Errorf("expected identifier or '[' but got %s", string(tokens[cur].Value))
 	}
 
+	if tokens[cur].Type == Equal {
+		cur++
+		switch tokens[cur].Type {
+		case String, Int, Boolean, Float, Null:
+			
+			definition.Default = tokens[cur].Value
+			cur++
+		default:
+			return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
+		}
+	}
+
 	return definition, cur, nil
+}
+
+func buildFieldType(t Type) *FieldType {
+	switch t {
+	case String:
+		return &FieldType{
+			Name: []byte("String"),
+			Nullable: false,
+		}
+	case Int:
+		return &FieldType{
+			Name: []byte("Int"),
+			Nullable: false,
+		}
+	case Float:
+		return &FieldType{
+			Name: []byte("Float"),
+			Nullable: false,
+		}
+	case Boolean:
+		return &FieldType{
+			Name: []byte("Boolean"),
+			Nullable: false,
+		}
+	}
+
+	return nil
 }
 
 func (p *Parser) parseFieldType(tokens Tokens, cur int) (*FieldType, int, error) {
