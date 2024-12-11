@@ -13,6 +13,7 @@ func TestParser_Parse(t *testing.T) {
 	tests := []struct {
 		name string
 		input []byte
+		isSkip bool
 		want *schema.Schema
 		wantErr error
 	}{
@@ -406,6 +407,90 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		// TODO: support nested arguments with default values
+		{
+			name: "deep nested argument Query operation",
+			input: []byte(`type Query {
+				getUser(filter: [[FilterInput!]!]!): User
+			}`),
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.QueryOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("getUser"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte("filter"),
+										Type: &schema.FieldType{
+											IsList:   true,
+											Nullable: false,
+											ListType: &schema.FieldType{
+												IsList:   true,
+												Nullable: false,
+												ListType: &schema.FieldType{
+													Name:     []byte("FilterInput"),
+													Nullable: false,
+												},
+											},
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte("User"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "deep nested argument with default value Query operation",
+			input: []byte(`type Query {
+				getUser(filter: [[FilterInput!]!]! = [[{field: "name", value: "John Doe"}]]): User
+			}`),
+			isSkip: true,
+			want: &schema.Schema{
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.QueryOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("getUser"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte("filter"),
+										Type: &schema.FieldType{
+											IsList:   true,
+											Nullable: false,
+											ListType: &schema.FieldType{
+												IsList:   true,
+												Nullable: false,
+												ListType: &schema.FieldType{
+													Name:     []byte("FilterInput"),
+													Nullable: false,
+												},
+											},
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte("User"),
+									Nullable: true,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		{
 			name: "simple Mutation operation",
 			input: []byte(`type Mutation {
@@ -682,6 +767,9 @@ func TestParser_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.isSkip {
+				t.Skip()
+			}
 			lexer := schema.NewLexer()
 			parser := schema.NewParser(lexer)
 			got, err := parser.Parse(tt.input)
