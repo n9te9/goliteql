@@ -239,6 +239,38 @@ func TestParser_Parse(t *testing.T) {
 			},
 		},
 		{
+			name: "simple input type",
+			input: []byte(`input Filter {
+				field: String!
+				value: String!
+			}`),
+			want: &schema.Schema{
+				Inputs: []*schema.InputDefinition{
+					{
+						Name: []byte("Filter"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("field"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: false,
+									IsList:   false,
+								},
+							},
+							{
+								Name: []byte("value"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: false,
+									IsList:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "interface with nested lists",
 			input: []byte(`interface Nested {
 				items: [[Item!]!]!
@@ -778,7 +810,7 @@ func TestParser_Parse(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(schema.Schema{}, schema.TypeDefinition{})); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(schema.Schema{}, schema.TypeDefinition{}, schema.InputDefinition{})); diff != "" {
 				t.Errorf("Parse() mismatch (-got +want):\n%s", diff)
 			}
 		})

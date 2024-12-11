@@ -63,6 +63,7 @@ type DirectiveDefinition struct {
 type InputDefinition struct {
 	Name []byte
 	Fields []*FieldDefinition
+	tokens Tokens
 }
 
 type Schema struct {

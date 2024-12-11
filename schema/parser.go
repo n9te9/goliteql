@@ -27,19 +27,30 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 	cur := 0
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
-		case ReservedType:
+		case ReservedType, Input:
+			t := tokens[cur].Type
 			cur++
 			if cur >= len(tokens) {
 				return nil, fmt.Errorf("unexpected end of input")
 			}
 
-			if tokens[cur].Type == Identifier {
+			if t == ReservedType && tokens[cur].Type == Identifier {
 				typeDefinition, newCur, err := p.parseTypeDefinition(tokens, cur)
 				if err != nil {
 					return nil, err
 				}
 				cur = newCur
 				schema.Types = append(schema.Types, typeDefinition)
+				continue
+			}
+
+			if t == Input && tokens[cur].Type == Identifier {
+				inputDefinition, newCur, err := p.parseInputDefinition(tokens, cur)
+				if err != nil {
+					return nil, err
+				}
+				cur = newCur
+				schema.Inputs = append(schema.Inputs, inputDefinition)
 				continue
 			}
 
@@ -88,6 +99,38 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, int, error) {
 	start := cur
 	definition := &TypeDefinition{
+		Fields: make([]*FieldDefinition, 0),
+		Name: tokens[cur].Value,
+	}
+
+	cur++
+	if tokens[cur].Type != CurlyOpen {
+		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
+	}
+
+	cur++
+	for cur < len(tokens) {
+		switch tokens[cur].Type {
+		case Field:
+			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur)
+			if err != nil {
+				return nil, 0, err
+			}
+			definition.Fields = append(definition.Fields, fieldDefinitions...)
+			cur = newCur
+		case CurlyClose:
+			definition.tokens = tokens[start:cur]
+			cur++
+			return definition, cur, nil
+		}
+	}
+	
+	return nil, 0, fmt.Errorf("unexpected end of input")
+}
+
+func (p *Parser) parseInputDefinition(tokens Tokens, cur int) (*InputDefinition, int, error) {
+	start := cur
+	definition := &InputDefinition{
 		Fields: make([]*FieldDefinition, 0),
 		Name: tokens[cur].Value,
 	}
