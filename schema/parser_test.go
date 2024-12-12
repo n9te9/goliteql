@@ -405,7 +405,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 							{
 								Name:      []byte("users"),
@@ -419,7 +419,7 @@ func TestParser_Parse(t *testing.T) {
 										Nullable: true,
 									},
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -454,7 +454,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -494,7 +494,7 @@ func TestParser_Parse(t *testing.T) {
 										Nullable: true,
 									},
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -537,7 +537,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -580,7 +580,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -623,7 +623,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -650,7 +650,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 							{
 								Name:      []byte("deleteUsers"),
@@ -660,7 +660,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -704,7 +704,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -731,7 +731,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 							{
 								Name:      []byte("newUsers"),
@@ -745,7 +745,7 @@ func TestParser_Parse(t *testing.T) {
 										Nullable: true,
 									},
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -788,7 +788,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -840,7 +840,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -867,7 +867,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{
+								Directives: []*schema.Directive{
 									{
 										Name:      []byte("deprecated"),
 										Arguments: nil,
@@ -899,19 +899,13 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{
+								Directives: []*schema.Directive{
 									{
 										Name: []byte("include"),
-										Arguments: []*schema.ArgumentDefinition{
+										Arguments: []*schema.DirectiveArgument{
 											{
 												Name: []byte("if"),
-												// TODO: fix this
-												Type: &schema.FieldType{
-													Name:     []byte("Boolean"),
-													Nullable: false,
-													IsList:   false,
-												},
-												Default: []byte("true"),
+												Value: []byte("true"),
 											},
 										},
 									},
@@ -942,22 +936,17 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
-								Directives: []*schema.DirectiveDefinition{
+								Directives: []*schema.Directive{
 									{
 										Name:      []byte("deprecated"),
 										Arguments: nil,
 									},
 									{
 										Name: []byte("include"),
-										Arguments: []*schema.ArgumentDefinition{
+										Arguments: []*schema.DirectiveArgument{
 											{
 												Name: []byte("if"),
-												Type: &schema.FieldType{
-													Name:     []byte("Boolean"),
-													Nullable: false,
-													IsList:   false,
-												},
-												Default: []byte("true"),
+												Value: []byte("true"),
 											},
 										},
 									},

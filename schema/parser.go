@@ -284,7 +284,7 @@ func (p *Parser) parseOperationField(tokens Tokens, cur int) (*FieldDefinition, 
 		definition.Type = fieldType
 		cur = newCur
 
-		directiveDefinitions, newCur, err := p.parseDirectiveDefinitions(tokens, cur)
+		directiveDefinitions, newCur, err := p.parseDirectives(tokens, cur)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -295,17 +295,17 @@ func (p *Parser) parseOperationField(tokens Tokens, cur int) (*FieldDefinition, 
 	return definition, cur, nil
 }
 
-func (p *Parser) parseDirectiveDefinitions(tokens Tokens, cur int) ([]*DirectiveDefinition, int, error) {
-	definitions := make([]*DirectiveDefinition, 0)
+func (p *Parser) parseDirectives(tokens Tokens, cur int) ([]*Directive, int, error) {
+	definitions := make([]*Directive, 0)
 
 	var err error
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
 		case At:
 			cur++
-			var definition *DirectiveDefinition
+			var definition *Directive
 			if cur < len(tokens) && tokens[cur].Type == Identifier {
-				definition = &DirectiveDefinition{
+				definition = &Directive{
 					Name: tokens[cur].Value,
 				}
 				cur++
@@ -329,8 +329,8 @@ func (p *Parser) parseDirectiveDefinitions(tokens Tokens, cur int) ([]*Directive
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
-func (p *Parser) parseDirectiveArguments(tokens Tokens, cur int) ([]*ArgumentDefinition, int, error) {
-	args := make([]*ArgumentDefinition, 0)
+func (p *Parser) parseDirectiveArguments(tokens Tokens, cur int) ([]*DirectiveArgument, int, error) {
+	args := make([]*DirectiveArgument, 0)
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
 		case ParenOpen, Comma:
@@ -354,8 +354,8 @@ func (p *Parser) parseDirectiveArguments(tokens Tokens, cur int) ([]*ArgumentDef
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
-func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*ArgumentDefinition, int, error) {
-	arg := &ArgumentDefinition{
+func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgument, int, error) {
+	arg := &DirectiveArgument{
 		Name: tokens[cur].Value,
 	}
 	cur++
@@ -366,9 +366,8 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*ArgumentDefini
 	cur++
 
 	switch tokens[cur].Type {
-	case String, Int, Boolean, Float, Null:
-		arg.Default = tokens[cur].Value
-		arg.Type = buildFieldType(tokens[cur].Type)
+	case Value:
+		arg.Value = tokens[cur].Value
 		cur++
 	default:
 		return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))

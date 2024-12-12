@@ -25,7 +25,7 @@ type FieldDefinition struct {
 	Name []byte
 	Arguments []*ArgumentDefinition
 	Type *FieldType
-	Directives []*DirectiveDefinition
+	Directives []*Directive
 	Default []byte
 }
 
@@ -56,9 +56,22 @@ type InterfaceDefinition struct {
 	Fields []*FieldDefinition
 }
 
+type Directive struct {
+	Name []byte
+	Arguments []*DirectiveArgument
+	Locations [][]byte
+}
+
+type DirectiveArgument struct {
+	Name []byte
+	Value []byte
+}
+
 type DirectiveDefinition struct {
 	Name []byte
+	Description []byte
 	Arguments []*ArgumentDefinition
+	Repeatable bool
 	Locations [][]byte
 }
 
