@@ -27,6 +27,8 @@ const (
 	Float   Type = "FLOAT"
 	Null    Type = "NULL"
 
+	Value Type = "VALUE"
+
 	Query        Type = "QUERY"
 	Mutate       Type = "MUTATION"
 	Subscription Type = "SUBSCRIPTION"
@@ -234,6 +236,10 @@ func newListTokens(input []byte, cur, col, line int) (Tokens, int) {
 	return tokens, cur
 }
 
+func newDirectiveValueToken(input []byte, start, cur, col, line int) (*Token, int) {
+	return &Token{Type: Value, Value: input[start:cur], Column: col, Line: line}, cur
+}
+
 func newDirectiveArgumentTokens(input []byte, cur, col, line int) (Tokens, int) {
 	tokens := make(Tokens, 0)
 
@@ -258,9 +264,9 @@ func newDirectiveArgumentTokens(input []byte, cur, col, line int) (Tokens, int) 
 			continue
 		}
 
-		end := keywordEnd(input, cur)
+		end := directiveKeywordEnd(input, cur)
 		if tokens.isField() {
-			token, cur = newValueToken(input, cur, end, col, line)
+			token, cur = newDirectiveValueToken(input, cur, end, col, line)
 			tokens = append(tokens, token)
 			col += len(token.Value)
 			continue
@@ -589,9 +595,32 @@ var punctuators = map[punctuator]Type{
 	'|': Pipe,
 }
 
+func directiveKeywordEnd(input []byte, cur int) int {
+	bracketOpenCount := 0
+	for cur < len(input) {
+		if input[cur] == '[' {
+			bracketOpenCount++
+		}
+		if input[cur] == ']' {
+			bracketOpenCount--
+		}
+
+		cur++
+		if input[cur] == ')' || (input[cur] == ',' && bracketOpenCount == 0) {
+			break
+		}
+	}
+
+	return cur
+}
+
 func keywordEnd(input []byte, cur int) int {
 	for cur < len(input) && (unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur]))) {
 		cur++
+		if input[cur] == '"' {
+			cur++
+			break
+		}
 	}
 
 	return cur
