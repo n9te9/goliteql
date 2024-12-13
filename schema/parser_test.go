@@ -549,7 +549,6 @@ func TestParser_Parse(t *testing.T) {
 			input: []byte(`type Query {
 				getUser(filter: [[FilterInput!]!]! = [[{field: "name", value: "John Doe"}]]): User
 			}`),
-			isSkip: true,
 			want: &schema.Schema{
 				Operations: []*schema.OperationDefinition{
 					{
@@ -573,6 +572,7 @@ func TestParser_Parse(t *testing.T) {
 												},
 											},
 										},
+										Default: []byte(`[[{field: "name", value: "John Doe"}]]`),
 									},
 								},
 								Type: &schema.FieldType{
