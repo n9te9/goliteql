@@ -20,12 +20,6 @@ const (
 	Interface Type = "INTERFACE"
 	Union     Type = "UNION"
 
-	Int     Type = "INT"
-	String  Type = "STRING"
-	Boolean Type = "BOOLEAN"
-	Float   Type = "FLOAT"
-	Null    Type = "NULL"
-
 	Value Type = "VALUE"
 
 	Query        Type = "QUERY"
@@ -457,6 +451,11 @@ var punctuators = map[punctuator]Type{
 }
 
 func defaultArgumentKeywordEnd(input []byte, cur int) int {
+	var isString bool
+	if input[cur] == '"' {
+		isString = true
+	}
+
 	bracketOpenCount := 0
 	for cur < len(input) {
 		if input[cur] == '[' {
@@ -467,7 +466,12 @@ func defaultArgumentKeywordEnd(input []byte, cur int) int {
 		}
 
 		cur++
-		if input[cur] == ')' || (input[cur] == ',' && bracketOpenCount == 0) {
+		if input[cur] == ')' || (input[cur] == ','  && bracketOpenCount == 0) {
+			break
+		}
+
+		if (isString && input[cur] == '"')  {
+			cur++
 			break
 		}
 	}

@@ -422,7 +422,7 @@ func (p *Parser) parseArgument(tokens Tokens, cur int) (*ArgumentDefinition, int
 	if tokens[cur].Type == Equal {
 		cur++
 		switch tokens[cur].Type {
-		case String, Int, Boolean, Float, Null:
+		case Value:
 			arg.Default = tokens[cur].Value
 			cur++
 		default:
@@ -518,8 +518,7 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int) (*FieldDefinition,
 	if tokens[cur].Type == Equal {
 		cur++
 		switch tokens[cur].Type {
-		case String, Int, Boolean, Float, Null:
-			
+		case Value:
 			definition.Default = tokens[cur].Value
 			cur++
 		default:
@@ -528,33 +527,6 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int) (*FieldDefinition,
 	}
 
 	return definition, cur, nil
-}
-
-func buildFieldType(t Type) *FieldType {
-	switch t {
-	case String:
-		return &FieldType{
-			Name: []byte("String"),
-			Nullable: false,
-		}
-	case Int:
-		return &FieldType{
-			Name: []byte("Int"),
-			Nullable: false,
-		}
-	case Float:
-		return &FieldType{
-			Name: []byte("Float"),
-			Nullable: false,
-		}
-	case Boolean:
-		return &FieldType{
-			Name: []byte("Boolean"),
-			Nullable: false,
-		}
-	}
-
-	return nil
 }
 
 func (p *Parser) parseFieldType(tokens Tokens, cur int) (*FieldType, int, error) {
