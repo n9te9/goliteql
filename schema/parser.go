@@ -22,11 +22,71 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 
 	schema := &Schema{
 		tokens: tokens,
+		Definition: &SchemaDefinition{
+			Query: []byte("Query"),
+			Mutation: []byte("Mutation"),
+			Subscription: []byte("Subscription"),
+		},
 	}
 
 	cur := 0
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
+		case ReservedSchema:
+			definition := new(SchemaDefinition)
+			cur++
+			if tokens[cur].Type != CurlyOpen {
+				return nil, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
+			}
+			cur++
+
+			for cur < len(tokens) {
+				if tokens[cur].Type != Field {
+					return nil, fmt.Errorf("expected field but got %s", string(tokens[cur].Value))
+				}
+
+				v := string(tokens[cur].Value)
+				if v != "query" && v != "mutation" && v != "subscription" {
+					return nil, fmt.Errorf("expected query, mutation or subscription but got %s", v)
+				}
+				cur++
+
+				if tokens[cur].Type != Colon {
+					return nil, fmt.Errorf("expected ':' but got %s", string(tokens[cur].Value))
+				}
+				cur++
+
+				switch v {
+				case "query":
+					if tokens[cur].Type == Identifier || tokens[cur].Type == Query {
+						definition.Query = tokens[cur].Value
+						cur++
+					}
+				case "mutation":
+					if tokens[cur].Type == Identifier || tokens[cur].Type == Mutate {
+						definition.Mutation = tokens[cur].Value
+						cur++
+					}
+				case "subscription":
+					if tokens[cur].Type == Identifier || tokens[cur].Type == Subscription {
+						definition.Subscription = tokens[cur].Value
+						cur++
+					}
+				default:
+					return nil, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
+				}
+
+				if tokens[cur].Type == CurlyClose {
+					break
+				}
+			}
+
+			if tokens[cur].Type != CurlyClose {
+				return nil, fmt.Errorf("expected '}' but got %s", string(tokens[cur].Value))
+			}
+			cur++
+
+			schema.Definition = definition
 		case ReservedType, Input:
 			t := tokens[cur].Type
 			cur++

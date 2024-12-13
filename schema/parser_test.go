@@ -18,6 +18,49 @@ func TestParser_Parse(t *testing.T) {
 		wantErr error
 	}{
 		{
+			name: "Lex standard schema definition",
+			input: []byte(`schema {
+				query: Query
+				mutation: Mutation
+				subscription: Subscription
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+			},
+		},
+		{
+			name: "Lex custom schema definition",
+			input: []byte(`schema {
+				query: RootQuery
+				mutation: RootMutation
+				subscription: RootSubscription
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("RootQuery"),
+					Mutation: []byte("RootMutation"),
+					Subscription: []byte("RootSubscription"),
+				},
+			},
+		},
+		{
+			name: "Lex custom lack optional schema definition",
+			input: []byte(`schema {
+				query: RootQuery
+				mutation: RootMutation
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("RootQuery"),
+					Mutation: []byte("RootMutation"),
+				},
+			},
+		},
+		{
 			name: "simple type with scalar fields",
 			input: []byte(`type User {
 				id: ID!
@@ -25,6 +68,11 @@ func TestParser_Parse(t *testing.T) {
 				age: Int
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("User"),
@@ -65,6 +113,11 @@ func TestParser_Parse(t *testing.T) {
 				posts: [Post]
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("User"),
@@ -106,6 +159,11 @@ func TestParser_Parse(t *testing.T) {
 				matrix: [[[Int!]!]!]!
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("Data"),
@@ -142,6 +200,11 @@ func TestParser_Parse(t *testing.T) {
 				data: [[String]]
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("Example"),
@@ -172,6 +235,11 @@ func TestParser_Parse(t *testing.T) {
 			name:  "simple union type",
 			input: []byte(`union SearchResult = User | Post`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Unions: []*schema.UnionDefinition{
 					{
 						Name: []byte("SearchResult"),
@@ -190,6 +258,11 @@ func TestParser_Parse(t *testing.T) {
 				| Post
 				| Comment`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Unions: []*schema.UnionDefinition{
 					{
 						Name: []byte("SearchResult"),
@@ -222,6 +295,11 @@ func TestParser_Parse(t *testing.T) {
 				value: String!
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Inputs: []*schema.InputDefinition{
 					{
 						Name: []byte("Filter"),
@@ -253,6 +331,11 @@ func TestParser_Parse(t *testing.T) {
 				field: String! = "name"
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Inputs: []*schema.InputDefinition{
 					{
 						Name: []byte("Filter"),
@@ -278,6 +361,11 @@ func TestParser_Parse(t *testing.T) {
 				value: String! = "John Doe"
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Inputs: []*schema.InputDefinition{
 					{
 						Name: []byte("Filter"),
@@ -311,6 +399,11 @@ func TestParser_Parse(t *testing.T) {
 				id: ID!
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -334,6 +427,11 @@ func TestParser_Parse(t *testing.T) {
 				items: [[Item!]!]!
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Nested"),
@@ -363,6 +461,11 @@ func TestParser_Parse(t *testing.T) {
 			name:  "interface without fields",
 			input: []byte(`interface Empty {}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name:   []byte("Empty"),
@@ -392,6 +495,11 @@ func TestParser_Parse(t *testing.T) {
 				users: [User]
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -432,6 +540,11 @@ func TestParser_Parse(t *testing.T) {
 				user(id: ID!): User
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -467,6 +580,11 @@ func TestParser_Parse(t *testing.T) {
 				users(offset: INT = 1): [User]
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -508,6 +626,11 @@ func TestParser_Parse(t *testing.T) {
 				getUser(filter: [[FilterInput!]!]!): User
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -550,6 +673,11 @@ func TestParser_Parse(t *testing.T) {
 				getUser(filter: [[FilterInput!]!]! = [[{field: "name", value: "John Doe"}]]): User
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -593,6 +721,11 @@ func TestParser_Parse(t *testing.T) {
 				createUser(mail: String!, name: String!): Boolean
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -637,6 +770,11 @@ func TestParser_Parse(t *testing.T) {
 				deleteUsers: Boolean
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -673,6 +811,11 @@ func TestParser_Parse(t *testing.T) {
 				updateUser(id: ID!, name: String = "John Doe"): Boolean
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -718,6 +861,11 @@ func TestParser_Parse(t *testing.T) {
 				newUsers: [User]
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -758,6 +906,11 @@ func TestParser_Parse(t *testing.T) {
 				userFollowed(followerId: ID!, followeeId: ID!): Notification
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -801,6 +954,11 @@ func TestParser_Parse(t *testing.T) {
 				userFollowed(followerId: ID!, followeeId: ID!, notify: Boolean = true): Notification
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -854,6 +1012,11 @@ func TestParser_Parse(t *testing.T) {
 					user: User @deprecated
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -886,6 +1049,11 @@ func TestParser_Parse(t *testing.T) {
 					user: User @include(if: true)
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -923,6 +1091,11 @@ func TestParser_Parse(t *testing.T) {
 			user: User @deprecated @include(if: true)
 	}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -966,6 +1139,11 @@ func TestParser_Parse(t *testing.T) {
 				GUEST
 			}`),
 			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
 				Enums: []*schema.EnumDefinition{
 					{
 						Name: []byte("Role"),
