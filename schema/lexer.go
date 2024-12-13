@@ -426,6 +426,7 @@ func (k keyword) String() string {
 
 var keywords = map[keyword]Type{
 	"type":      ReservedType,
+	"schema":    ReservedSchema,
 	"extend":    Extend,
 	"scalar":    Scalar,
 	"enum":      Enum,

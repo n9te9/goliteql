@@ -15,6 +15,29 @@ func TestLexer_Lex(t *testing.T) {
 		wantErr  error
 	}{
 		{
+			name: "Lex schema definition",
+			input: []byte(`schema {
+				query: Query
+				mutation: Mutation
+				subscription: Subscription
+			}`),
+			expected: []*schema.Token{
+				{Type: schema.ReservedSchema, Value: []byte("schema"), Column: 1, Line: 1},
+				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 8, Line: 1},
+				{Type: schema.Field, Value: []byte("query"), Column: 5, Line: 2},
+				{Type: schema.Colon, Value: []byte(":"), Column: 10, Line: 2},
+				{Type: schema.Query, Value: []byte("Query"), Column: 12, Line: 2},
+				{Type: schema.Field, Value: []byte("mutation"), Column: 5, Line: 3},
+				{Type: schema.Colon, Value: []byte(":"), Column: 13, Line: 3},
+				{Type: schema.Mutate, Value: []byte("Mutation"), Column: 15, Line: 3},
+				{Type: schema.Field, Value: []byte("subscription"), Column: 5, Line: 4},
+				{Type: schema.Colon, Value: []byte(":"), Column: 17, Line: 4},
+				{Type: schema.Subscription, Value: []byte("Subscription"), Column: 19, Line: 4},
+				{Type: schema.CurlyClose, Value: []byte("}"), Column: 4, Line: 5},
+				{Type: schema.EOF, Value: nil, Column: 5, Line: 5},
+			},
+		},
+		{
 			name: "Lex simple schema",
 			input: []byte(`type User {
 				id: ID!
