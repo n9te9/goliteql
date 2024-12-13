@@ -12,6 +12,7 @@ type TypeDefinition struct {
 	Name []byte
 	Fields []*FieldDefinition
 	tokens Tokens
+	Extentions []*TypeDefinition
 }
 
 type FieldType struct {
@@ -44,16 +45,19 @@ type OperationDefinition struct {
 type EnumDefinition struct {
 	Name []byte
 	Values [][]byte
+	Extentions []*TypeDefinition
 }
 
 type UnionDefinition struct {
 	Name []byte
 	Types [][]byte
+	Extentions []*TypeDefinition
 }
 
 type InterfaceDefinition struct {
 	Name []byte
 	Fields []*FieldDefinition
+	Extentions []*TypeDefinition
 }
 
 type Directive struct {
@@ -79,6 +83,7 @@ type InputDefinition struct {
 	Name []byte
 	Fields []*FieldDefinition
 	tokens Tokens
+	Extentions []*TypeDefinition
 }
 
 type Schema struct {
@@ -97,4 +102,5 @@ type SchemaDefinition struct {
 	Query []byte
 	Mutation []byte
 	Subscription []byte
+	Extentions []*TypeDefinition
 }

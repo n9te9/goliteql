@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+
 )
 
 type Parser struct {
@@ -23,8 +24,8 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 	schema := &Schema{
 		tokens: tokens,
 		Definition: &SchemaDefinition{
-			Query: []byte("Query"),
-			Mutation: []byte("Mutation"),
+			Query:        []byte("Query"),
+			Mutation:     []byte("Mutation"),
 			Subscription: []byte("Subscription"),
 		},
 	}
@@ -32,61 +33,17 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 	cur := 0
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
+		case Extend:
+			cur++
+			schema, cur, err = p.parseExtendDefinition(schema, tokens, cur)
+			if err != nil {
+				return nil, err
+			}
 		case ReservedSchema:
-			definition := new(SchemaDefinition)
-			cur++
-			if tokens[cur].Type != CurlyOpen {
-				return nil, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
+			schema, cur, err = p.parseSchemaDefinition(schema, tokens, cur)
+			if err != nil {
+				return nil, err
 			}
-			cur++
-
-			for cur < len(tokens) {
-				if tokens[cur].Type != Field {
-					return nil, fmt.Errorf("expected field but got %s", string(tokens[cur].Value))
-				}
-
-				v := string(tokens[cur].Value)
-				if v != "query" && v != "mutation" && v != "subscription" {
-					return nil, fmt.Errorf("expected query, mutation or subscription but got %s", v)
-				}
-				cur++
-
-				if tokens[cur].Type != Colon {
-					return nil, fmt.Errorf("expected ':' but got %s", string(tokens[cur].Value))
-				}
-				cur++
-
-				switch v {
-				case "query":
-					if tokens[cur].Type == Identifier || tokens[cur].Type == Query {
-						definition.Query = tokens[cur].Value
-						cur++
-					}
-				case "mutation":
-					if tokens[cur].Type == Identifier || tokens[cur].Type == Mutate {
-						definition.Mutation = tokens[cur].Value
-						cur++
-					}
-				case "subscription":
-					if tokens[cur].Type == Identifier || tokens[cur].Type == Subscription {
-						definition.Subscription = tokens[cur].Value
-						cur++
-					}
-				default:
-					return nil, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
-				}
-
-				if tokens[cur].Type == CurlyClose {
-					break
-				}
-			}
-
-			if tokens[cur].Type != CurlyClose {
-				return nil, fmt.Errorf("expected '}' but got %s", string(tokens[cur].Value))
-			}
-			cur++
-
-			schema.Definition = definition
 		case ReservedType, Input:
 			t := tokens[cur].Type
 			cur++
@@ -120,20 +77,20 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 					return nil, err
 				}
 				cur = newCur
-				
+
 				schema.Operations = append(schema.Operations, operationDefinition)
 				continue
 			}
 
 			return nil, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
 		case Enum:
-				enumDefinition, newCur, err := p.parseEnumDefinition(tokens, cur)
-				if err != nil {
-					return nil, err
-				}
-				cur = newCur
-				schema.Enums = append(schema.Enums, enumDefinition)
-				continue
+			enumDefinition, newCur, err := p.parseEnumDefinition(tokens, cur)
+			if err != nil {
+				return nil, err
+			}
+			cur = newCur
+			schema.Enums = append(schema.Enums, enumDefinition)
+			continue
 		case Interface:
 			interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur)
 			if err != nil {
@@ -156,11 +113,91 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 	return nil, fmt.Errorf("unexpected end of input")
 }
 
+func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (*Schema, int, error) {
+	switch tokens[cur].Type {
+	case ReservedSchema:
+
+	case ReservedType:
+
+	case Interface:
+
+	case Union:
+
+	case Enum:
+
+	case Input:
+
+	case Scalar:
+		// TODO: Support
+	}
+
+	return schema, cur, nil
+}
+
+func (p *Parser) parseSchemaDefinition(schema *Schema, tokens Tokens, cur int) (*Schema, int, error) {
+	definition := new(SchemaDefinition)
+	cur++
+	if tokens[cur].Type != CurlyOpen {
+		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
+	}
+	cur++
+
+	for cur < len(tokens) {
+		if tokens[cur].Type != Field {
+			return nil, 0, fmt.Errorf("expected field but got %s", string(tokens[cur].Value))
+		}
+
+		v := string(tokens[cur].Value)
+		if v != "query" && v != "mutation" && v != "subscription" {
+			return nil, 0, fmt.Errorf("expected query, mutation or subscription but got %s", v)
+		}
+		cur++
+
+		if tokens[cur].Type != Colon {
+			return nil, 0, fmt.Errorf("expected ':' but got %s", string(tokens[cur].Value))
+		}
+		cur++
+
+		switch v {
+		case "query":
+			if tokens[cur].Type == Identifier || tokens[cur].Type == Query {
+				definition.Query = tokens[cur].Value
+				cur++
+			}
+		case "mutation":
+			if tokens[cur].Type == Identifier || tokens[cur].Type == Mutate {
+				definition.Mutation = tokens[cur].Value
+				cur++
+			}
+		case "subscription":
+			if tokens[cur].Type == Identifier || tokens[cur].Type == Subscription {
+				definition.Subscription = tokens[cur].Value
+				cur++
+			}
+		default:
+			return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
+		}
+
+		if tokens[cur].Type == CurlyClose {
+			break
+		}
+	}
+
+	if tokens[cur].Type != CurlyClose {
+		return nil, 0, fmt.Errorf("expected '}' but got %s", string(tokens[cur].Value))
+	}
+	cur++
+
+	schema.Definition = definition
+
+	return schema, cur, nil
+}
+
 func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, int, error) {
 	start := cur
 	definition := &TypeDefinition{
 		Fields: make([]*FieldDefinition, 0),
-		Name: tokens[cur].Value,
+		Name:   tokens[cur].Value,
 	}
 
 	cur++
@@ -184,7 +221,7 @@ func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, i
 			return definition, cur, nil
 		}
 	}
-	
+
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
@@ -192,7 +229,7 @@ func (p *Parser) parseInputDefinition(tokens Tokens, cur int) (*InputDefinition,
 	start := cur
 	definition := &InputDefinition{
 		Fields: make([]*FieldDefinition, 0),
-		Name: tokens[cur].Value,
+		Name:   tokens[cur].Value,
 	}
 
 	cur++
@@ -216,7 +253,7 @@ func (p *Parser) parseInputDefinition(tokens Tokens, cur int) (*InputDefinition,
 			return definition, cur, nil
 		}
 	}
-	
+
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
@@ -245,7 +282,7 @@ func (p *Parser) parseEnumDefinition(tokens Tokens, cur int) (*EnumDefinition, i
 			cur++
 			return enumDefinition, cur, nil
 		default:
-				return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
+			return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
 		}
 	}
 
@@ -272,7 +309,7 @@ func (p *Parser) parseOperationDefinition(tokens Tokens, cur int) (*OperationDef
 
 	operationDefinition := &OperationDefinition{
 		OperationType: operationType,
-		Fields: make([]*FieldDefinition, 0),
+		Fields:        make([]*FieldDefinition, 0),
 	}
 	cur++
 
@@ -290,7 +327,7 @@ func (p *Parser) parseOperationDefinition(tokens Tokens, cur int) (*OperationDef
 			return operationDefinition, cur, nil
 		}
 	}
-	
+
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
@@ -313,15 +350,15 @@ func (p *Parser) parseOperationFields(tokens Tokens, cur int) ([]*FieldDefinitio
 			return nil, 0, fmt.Errorf("unexpected end of input")
 		}
 	}
-	
+
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
 func (p *Parser) parseOperationField(tokens Tokens, cur int) (*FieldDefinition, int, error) {
 	definition := &FieldDefinition{
-		Name: tokens[cur].Value,
+		Name:      tokens[cur].Value,
 		Arguments: make([]*ArgumentDefinition, 0),
-		Type: nil,
+		Type:      nil,
 	}
 	cur++
 
@@ -351,7 +388,7 @@ func (p *Parser) parseOperationField(tokens Tokens, cur int) (*FieldDefinition, 
 		definition.Directives = directiveDefinitions
 		cur = newCur
 	}
-	
+
 	return definition, cur, nil
 }
 
@@ -500,7 +537,7 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDef
 	}
 
 	interfaceDefinition := &InterfaceDefinition{
-		Name: tokens[cur].Value,
+		Name:   tokens[cur].Value,
 		Fields: make([]*FieldDefinition, 0),
 	}
 	cur++
@@ -524,7 +561,7 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDef
 			return interfaceDefinition, cur, nil
 		}
 	}
-	
+
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
@@ -548,7 +585,7 @@ func (p *Parser) parseFieldDefinitions(tokens Tokens, cur int) ([]*FieldDefiniti
 			return nil, 0, fmt.Errorf("unexpected end of input")
 		}
 	}
-	
+
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
@@ -570,9 +607,9 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int) (*FieldDefinition,
 			return nil, 0, err
 		}
 		cur = newCur
-		definition.Type = fieldType	
+		definition.Type = fieldType
 	default:
-			return nil, 0, fmt.Errorf("expected identifier or '[' but got %s", string(tokens[cur].Value))
+		return nil, 0, fmt.Errorf("expected identifier or '[' but got %s", string(tokens[cur].Value))
 	}
 
 	if tokens[cur].Type == Equal {
@@ -601,7 +638,7 @@ func (p *Parser) parseFieldType(tokens Tokens, cur int) (*FieldType, int, error)
 
 	// for nested list types
 	if tokens[cur].Type == BracketOpen {
-		listType, newCur, err := p.parseFieldType(tokens, cur + 1)
+		listType, newCur, err := p.parseFieldType(tokens, cur+1)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -649,7 +686,7 @@ func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition,
 				return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
 			}
 		case Identifier:
-			if prev.Type == Equal ||  prev.Type == Pipe {
+			if prev.Type == Equal || prev.Type == Pipe {
 				unionDefinition.Types = append(unionDefinition.Types, tokens[cur].Value)
 				prev = tokens[cur]
 				cur++
@@ -669,4 +706,3 @@ func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition,
 
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
-
