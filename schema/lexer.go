@@ -2,7 +2,6 @@ package schema
 
 import (
 	"fmt"
-	"strings"
 	"unicode"
 )
 
@@ -108,135 +107,7 @@ func newIdentifierToken(input []byte, cur, col, line int) (*Token, int) {
 	return &Token{Type: Identifier, Value: input[start:cur], Column: col, Line: line}, cur
 }
 
-func newIntToken(input []byte, cur, col, line int) (*Token, int) {
-	start := cur
-	for cur < len(input) && unicode.IsDigit(rune(input[cur])) {
-		cur++
-	}
-
-	return &Token{Type: Int, Value: input[start:cur], Column: col, Line: line}, cur
-}
-
-func newFloatToken(input []byte, cur, col, line int) (*Token, int) {
-	start := cur
-	for cur < len(input) && unicode.IsDigit(rune(input[cur])) || input[cur] == '.' {
-		cur++
-	}
-
-	return &Token{Type: Float, Value: input[start:cur], Column: col, Line: line}, cur
-}
-
-func newStringToken(input []byte, cur, col, line int) (*Token, int) {
-	start := cur
-	cur++
-	for cur < len(input) && input[cur] != '"' {
-		cur++
-	}
-
-	return &Token{Type: String, Value: input[start : cur+1], Column: col, Line: line}, cur + 1
-}
-
-func newBooleanToken(input []byte, cur, col, line int) (*Token, int) {
-	start := cur
-	for cur < len(input) && unicode.IsLetter(rune(input[cur])) {
-		cur++
-	}
-
-	return &Token{Type: Boolean, Value: input[start:cur], Column: col, Line: line}, cur
-}
-
-func newNullToken(cur, col, line int) (*Token, int) {
-	return &Token{Type: Null, Value: []byte("null"), Column: col, Line: line}, cur + 4
-}
-
-func newValueToken(input []byte, cur, end, col, line int) (*Token, int) {
-	v := string(input[cur:end])
-	var token *Token
-	// expect int or float
-	if unicode.IsDigit(rune(input[cur])) {
-		if !strings.Contains(v, ".") {
-			// expect int
-			token, cur = newIntToken(input, cur, col, line)
-			return token, cur
-		} else {
-			// expect float
-			token, cur = newFloatToken(input, cur, col, line)
-			return token, cur
-		}
-	}
-
-	// expect string
-	if input[cur] == '"' {
-		token, cur = newStringToken(input, cur, col, line)
-		return token, cur
-	}
-
-	// expect boolean
-	if v == "true" || v == "false" {
-		token, cur = newBooleanToken(input, cur, col, line)
-		return token, cur
-	}
-
-	// expect null
-	if v == "null" || v == "NULL" || v == "Null" {
-		token, cur = newNullToken(cur, col, line)
-		return token, cur
-	}
-
-	return nil, cur
-}
-
-func newListTokens(input []byte, cur, col, line int) (Tokens, int) {
-	tokens := Tokens{
-		&Token{Type: BracketOpen, Value: []byte{'['}, Column: col, Line: line},
-	}
-
-	cur++
-	col++
-	
-	var token *Token
-	for cur < len(input) && input[cur] != ']' {
-		switch input[cur] {
-		case ' ', '\t':
-			cur++
-			col++
-			continue
-		case '\n':
-			cur++
-			line++
-			col = 1
-			continue
-		}
-
-		if input[cur] == '[' {
-			nestedTokens, newCur := newListTokens(input, cur, col, line)
-			tokens = append(tokens, nestedTokens...)
-			col += newCur - cur
-			cur = newCur
-			continue
-		}
-
-		if input[cur] == ',' {
-			token, cur = newPunctuatorToken(input, Comma, cur, col, line)
-			tokens = append(tokens, token)
-			col++
-			continue
-		}
-
-		end := keywordEnd(input, cur)
-		token, cur = newValueToken(input, cur, end, col, line)
-
-		tokens = append(tokens, token)
-		col += len(token.Value)
-	}
-
-	tokens = append(tokens, &Token{Type: BracketClose, Value: []byte{']'}, Column: col, Line: line})
-	cur++
-
-	return tokens, cur
-}
-
-func newDirectiveValueToken(input []byte, start, cur, col, line int) (*Token, int) {
+func newValueToken(input []byte, start, cur, col, line int) (*Token, int) {
 	return &Token{Type: Value, Value: input[start:cur], Column: col, Line: line}, cur
 }
 
@@ -264,9 +135,9 @@ func newDirectiveArgumentTokens(input []byte, cur, col, line int) (Tokens, int) 
 			continue
 		}
 
-		end := directiveKeywordEnd(input, cur)
+		end := defaultArgumentKeywordEnd(input, cur)
 		if tokens.isField() {
-			token, cur = newDirectiveValueToken(input, cur, end, col, line)
+			token, cur = newValueToken(input, cur, end, col, line)
 			tokens = append(tokens, token)
 			col += len(token.Value)
 			continue
@@ -487,17 +358,7 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 
 		end := keywordEnd(input, cur)
 		if tokens.isDefaultArgument() {
-			// expect list
-			if input[cur] == '[' {
-				newTokens, newCur := newListTokens(input, cur, col, line)
-				tokens = append(tokens, newTokens...)
-				col += newCur - cur
-				cur = newCur
-
-				continue
-			}
-
-			// expect value
+			end = defaultArgumentKeywordEnd(input, cur)
 			token, cur = newValueToken(input, cur, end, col, line)
 			tokens = append(tokens, token)
 			col += len(token.Value)
@@ -595,7 +456,7 @@ var punctuators = map[punctuator]Type{
 	'|': Pipe,
 }
 
-func directiveKeywordEnd(input []byte, cur int) int {
+func defaultArgumentKeywordEnd(input []byte, cur int) int {
 	bracketOpenCount := 0
 	for cur < len(input) {
 		if input[cur] == '[' {
