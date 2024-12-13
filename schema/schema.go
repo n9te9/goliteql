@@ -83,6 +83,7 @@ type InputDefinition struct {
 
 type Schema struct {
 	tokens Tokens
+	Definition *SchemaDefinition
 	Operations []*OperationDefinition
 	Types []*TypeDefinition
 	Enums []*EnumDefinition
@@ -90,4 +91,10 @@ type Schema struct {
 	Interfaces []*InterfaceDefinition
 	Directives []*DirectiveDefinition
 	Inputs []*InputDefinition
+}
+
+type SchemaDefinition struct {
+	Query []byte
+	Mutation []byte
+	Subscription []byte
 }
