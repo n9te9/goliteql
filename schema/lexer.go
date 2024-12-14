@@ -67,7 +67,7 @@ func newExclamationToken(input []byte, cur, col, line int) (*Token, int) {
 
 func newFieldToken(input []byte, cur, col, line int) (*Token, int) {
 	start := cur
-	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
+	for cur < len(input) && (unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) || input[cur] == '_')  {
 		cur++
 	}
 
