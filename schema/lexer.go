@@ -8,10 +8,11 @@ import (
 type Type string
 
 const (
-	ReservedType Type = "TYPE"
-	ReservedSchema Type = "SCHEMA"
-	Identifier   Type = "IDENTIFIER"
-	Field        Type = "FIELD"
+	ReservedType      Type = "TYPE"
+	ReservedSchema    Type = "SCHEMA"
+	ReservedDirective Type = "DIRECTIVE"
+	Identifier        Type = "IDENTIFIER"
+	Field             Type = "FIELD"
 
 	Extend    Type = "EXTEND"
 	Scalar    Type = "SCALAR"
@@ -27,6 +28,8 @@ const (
 	Subscription Type = "SUBSCRIPTION"
 	EOF          Type = "EOF"
 
+	DirectiveLocation Type = "DIRECTIVE_LOCATION"
+
 	CurlyOpen    Type = "CURLY_OPEN"    // '{'
 	CurlyClose   Type = "CURLY_CLOSE"   // '}'
 	ParenOpen    Type = "PAREN_OPEN"    // '('
@@ -39,6 +42,7 @@ const (
 	BracketClose Type = "BRACKET_CLOSE" // ']'
 	Exclamation  Type = "EXCLAMATION"   // '!'
 	Pipe         Type = "PIPE"          // '|'
+	On           Type = "ON"            // 'on'
 )
 
 type Token struct {
@@ -67,7 +71,7 @@ func newExclamationToken(input []byte, cur, col, line int) (*Token, int) {
 
 func newFieldToken(input []byte, cur, col, line int) (*Token, int) {
 	start := cur
-	for cur < len(input) && (unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) || input[cur] == '_')  {
+	for cur < len(input) && (unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) || input[cur] == '_') {
 		cur++
 	}
 
@@ -75,8 +79,8 @@ func newFieldToken(input []byte, cur, col, line int) (*Token, int) {
 }
 
 var (
-	queryValue = []byte(`Query`)
-	mutateValue = []byte(`Mutation`)
+	queryValue        = []byte(`Query`)
+	mutateValue       = []byte(`Mutation`)
 	subscriptionValue = []byte(`Subscription`)
 )
 
@@ -99,6 +103,10 @@ func newIdentifierToken(input []byte, cur, col, line int) (*Token, int) {
 	}
 
 	return &Token{Type: Identifier, Value: input[start:cur], Column: col, Line: line}, cur
+}
+
+func newToken(input []byte, start, end int, t Type, col, line int) (*Token, int) {
+	return &Token{Type: t, Value: input[start:end], Column: col, Line: line}, end
 }
 
 func newValueToken(input []byte, start, cur, col, line int) (*Token, int) {
@@ -148,7 +156,56 @@ func newDirectiveArgumentTokens(input []byte, cur, col, line int) (Tokens, int) 
 		tokens = append(tokens, token)
 		col += len(token.Value)
 	}
-	
+
+	tokens = append(tokens, &Token{Type: ParenClose, Value: []byte{')'}, Column: col, Line: line})
+	cur++
+
+	return tokens, cur
+}
+
+func newDirectiveDeclearationArgumentTokens(input []byte, cur, col, line int) (Tokens, int) {
+	tokens := make(Tokens, 0)
+
+	var token *Token
+	for cur < len(input) && input[cur] != ')' {
+		switch input[cur] {
+		case ' ', '\t':
+			cur++
+			col++
+			continue
+		case '\n':
+			cur++
+			line++
+			col = 1
+			continue
+		}
+
+		if input[cur] == ':' {
+			token, cur = newPunctuatorToken(input, Colon, cur, col, line)
+			tokens = append(tokens, token)
+			col++
+			continue
+		}
+
+		if tokens.isField() {
+			token, cur = newIdentifierToken(input, cur, col, line)
+			tokens = append(tokens, token)
+			col += len(token.Value)
+			continue
+		}
+
+		if input[cur] == ',' {
+			token, cur = newPunctuatorToken(input, Comma, cur, col, line)
+			tokens = append(tokens, token)
+			col++
+			continue
+		}
+
+		token, cur = newFieldToken(input, cur, col, line)
+		tokens = append(tokens, token)
+		col += len(token.Value)
+	}
+
 	tokens = append(tokens, &Token{Type: ParenClose, Value: []byte{')'}, Column: col, Line: line})
 	cur++
 
@@ -226,6 +283,53 @@ func newUnionTokens(input []byte, cur, col, line int) (Tokens, int, int, int) {
 	return tokens, cur, line, col
 }
 
+func newDirectiveLocationTokens(input []byte, cur, col, line int) (Tokens, int) {
+	tokens := make(Tokens, 0)
+
+	var token *Token
+	for cur < len(input) {
+		switch input[cur] {
+		case ' ', '\t':
+			cur++
+			col++
+			continue
+		case '\n':
+			cur++
+			line++
+			col = 1
+			continue
+		}
+
+		
+		switch input[cur] {
+		case '|':
+			token, cur = newPunctuatorToken(input, Pipe, cur, col, line)
+			tokens = append(tokens, token)
+			col++
+			continue
+		}
+		
+		if token != nil && token.Type != Pipe {
+			break
+		}
+
+		token, cur = newDirectiveLocationToken(input, cur, col, line)
+		tokens = append(tokens, token)
+		col += len(token.Value)
+	}
+
+	return tokens, cur
+}
+
+func newDirectiveLocationToken(input []byte, cur, col, line int) (*Token, int) {
+	start := cur
+	for cur < len(input) && unicode.IsLetter(rune(input[cur])) {
+		cur++
+	}
+
+	return &Token{Type: DirectiveLocation, Value: input[start:cur], Column: col, Line: line}, cur
+}
+
 type Tokens []*Token
 
 func (t Tokens) isType() bool {
@@ -244,8 +348,8 @@ func (t Tokens) isField() bool {
 
 	lastToken := t[len(t)-1]
 	return lastToken.Type == Colon ||
-	lastToken.Type == BracketOpen ||
-	lastToken.Type == At
+		lastToken.Type == BracketOpen ||
+		lastToken.Type == At
 }
 
 func (t Tokens) isInput() bool {
@@ -306,6 +410,31 @@ func (t Tokens) isUnion() bool {
 	return lastToken.Type == Union
 }
 
+func (t Tokens) isDirecriveDeclearation() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	itr := len(t) - 1
+	for itr >= 0 {
+		if t, ok := keywords[keyword(t[itr].Value)]; ok {
+			return t == ReservedDirective
+		}
+		itr--
+	}
+
+	return false
+}
+
+func (t Tokens) isDirectiveField() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	lastToken := t[len(t)-1]
+	return lastToken.Type == On
+}
+
 type Lexer struct{}
 
 func NewLexer() *Lexer {
@@ -358,8 +487,17 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 			col += len(token.Value)
 			continue
 		}
+		
+		if tokens.isDirectiveArgument() && tokens.isDirecriveDeclearation() {
+			newTokens, newCur := newDirectiveDeclearationArgumentTokens(input, cur, col, line)
+			tokens = append(tokens, newTokens...)
+			col += newCur - cur
+			cur = newCur
 
-		if tokens.isDirectiveArgument() {
+			continue
+		}
+
+		if tokens.isDirectiveArgument() && !tokens.isDirecriveDeclearation() {
 			newTokens, newCur := newDirectiveArgumentTokens(input, cur, col, line)
 			tokens = append(tokens, newTokens...)
 			col += newCur - cur
@@ -367,9 +505,9 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 
 			continue
 		}
-		
+
 		switch input[cur] {
-		case '{', '}', '(', ')', ':', '@', ',', '=', '[', ']':
+		case '{', '}', '(', ')', ':', '@', ',', '=', '[', ']', '|':
 			if t, ok := punctuators[punctuator(input[cur])]; ok {
 				token, cur = newPunctuatorToken(input, t, cur, col, line)
 				tokens = append(tokens, token)
@@ -392,10 +530,26 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 				continue
 			}
 
+			if keyword.isOn() {
+				token, cur = newToken(input, cur, end, On, col, line)
+				tokens = append(tokens, token)
+				col += len(token.Value)
+				continue
+			}
+
+			if tokens.isDirectiveField() {
+				t, newCur := newDirectiveLocationTokens(input, cur, col, line)
+				tokens = append(tokens, t...)
+				col += newCur - cur
+				cur = newCur
+				continue
+			}
+
 			if tokens.isField() ||
 				tokens.isType() ||
 				tokens.isInput() ||
-				tokens.isInterface() {
+				tokens.isInterface() ||
+				tokens.isDirecriveDeclearation() {
 				token, cur = newIdentifierToken(input, cur, col, line)
 				tokens = append(tokens, token)
 				col += len(token.Value)
@@ -427,12 +581,17 @@ func (k keyword) String() string {
 var keywords = map[keyword]Type{
 	"type":      ReservedType,
 	"schema":    ReservedSchema,
+	"directive": ReservedDirective,
 	"extend":    Extend,
 	"scalar":    Scalar,
 	"enum":      Enum,
 	"input":     Input,
 	"interface": Interface,
 	"union":     Union,
+}
+
+func (k keyword) isOn() bool {
+	return k == "on"
 }
 
 type punctuator byte
@@ -467,11 +626,11 @@ func defaultArgumentKeywordEnd(input []byte, cur int) int {
 		}
 
 		cur++
-		if input[cur] == ')' || (input[cur] == ','  && bracketOpenCount == 0) {
+		if input[cur] == ')' || (input[cur] == ',' && bracketOpenCount == 0) {
 			break
 		}
 
-		if (isString && input[cur] == '"')  {
+		if isString && input[cur] == '"' {
 			cur++
 			break
 		}
@@ -482,11 +641,12 @@ func defaultArgumentKeywordEnd(input []byte, cur int) int {
 
 func keywordEnd(input []byte, cur int) int {
 	for cur < len(input) && (unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur]))) {
-		cur++
 		if input[cur] == '"' {
 			cur++
 			break
 		}
+
+		cur++
 	}
 
 	return cur

@@ -654,6 +654,25 @@ func TestLexer_Lex(t *testing.T) {
 				{Type: schema.EOF, Value: nil, Column: 11, Line: 3},
 			},
 		},
+		{
+			name: "Lex directive definition",
+			input: []byte(`directive @example(arg: String) on FIELD | OBJECT`),
+			expected: []*schema.Token{
+				{Type: schema.ReservedDirective, Value: []byte("directive"), Column: 1, Line: 1},
+				{Type: schema.At, Value: []byte("@"), Column: 11, Line: 1},
+				{Type: schema.Identifier, Value: []byte("example"), Column: 12, Line: 1},
+				{Type: schema.ParenOpen, Value: []byte("("), Column: 19, Line: 1},
+				{Type: schema.Field, Value: []byte("arg"), Column: 20, Line: 1},
+				{Type: schema.Colon, Value: []byte(":"), Column: 23, Line: 1},
+				{Type: schema.Identifier, Value: []byte("String"), Column: 25, Line: 1},
+				{Type: schema.ParenClose, Value: []byte(")"), Column: 31, Line: 1},
+				{Type: schema.On, Value: []byte("on"), Column: 33, Line: 1},
+				{Type: schema.DirectiveLocation, Value: []byte("FIELD"), Column: 36, Line: 1},
+				{Type: schema.Pipe, Value: []byte("|"), Column: 42, Line: 1},
+				{Type: schema.DirectiveLocation, Value: []byte("OBJECT"), Column: 44, Line: 1},
+				{Type: schema.EOF, Value: nil, Column: 50, Line: 1},
+			},
+		},
 	}
 
 	for _, tt := range tests {
