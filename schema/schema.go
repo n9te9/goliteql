@@ -102,5 +102,5 @@ type SchemaDefinition struct {
 	Query []byte
 	Mutation []byte
 	Subscription []byte
-	Extentions []*TypeDefinition
+	Extentions []*SchemaDefinition
 }

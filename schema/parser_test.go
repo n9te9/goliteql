@@ -18,7 +18,7 @@ func TestParser_Parse(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "Lex standard schema definition",
+			name: "Parse standard schema definition",
 			input: []byte(`schema {
 				query: Query
 				mutation: Mutation
@@ -33,7 +33,7 @@ func TestParser_Parse(t *testing.T) {
 			},
 		},
 		{
-			name: "Lex custom schema definition",
+			name: "Parse custom schema definition",
 			input: []byte(`schema {
 				query: RootQuery
 				mutation: RootMutation
@@ -48,7 +48,7 @@ func TestParser_Parse(t *testing.T) {
 			},
 		},
 		{
-			name: "Lex custom lack optional schema definition",
+			name: "Parse custom lack optional schema definition",
 			input: []byte(`schema {
 				query: RootQuery
 				mutation: RootMutation
@@ -1156,6 +1156,30 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Parse extend schema definition",
+			input: []byte(`schema {
+				query: Query
+				mutation: Mutation
+				subscription: Subscription
+			}
+			
+			extend schema {
+			  query: RootQuery
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+					Extentions: []*schema.SchemaDefinition{
+						{
+							Query: []byte("RootQuery"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1169,6 +1193,10 @@ func TestParser_Parse(t *testing.T) {
 			if tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
 				t.Errorf("Parse() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+
+			if tt.wantErr == nil && err != nil {
+				t.Errorf("Parse() error %v", err)
 			}
 
 			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(schema.Schema{}, schema.TypeDefinition{}, schema.InputDefinition{})); diff != "" {

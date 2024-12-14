@@ -40,11 +40,14 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				return nil, err
 			}
 		case ReservedSchema:
-			schema, cur, err = p.parseSchemaDefinition(schema, tokens, cur)
+			cur++
+			definition, newCur, err := p.parseSchemaDefinition(tokens, cur)
 			if err != nil {
 				return nil, err
 			}
-		case ReservedType, Input:
+			cur = newCur
+			schema.Definition = definition
+		case ReservedType:
 			t := tokens[cur].Type
 			cur++
 			if cur >= len(tokens) {
@@ -61,16 +64,6 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				continue
 			}
 
-			if t == Input && tokens[cur].Type == Identifier {
-				inputDefinition, newCur, err := p.parseInputDefinition(tokens, cur)
-				if err != nil {
-					return nil, err
-				}
-				cur = newCur
-				schema.Inputs = append(schema.Inputs, inputDefinition)
-				continue
-			}
-
 			if tokens[cur].Type == Query || tokens[cur].Type == Mutate || tokens[cur].Type == Subscription {
 				operationDefinition, newCur, err := p.parseOperationDefinition(tokens, cur)
 				if err != nil {
@@ -83,6 +76,17 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 
 			return nil, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))
+		case Input:
+			cur++
+			if tokens[cur].Type == Identifier {
+				inputDefinition, newCur, err := p.parseInputDefinition(tokens, cur)
+				if err != nil {
+					return nil, err
+				}
+				cur = newCur
+				schema.Inputs = append(schema.Inputs, inputDefinition)
+				continue
+			}
 		case Enum:
 			enumDefinition, newCur, err := p.parseEnumDefinition(tokens, cur)
 			if err != nil {
@@ -116,7 +120,14 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (*Schema, int, error) {
 	switch tokens[cur].Type {
 	case ReservedSchema:
+		cur++
+		definition, newCur, err := p.parseSchemaDefinition(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
 
+		cur = newCur
+		schema.Definition.Extentions = append(schema.Definition.Extentions, definition)
 	case ReservedType:
 
 	case Interface:
@@ -134,9 +145,8 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 	return schema, cur, nil
 }
 
-func (p *Parser) parseSchemaDefinition(schema *Schema, tokens Tokens, cur int) (*Schema, int, error) {
+func (p *Parser) parseSchemaDefinition(tokens Tokens, cur int) (*SchemaDefinition, int, error) {
 	definition := new(SchemaDefinition)
-	cur++
 	if tokens[cur].Type != CurlyOpen {
 		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
 	}
@@ -188,9 +198,7 @@ func (p *Parser) parseSchemaDefinition(schema *Schema, tokens Tokens, cur int) (
 	}
 	cur++
 
-	schema.Definition = definition
-
-	return schema, cur, nil
+	return definition, cur, nil
 }
 
 func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, int, error) {
