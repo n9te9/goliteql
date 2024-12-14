@@ -45,6 +45,7 @@ type OperationDefinition struct {
 	OperationType OperationType
 	Name []byte
 	Fields []*FieldDefinition
+	Extentions []*OperationDefinition
 }
 
 type EnumDefinition struct {

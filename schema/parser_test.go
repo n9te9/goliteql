@@ -1227,6 +1227,301 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Parse extend query definition",
+			input: []byte(`type Query {
+				user(id: ID!): User!
+			}
+				
+			extend type Query {
+				user(id: ID!, isActive: Boolean! = false): User!
+				users(): [User]!
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.QueryOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("user"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte(`id`),
+										Default: nil,
+										Type: &schema.FieldType{
+											Name: []byte(`ID`),
+											Nullable: false,
+											IsList: false,
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name: []byte(`User`),
+									Nullable: false,
+									IsList: false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Extentions: []*schema.OperationDefinition{
+							{
+								OperationType: schema.QueryOperation,
+								Name: nil,
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("user"),
+										Arguments: []*schema.ArgumentDefinition{
+											{
+												Name: []byte(`id`),
+												Default: nil,
+												Type: &schema.FieldType{
+													Name: []byte(`ID`),
+													Nullable: false,
+													IsList: false,
+												},
+											},
+											{
+												Name: []byte(`isActive`),
+												Default: []byte(`false`),
+												Type: &schema.FieldType{
+													Name: []byte(`Boolean`),
+													Nullable: false,
+													IsList: false,
+												},
+											},
+										},
+										Type: &schema.FieldType{
+											Name: []byte(`User`),
+											Nullable: false,
+											IsList: false,
+										},
+										Directives: []*schema.Directive{},
+									},
+									{
+										Name: []byte("users"),
+										Arguments: []*schema.ArgumentDefinition{
+										},
+										Type: &schema.FieldType{
+											Name: nil,
+											Nullable: false,
+											IsList: true,
+											ListType: &schema.FieldType{
+												Name: []byte(`User`),
+												Nullable: true,
+												IsList: false,
+											},
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse extend mutation definition",
+			input: []byte(`type Mutation {
+				createUser(name: String!): User!
+			}
+				
+			extend type Mutation {
+				createUser(name: String!, isActive: Boolean! = true): User!
+				updateUser(id: ID!, name: String): User!
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.MutationOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("createUser"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name: []byte(`name`),
+										Default: nil,
+										Type: &schema.FieldType{
+											Name: []byte(`String`),
+											Nullable: false,
+											IsList: false,
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name: []byte(`User`),
+									Nullable: false,
+									IsList: false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Extentions: []*schema.OperationDefinition{
+							{
+								OperationType: schema.MutationOperation,
+								Name: nil,
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("createUser"),
+										Arguments: []*schema.ArgumentDefinition{
+											{
+												Name: []byte(`name`),
+												Default: nil,
+												Type: &schema.FieldType{
+													Name: []byte(`String`),
+													Nullable: false,
+													IsList: false,
+												},
+											},
+											{
+												Name: []byte(`isActive`),
+												Default: []byte(`true`),
+												Type: &schema.FieldType{
+													Name: []byte(`Boolean`),
+													Nullable: false,
+													IsList: false,
+												},
+											},
+										},
+										Type: &schema.FieldType{
+											Name: []byte(`User`),
+											Nullable: false,
+											IsList: false,
+										},
+										Directives: []*schema.Directive{},
+									},
+									{
+										Name: []byte("updateUser"),
+										Arguments: []*schema.ArgumentDefinition{
+											{
+												Name: []byte(`id`),
+												Default: nil,
+												Type: &schema.FieldType{
+													Name: []byte(`ID`),
+													Nullable: false,
+													IsList: false,
+												},
+											},
+											{
+												Name: []byte(`name`),
+												Default: nil,
+												Type: &schema.FieldType{
+													Name: []byte(`String`),
+													Nullable: true,
+													IsList: false,
+												},
+											},
+										},
+										Type: &schema.FieldType{
+											Name: []byte(`User`),
+											Nullable: false,
+											IsList: false,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse extend subscription definition",
+			input: []byte(`type Subscription {
+				userCreated: User!
+			}
+				
+			extend type Subscription {
+				userCreated(isActive: Boolean! = false): User!
+				userUpdated(id: ID!): User!
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.SubscriptionOperation,
+						Name: nil,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("userCreated"),
+								Arguments: []*schema.ArgumentDefinition{},
+								Type: &schema.FieldType{
+									Name: []byte(`User`),
+									Nullable: false,
+									IsList: false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Extentions: []*schema.OperationDefinition{
+							{
+								OperationType: schema.SubscriptionOperation,
+								Name: nil,
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("userCreated"),
+										Arguments: []*schema.ArgumentDefinition{
+											{
+												Name: []byte(`isActive`),
+												Default: []byte(`false`),
+												Type: &schema.FieldType{
+													Name: []byte(`Boolean`),
+													Nullable: false,
+													IsList: false,
+												},
+											},
+										},
+										Type: &schema.FieldType{
+											Name: []byte(`User`),
+											Nullable: false,
+											IsList: false,
+										},
+										Directives: []*schema.Directive{},
+									},
+									{
+										Name: []byte("userUpdated"),
+										Arguments: []*schema.ArgumentDefinition{
+											{
+												Name: []byte(`id`),
+												Default: nil,
+												Type: &schema.FieldType{
+													Name: []byte(`ID`),
+													Nullable: false,
+													IsList: false,
+												},
+											},
+										},
+										Type: &schema.FieldType{
+											Name: []byte(`User`),
+											Nullable: false,
+											IsList: false,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},				
 	}
 
 	ignores := []any{

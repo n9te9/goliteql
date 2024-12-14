@@ -159,6 +159,21 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 
 			t.Extentions = append(t.Extentions, typeDefinition)
 		}
+
+		if tokens[cur].Type == Query || tokens[cur].Type == Mutate || tokens[cur].Type == Subscription {
+			operationDefinition, newCur, err := p.parseOperationDefinition(tokens, cur)
+			if err != nil {
+				return nil, 0, err
+			}
+			cur = newCur
+
+			t := get(schema.indexes, string(operationDefinition.Name), operationDefinition)
+			if t == nil {
+				return nil, 0, fmt.Errorf("%s is not defined", operationDefinition.Name)
+			}
+			
+			t.Extentions = append(t.Extentions, operationDefinition)
+		}
 	case Interface:
 
 	case Union:
