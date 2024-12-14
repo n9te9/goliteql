@@ -21,14 +21,8 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 		return nil, err
 	}
 
-	schema := &Schema{
-		tokens: tokens,
-		Definition: &SchemaDefinition{
-			Query:        []byte("Query"),
-			Mutation:     []byte("Mutation"),
-			Subscription: []byte("Subscription"),
-		},
-	}
+	schema := NewSchema(tokens)
+
 
 	cur := 0
 	for cur < len(tokens) {
@@ -61,6 +55,11 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				}
 				cur = newCur
 				schema.Types = append(schema.Types, typeDefinition)
+				schema.indexes, err = add(schema.indexes, typeDefinition)
+				if err != nil {
+					return nil, err
+				}
+
 				continue
 			}
 
@@ -72,6 +71,10 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				cur = newCur
 
 				schema.Operations = append(schema.Operations, operationDefinition)
+				schema.indexes, err = add(schema.indexes, operationDefinition)
+				if err != nil {
+					return nil, err
+				}
 				continue
 			}
 
@@ -85,6 +88,10 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				}
 				cur = newCur
 				schema.Inputs = append(schema.Inputs, inputDefinition)
+				schema.indexes, err = add(schema.indexes, inputDefinition)
+				if err != nil {
+					return nil, err
+				}
 				continue
 			}
 		case Enum:
@@ -94,6 +101,10 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			cur = newCur
 			schema.Enums = append(schema.Enums, enumDefinition)
+			schema.indexes, err = add(schema.indexes, enumDefinition)
+			if err != nil {
+				return nil, err
+			}
 			continue
 		case Interface:
 			interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur)
@@ -109,6 +120,11 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			cur = newCur
 			schema.Unions = append(schema.Unions, unionDefinition)
+			schema.indexes, err = add(schema.indexes, unionDefinition)
+			if err != nil {
+				return nil, err
+			}
+
 		case EOF:
 			return schema, nil
 		}
@@ -129,7 +145,20 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 		cur = newCur
 		schema.Definition.Extentions = append(schema.Definition.Extentions, definition)
 	case ReservedType:
+		cur++
+		if tokens[cur].Type == Identifier {
+			typeDefinition, newCur, err := p.parseTypeDefinition(tokens, cur)
+			if err != nil {
+				return nil, 0, err
+			}
+			cur = newCur
+			t := get(schema.indexes, string(typeDefinition.Name), typeDefinition)
+			if t == nil {
+				return nil, 0, fmt.Errorf("%s is not defined", typeDefinition.Name)
+			}
 
+			t.Extentions = append(t.Extentions, typeDefinition)
+		}
 	case Interface:
 
 	case Union:

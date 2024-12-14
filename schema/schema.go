@@ -1,5 +1,10 @@
 package schema
 
+import (
+	"fmt"
+	"reflect"
+)
+
 type OperationType string
 
 const (
@@ -86,6 +91,19 @@ type InputDefinition struct {
 	Extentions []*TypeDefinition
 }
 
+type DefinitionType interface {
+	*TypeDefinition | *OperationDefinition | *EnumDefinition | *UnionDefinition | *InterfaceDefinition | *InputDefinition
+}
+
+type Indexes struct {
+	TypeIndex map[string]*TypeDefinition
+	EnumIndex map[string]*EnumDefinition
+	UnionIndex map[string]*UnionDefinition
+	InterfaceIndex map[string]*InterfaceDefinition
+	InputIndex map[string]*InputDefinition
+	OperationIndexes map[OperationType]map[string]*OperationDefinition
+}
+
 type Schema struct {
 	tokens Tokens
 	Definition *SchemaDefinition
@@ -96,6 +114,74 @@ type Schema struct {
 	Interfaces []*InterfaceDefinition
 	Directives []*DirectiveDefinition
 	Inputs []*InputDefinition
+
+	// indexes is used when extend
+	indexes *Indexes
+}
+
+func NewSchema(tokens Tokens) *Schema {
+	operationIndexes := make(map[OperationType]map[string]*OperationDefinition)
+
+	for _, t := range([]OperationType{QueryOperation, MutationOperation, SubscriptionOperation}) {
+		operationIndexes[t] = make(map[string]*OperationDefinition)
+	}
+
+	return &Schema{
+		tokens: tokens,
+		Definition: &SchemaDefinition{
+			Query:        []byte("Query"),
+			Mutation:     []byte("Mutation"),
+			Subscription: []byte("Subscription"),
+		},
+		indexes: &Indexes{
+			TypeIndex: make(map[string]*TypeDefinition),
+			OperationIndexes: operationIndexes,
+			EnumIndex: make(map[string]*EnumDefinition),
+			UnionIndex: make(map[string]*UnionDefinition),
+			InterfaceIndex: make(map[string]*InterfaceDefinition),
+			InputIndex: make(map[string]*InputDefinition),
+		},
+	}
+}
+
+func add[T DefinitionType](indexes *Indexes, definition T) (*Indexes, error) {
+	switch d := any(definition).(type) {
+	case *OperationDefinition:
+		indexes.OperationIndexes[d.OperationType][string(d.Name)] = d
+	case *TypeDefinition:
+		indexes.TypeIndex[string(d.Name)] = d
+	case *EnumDefinition:
+		indexes.EnumIndex[string(d.Name)] = d
+	case *UnionDefinition:
+		indexes.UnionIndex[string(d.Name)] = d
+	case *InterfaceDefinition:
+		indexes.InterfaceIndex[string(d.Name)] = d
+	case *InputDefinition:
+		indexes.InputIndex[string(d.Name)] = d
+	default:
+		return nil, fmt.Errorf("definition type %v is unsupported in index", reflect.TypeOf(d))
+	}
+
+	return indexes, nil
+}
+
+func get[T DefinitionType](indexes *Indexes, key string, t T) T {
+	switch d := any(t).(type) {
+	case *OperationDefinition:
+		return any(indexes.OperationIndexes[d.OperationType][key]).(T)
+	case *TypeDefinition:
+		return any(indexes.TypeIndex[key]).(T)
+	case *EnumDefinition:
+		return any(indexes.EnumIndex[key]).(T)
+	case *UnionDefinition:
+		return any(indexes.UnionIndex[key]).(T)
+	case *InterfaceDefinition:
+		return any(indexes.InterfaceIndex[key]).(T)
+	case *InputDefinition:
+		return any(indexes.InputIndex[key]).(T)
+	}
+
+	return any(nil).(T)
 }
 
 type SchemaDefinition struct {

@@ -1180,6 +1180,60 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Parse extend type definition",
+			input: []byte(`type User {
+				id: ID!
+			}
+			
+			extend type User {
+			  created_at: String
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("Query"),
+					Mutation: []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("User"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name: []byte("ID"),
+									Nullable: false,
+									IsList: false,
+								},
+							},
+						},
+						Extentions: []*schema.TypeDefinition{
+							{
+								Name: []byte("User"),
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("created_at"),
+										Type: &schema.FieldType{
+											Name: []byte("String"),
+											Nullable: true,
+											IsList: false,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ignores := []any{
+		schema.Schema{},
+		schema.TypeDefinition{},
+		schema.InputDefinition{},
+		schema.Indexes{},
 	}
 
 	for _, tt := range tests {
@@ -1199,7 +1253,7 @@ func TestParser_Parse(t *testing.T) {
 				t.Errorf("Parse() error %v", err)
 			}
 
-			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(schema.Schema{}, schema.TypeDefinition{}, schema.InputDefinition{})); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(ignores...)); diff != "" {
 				t.Errorf("Parse() mismatch (-got +want):\n%s", diff)
 			}
 		})
