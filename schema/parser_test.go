@@ -26,8 +26,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 			},
@@ -41,8 +41,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("RootQuery"),
-					Mutation: []byte("RootMutation"),
+					Query:        []byte("RootQuery"),
+					Mutation:     []byte("RootMutation"),
 					Subscription: []byte("RootSubscription"),
 				},
 			},
@@ -55,7 +55,7 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("RootQuery"),
+					Query:    []byte("RootQuery"),
 					Mutation: []byte("RootMutation"),
 				},
 			},
@@ -69,8 +69,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Types: []*schema.TypeDefinition{
@@ -84,6 +84,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Directives: []*schema.Directive{},
 							},
 							{
 								Name: []byte("name"),
@@ -92,6 +93,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Directives: []*schema.Directive{},
 							},
 							{
 								Name: []byte("age"),
@@ -100,6 +102,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -114,8 +117,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Types: []*schema.TypeDefinition{
@@ -134,6 +137,7 @@ func TestParser_Parse(t *testing.T) {
 										IsList:   false,
 									},
 								},
+								Directives: []*schema.Directive{},
 							},
 							{
 								Name: []byte("posts"),
@@ -147,6 +151,7 @@ func TestParser_Parse(t *testing.T) {
 										IsList:   false,
 									},
 								},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -160,8 +165,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Types: []*schema.TypeDefinition{
@@ -187,6 +192,7 @@ func TestParser_Parse(t *testing.T) {
 										},
 									},
 								},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -201,8 +207,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Types: []*schema.TypeDefinition{
@@ -224,6 +230,7 @@ func TestParser_Parse(t *testing.T) {
 										},
 									},
 								},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -236,8 +243,8 @@ func TestParser_Parse(t *testing.T) {
 			input: []byte(`union SearchResult = User | Post`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Unions: []*schema.UnionDefinition{
@@ -259,8 +266,8 @@ func TestParser_Parse(t *testing.T) {
 				| Comment`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Unions: []*schema.UnionDefinition{
@@ -296,8 +303,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Inputs: []*schema.InputDefinition{
@@ -311,6 +318,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Directives: []*schema.Directive{},
 							},
 							{
 								Name: []byte("value"),
@@ -319,6 +327,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -332,8 +341,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Inputs: []*schema.InputDefinition{
@@ -348,6 +357,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Default: []byte(`"name"`),
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -362,8 +372,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Inputs: []*schema.InputDefinition{
@@ -378,6 +388,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Default: []byte(`"name"`),
+								Directives: []*schema.Directive{},
 							},
 							{
 								Name: []byte("value"),
@@ -387,6 +398,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Default: []byte(`"John Doe"`),
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -400,8 +412,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Interfaces: []*schema.InterfaceDefinition{
@@ -415,6 +427,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -428,8 +441,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Interfaces: []*schema.InterfaceDefinition{
@@ -450,6 +463,7 @@ func TestParser_Parse(t *testing.T) {
 									},
 									Nullable: false,
 								},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -462,8 +476,8 @@ func TestParser_Parse(t *testing.T) {
 			input: []byte(`interface Empty {}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Interfaces: []*schema.InterfaceDefinition{
@@ -496,8 +510,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -541,8 +555,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -581,8 +595,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -627,8 +641,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -674,8 +688,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -722,8 +736,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -771,8 +785,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -812,8 +826,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -862,8 +876,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -907,8 +921,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -955,8 +969,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -1005,157 +1019,6 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
-		// directives
-		{
-			name: "field with a simple directive",
-			input: []byte(`type Query {
-					user: User @deprecated
-			}`),
-			want: &schema.Schema{
-				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
-					Subscription: []byte("Subscription"),
-				},
-				Operations: []*schema.OperationDefinition{
-					{
-						OperationType: schema.QueryOperation,
-						Name:          nil,
-						Fields: []*schema.FieldDefinition{
-							{
-								Name:      []byte("user"),
-								Arguments: []*schema.ArgumentDefinition{},
-								Type: &schema.FieldType{
-									Name:     []byte("User"),
-									Nullable: true,
-									IsList:   false,
-								},
-								Directives: []*schema.Directive{
-									{
-										Name:      []byte("deprecated"),
-										Arguments: nil,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			wantErr: nil,
-		},
-		{
-			name: "field with a directive that has arguments",
-			input: []byte(`type Query {
-					user: User @include(if: true)
-			}`),
-			want: &schema.Schema{
-				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
-					Subscription: []byte("Subscription"),
-				},
-				Operations: []*schema.OperationDefinition{
-					{
-						OperationType: schema.QueryOperation,
-						Name:          nil,
-						Fields: []*schema.FieldDefinition{
-							{
-								Name:      []byte("user"),
-								Arguments: []*schema.ArgumentDefinition{},
-								Type: &schema.FieldType{
-									Name:     []byte("User"),
-									Nullable: true,
-									IsList:   false,
-								},
-								Directives: []*schema.Directive{
-									{
-										Name: []byte("include"),
-										Arguments: []*schema.DirectiveArgument{
-											{
-												Name: []byte("if"),
-												Value: []byte("true"),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			wantErr: nil,
-		},
-		{
-			name: "field with multiple directives",
-			input: []byte(`type Query {
-			user: User @deprecated @include(if: true)
-	}`),
-			want: &schema.Schema{
-				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
-					Subscription: []byte("Subscription"),
-				},
-				Operations: []*schema.OperationDefinition{
-					{
-						OperationType: schema.QueryOperation,
-						Name:          nil,
-						Fields: []*schema.FieldDefinition{
-							{
-								Name:      []byte("user"),
-								Arguments: []*schema.ArgumentDefinition{},
-								Type: &schema.FieldType{
-									Name:     []byte("User"),
-									Nullable: true,
-									IsList:   false,
-								},
-								Directives: []*schema.Directive{
-									{
-										Name:      []byte("deprecated"),
-										Arguments: nil,
-									},
-									{
-										Name: []byte("include"),
-										Arguments: []*schema.DirectiveArgument{
-											{
-												Name: []byte("if"),
-												Value: []byte("true"),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			wantErr: nil,
-		},
-		{
-			name: "simple enum type",
-			input: []byte(`enum Role {
-				ADMIN
-				USER
-				GUEST
-			}`),
-			want: &schema.Schema{
-				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
-					Subscription: []byte("Subscription"),
-				},
-				Enums: []*schema.EnumDefinition{
-					{
-						Name: []byte("Role"),
-						Values: [][]byte{
-							[]byte("ADMIN"),
-							[]byte("USER"),
-							[]byte("GUEST"),
-						},
-					},
-				},
-			},
-		},
 		{
 			name: "Parse extend schema definition",
 			input: []byte(`schema {
@@ -1169,8 +1032,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 					Extentions: []*schema.SchemaDefinition{
 						{
@@ -1191,8 +1054,8 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Types: []*schema.TypeDefinition{
@@ -1202,10 +1065,11 @@ func TestParser_Parse(t *testing.T) {
 							{
 								Name: []byte("id"),
 								Type: &schema.FieldType{
-									Name: []byte("ID"),
+									Name:     []byte("ID"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
+								Directives: []*schema.Directive{},
 							},
 						},
 						Extentions: []*schema.TypeDefinition{
@@ -1215,10 +1079,11 @@ func TestParser_Parse(t *testing.T) {
 									{
 										Name: []byte("created_at"),
 										Type: &schema.FieldType{
-											Name: []byte("String"),
+											Name:     []byte("String"),
 											Nullable: true,
-											IsList: false,
+											IsList:   false,
 										},
+										Directives: []*schema.Directive{},
 									},
 								},
 							},
@@ -1239,32 +1104,32 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
-						Name: nil,
+						Name:          nil,
 						Fields: []*schema.FieldDefinition{
 							{
 								Name: []byte("user"),
 								Arguments: []*schema.ArgumentDefinition{
 									{
-										Name: []byte(`id`),
+										Name:    []byte(`id`),
 										Default: nil,
 										Type: &schema.FieldType{
-											Name: []byte(`ID`),
+											Name:     []byte(`ID`),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 									},
 								},
 								Type: &schema.FieldType{
-									Name: []byte(`User`),
+									Name:     []byte(`User`),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
 							},
@@ -1272,49 +1137,48 @@ func TestParser_Parse(t *testing.T) {
 						Extentions: []*schema.OperationDefinition{
 							{
 								OperationType: schema.QueryOperation,
-								Name: nil,
+								Name:          nil,
 								Fields: []*schema.FieldDefinition{
 									{
 										Name: []byte("user"),
 										Arguments: []*schema.ArgumentDefinition{
 											{
-												Name: []byte(`id`),
+												Name:    []byte(`id`),
 												Default: nil,
 												Type: &schema.FieldType{
-													Name: []byte(`ID`),
+													Name:     []byte(`ID`),
 													Nullable: false,
-													IsList: false,
+													IsList:   false,
 												},
 											},
 											{
-												Name: []byte(`isActive`),
+												Name:    []byte(`isActive`),
 												Default: []byte(`false`),
 												Type: &schema.FieldType{
-													Name: []byte(`Boolean`),
+													Name:     []byte(`Boolean`),
 													Nullable: false,
-													IsList: false,
+													IsList:   false,
 												},
 											},
 										},
 										Type: &schema.FieldType{
-											Name: []byte(`User`),
+											Name:     []byte(`User`),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
 									},
 									{
-										Name: []byte("users"),
-										Arguments: []*schema.ArgumentDefinition{
-										},
+										Name:      []byte("users"),
+										Arguments: []*schema.ArgumentDefinition{},
 										Type: &schema.FieldType{
-											Name: nil,
+											Name:     nil,
 											Nullable: false,
-											IsList: true,
+											IsList:   true,
 											ListType: &schema.FieldType{
-												Name: []byte(`User`),
+												Name:     []byte(`User`),
 												Nullable: true,
-												IsList: false,
+												IsList:   false,
 											},
 										},
 										Directives: []*schema.Directive{},
@@ -1338,32 +1202,32 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
-						Name: nil,
+						Name:          nil,
 						Fields: []*schema.FieldDefinition{
 							{
 								Name: []byte("createUser"),
 								Arguments: []*schema.ArgumentDefinition{
 									{
-										Name: []byte(`name`),
+										Name:    []byte(`name`),
 										Default: nil,
 										Type: &schema.FieldType{
-											Name: []byte(`String`),
+											Name:     []byte(`String`),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 									},
 								},
 								Type: &schema.FieldType{
-									Name: []byte(`User`),
+									Name:     []byte(`User`),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
 							},
@@ -1371,34 +1235,34 @@ func TestParser_Parse(t *testing.T) {
 						Extentions: []*schema.OperationDefinition{
 							{
 								OperationType: schema.MutationOperation,
-								Name: nil,
+								Name:          nil,
 								Fields: []*schema.FieldDefinition{
 									{
 										Name: []byte("createUser"),
 										Arguments: []*schema.ArgumentDefinition{
 											{
-												Name: []byte(`name`),
+												Name:    []byte(`name`),
 												Default: nil,
 												Type: &schema.FieldType{
-													Name: []byte(`String`),
+													Name:     []byte(`String`),
 													Nullable: false,
-													IsList: false,
+													IsList:   false,
 												},
 											},
 											{
-												Name: []byte(`isActive`),
+												Name:    []byte(`isActive`),
 												Default: []byte(`true`),
 												Type: &schema.FieldType{
-													Name: []byte(`Boolean`),
+													Name:     []byte(`Boolean`),
 													Nullable: false,
-													IsList: false,
+													IsList:   false,
 												},
 											},
 										},
 										Type: &schema.FieldType{
-											Name: []byte(`User`),
+											Name:     []byte(`User`),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
 									},
@@ -1406,28 +1270,28 @@ func TestParser_Parse(t *testing.T) {
 										Name: []byte("updateUser"),
 										Arguments: []*schema.ArgumentDefinition{
 											{
-												Name: []byte(`id`),
+												Name:    []byte(`id`),
 												Default: nil,
 												Type: &schema.FieldType{
-													Name: []byte(`ID`),
+													Name:     []byte(`ID`),
 													Nullable: false,
-													IsList: false,
+													IsList:   false,
 												},
 											},
 											{
-												Name: []byte(`name`),
+												Name:    []byte(`name`),
 												Default: nil,
 												Type: &schema.FieldType{
-													Name: []byte(`String`),
+													Name:     []byte(`String`),
 													Nullable: true,
-													IsList: false,
+													IsList:   false,
 												},
 											},
 										},
 										Type: &schema.FieldType{
-											Name: []byte(`User`),
+											Name:     []byte(`User`),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
 									},
@@ -1450,22 +1314,22 @@ func TestParser_Parse(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
-						Name: nil,
+						Name:          nil,
 						Fields: []*schema.FieldDefinition{
 							{
-								Name: []byte("userCreated"),
+								Name:      []byte("userCreated"),
 								Arguments: []*schema.ArgumentDefinition{},
 								Type: &schema.FieldType{
-									Name: []byte(`User`),
+									Name:     []byte(`User`),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
 							},
@@ -1473,25 +1337,25 @@ func TestParser_Parse(t *testing.T) {
 						Extentions: []*schema.OperationDefinition{
 							{
 								OperationType: schema.SubscriptionOperation,
-								Name: nil,
+								Name:          nil,
 								Fields: []*schema.FieldDefinition{
 									{
 										Name: []byte("userCreated"),
 										Arguments: []*schema.ArgumentDefinition{
 											{
-												Name: []byte(`isActive`),
+												Name:    []byte(`isActive`),
 												Default: []byte(`false`),
 												Type: &schema.FieldType{
-													Name: []byte(`Boolean`),
+													Name:     []byte(`Boolean`),
 													Nullable: false,
-													IsList: false,
+													IsList:   false,
 												},
 											},
 										},
 										Type: &schema.FieldType{
-											Name: []byte(`User`),
+											Name:     []byte(`User`),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
 									},
@@ -1499,19 +1363,19 @@ func TestParser_Parse(t *testing.T) {
 										Name: []byte("userUpdated"),
 										Arguments: []*schema.ArgumentDefinition{
 											{
-												Name: []byte(`id`),
+												Name:    []byte(`id`),
 												Default: nil,
 												Type: &schema.FieldType{
-													Name: []byte(`ID`),
+													Name:     []byte(`ID`),
 													Nullable: false,
-													IsList: false,
+													IsList:   false,
 												},
 											},
 										},
 										Type: &schema.FieldType{
-											Name: []byte(`User`),
+											Name:     []byte(`User`),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
 									},
@@ -1521,7 +1385,312 @@ func TestParser_Parse(t *testing.T) {
 					},
 				},
 			},
-		},				
+		},
+		{
+			name: "Parse extend enum definition",
+			input: []byte(`enum Role {
+					ADMIN
+					USER
+			}
+
+			extend enum Role {
+					GUEST
+					SUPERADMIN
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Enums: []*schema.EnumDefinition{
+					{
+						Name: []byte("Role"),
+						Values: [][]byte{
+							[]byte("ADMIN"),
+							[]byte("USER"),
+						},
+						Extentions: []*schema.EnumDefinition{
+							{
+								Name: []byte("Role"),
+								Values: [][]byte{
+									[]byte("GUEST"),
+									[]byte("SUPERADMIN"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse extend input definition",
+			input: []byte(`input UserInput {
+					id: ID!
+					name: String!
+			}
+
+			extend input UserInput {
+					age: Int
+					email: String
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Inputs: []*schema.InputDefinition{
+					{
+						Name: []byte("UserInput"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("name"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Extentions: []*schema.InputDefinition{
+							{
+								Name: []byte("UserInput"),
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("age"),
+										Type: &schema.FieldType{
+											Name:     []byte("Int"),
+											Nullable: true,
+										},
+										Directives: []*schema.Directive{},
+									},
+									{
+										Name: []byte("email"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse extend interface definition",
+			input: []byte(`interface Node {
+					id: ID!
+			}
+
+			extend interface Node {
+					createdAt: String
+					updatedAt: String
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Extentions: []*schema.InterfaceDefinition{
+							{
+								Name: []byte("Node"),
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("createdAt"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+										},
+										Directives: []*schema.Directive{},
+									},
+									{
+										Name: []byte("updatedAt"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse extend union definition",
+			input: []byte(`union SearchResult = User | Post
+
+			extend union SearchResult = Comment | Page`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Unions: []*schema.UnionDefinition{
+					{
+						Name: []byte("SearchResult"),
+						Types: [][]byte{
+							[]byte("User"),
+							[]byte("Post"),
+						},
+						Extentions: []*schema.UnionDefinition{
+							{
+								Name: []byte("SearchResult"),
+								Types: [][]byte{
+									[]byte("Comment"),
+									[]byte("Page"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Directive on field (@deprecated)",
+			input: []byte(`
+				type User {
+					name: String @deprecated(reason: "Use fullName instead")
+				}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("User"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("name"),
+								Type: &schema.FieldType{Name: []byte("String"), Nullable: true},
+								Directives: []*schema.Directive{
+									{
+										Name: []byte("deprecated"),
+										Arguments: []*schema.DirectiveArgument{
+											{Name: []byte("reason"), Value: []byte("\"Use fullName instead\"")},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Directive on input field",
+			input: []byte(`
+				directive @length(max: Int) on FIELD_DEFINITION
+				
+				input Filter {
+					query: String @length(max: 50)
+				}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Directives: []*schema.DirectiveDefinition{
+					{
+						Name: []byte("length"),
+						Arguments: []*schema.ArgumentDefinition{
+							{
+								Name: []byte("max"), Type: &schema.FieldType{Name: []byte("Int"), Nullable: true},
+							},
+						},
+						Locations: []*schema.Location{
+							{Name: []byte("FIELD_DEFINITION")},
+						},
+					},
+				},
+				Inputs: []*schema.InputDefinition{
+					{
+						Name: []byte("Filter"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("query"),
+								Type: &schema.FieldType{Name: []byte("String"), Nullable: true},
+								Directives: []*schema.Directive{
+									{
+										Name: []byte("length"),
+										Arguments: []*schema.DirectiveArgument{
+											{Name: []byte("max"), Value: []byte("50")},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Multiple directives on field",
+			input: []byte(`
+				type Query {
+					user: User @deprecated @auth(role: "USER")
+				}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Operations: []*schema.OperationDefinition{
+					{
+						OperationType: schema.QueryOperation,
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("user"),
+								Type: &schema.FieldType{Name: []byte("User"), Nullable: true},
+								Directives: []*schema.Directive{
+									{Name: []byte("deprecated")},
+									{
+										Name: []byte("auth"),
+										Arguments: []*schema.DirectiveArgument{
+											{Name: []byte("role"), Value: []byte("\"USER\"")},
+										},
+									},
+								},
+								Arguments: []*schema.ArgumentDefinition{},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	ignores := []any{

@@ -51,25 +51,30 @@ type OperationDefinition struct {
 type EnumDefinition struct {
 	Name []byte
 	Values [][]byte
-	Extentions []*TypeDefinition
+	Extentions []*EnumDefinition
 }
 
 type UnionDefinition struct {
 	Name []byte
 	Types [][]byte
-	Extentions []*TypeDefinition
+	Extentions []*UnionDefinition
 }
 
 type InterfaceDefinition struct {
 	Name []byte
 	Fields []*FieldDefinition
-	Extentions []*TypeDefinition
+	Extentions []*InterfaceDefinition
+}
+
+type Location struct {
+	Name []byte
+	
 }
 
 type Directive struct {
 	Name []byte
 	Arguments []*DirectiveArgument
-	Locations [][]byte
+	Locations []*Location
 }
 
 type DirectiveArgument struct {
@@ -82,14 +87,14 @@ type DirectiveDefinition struct {
 	Description []byte
 	Arguments []*ArgumentDefinition
 	Repeatable bool
-	Locations [][]byte
+	Locations []*Location
 }
 
 type InputDefinition struct {
 	Name []byte
 	Fields []*FieldDefinition
 	tokens Tokens
-	Extentions []*TypeDefinition
+	Extentions []*InputDefinition
 }
 
 type DefinitionType interface {

@@ -94,6 +94,15 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				}
 				continue
 			}
+		case ReservedDirective:
+			cur++
+			definition, newCur, err := p.parseDirectiveDefinition(tokens, cur)
+			if err != nil {
+				return nil, err
+			}
+
+			schema.Directives = append(schema.Directives, definition)
+			cur = newCur
 		case Enum:
 			enumDefinition, newCur, err := p.parseEnumDefinition(tokens, cur)
 			if err != nil {
@@ -113,6 +122,10 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			cur = newCur
 			schema.Interfaces = append(schema.Interfaces, interfaceDefinition)
+			schema.indexes, err = add(schema.indexes, interfaceDefinition)
+			if err != nil {
+				return nil, err
+			}
 		case Union:
 			unionDefinition, newCur, err := p.parseUnionDefinition(tokens, cur)
 			if err != nil {
@@ -124,7 +137,6 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			if err != nil {
 				return nil, err
 			}
-
 		case EOF:
 			return schema, nil
 		}
@@ -171,17 +183,60 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 			if t == nil {
 				return nil, 0, fmt.Errorf("%s is not defined", operationDefinition.Name)
 			}
-			
+
 			t.Extentions = append(t.Extentions, operationDefinition)
 		}
-	case Interface:
-
-	case Union:
-
-	case Enum:
-
 	case Input:
+		cur++
+		if tokens[cur].Type == Identifier {
+			inputDefinition, newCur, err := p.parseInputDefinition(tokens, cur)
+			if err != nil {
+				return nil, 0, err
+			}
+			cur = newCur
+			t := get(schema.indexes, string(inputDefinition.Name), inputDefinition)
+			if t == nil {
+				return nil, 0, fmt.Errorf("%s is not defined", inputDefinition.Name)
+			}
 
+			t.Extentions = append(t.Extentions, inputDefinition)
+		}
+	case Enum:
+		enumDefinition, newCur, err := p.parseEnumDefinition(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		cur = newCur
+		t := get(schema.indexes, string(enumDefinition.Name), enumDefinition)
+		if t == nil {
+			return nil, 0, fmt.Errorf("%s is not defined", enumDefinition.Name)
+		}
+
+		t.Extentions = append(t.Extentions, enumDefinition)
+	case Interface:
+		interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		cur = newCur
+		t := get(schema.indexes, string(interfaceDefinition.Name), interfaceDefinition)
+		if t == nil {
+			return nil, 0, fmt.Errorf("%s is not defined", interfaceDefinition.Name)
+		}
+
+		t.Extentions = append(t.Extentions, interfaceDefinition)
+	case Union:
+		unionDefinition, newCur, err := p.parseUnionDefinition(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		cur = newCur
+		t := get(schema.indexes, string(unionDefinition.Name), unionDefinition)
+		if t == nil {
+			return nil, 0, fmt.Errorf("%s is not defined", unionDefinition.Name)
+		}
+
+		t.Extentions = append(t.Extentions, unionDefinition)
 	case Scalar:
 		// TODO: Support
 	}
@@ -381,6 +436,69 @@ func (p *Parser) parseOperationDefinition(tokens Tokens, cur int) (*OperationDef
 	}
 
 	return nil, 0, fmt.Errorf("unexpected end of input")
+}
+
+func (p *Parser) parseDirectiveDefinition(tokens Tokens, cur int) (*DirectiveDefinition, int, error) {
+	definition := new(DirectiveDefinition)
+	if tokens[cur].Type != At {
+		return nil, 0, fmt.Errorf("expected '@' but got %s", string(tokens[cur].Value))
+	}
+
+	cur++
+	if tokens[cur].Type != Identifier {
+		return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+	}
+	definition.Name = tokens[cur].Value
+	cur++
+
+	args, newCur, err := p.parseArguments(tokens, cur)
+	if err != nil {
+		return nil, 0, err
+	}
+	definition.Arguments = args
+	cur = newCur
+
+	locations, newCur, err := p.parseDirectiveLocations(tokens, cur)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	cur = newCur
+	definition.Locations = locations
+
+	return definition, cur, nil
+}
+
+func (p *Parser) parseDirectiveLocations(tokens Tokens, cur int) ([]*Location, int, error) {
+	locations := make([]*Location, 0)
+	if tokens[cur].Type == On {
+		cur++
+		for cur < len(tokens) {
+			switch tokens[cur].Type {
+			case DirectiveLocation:
+				location, newCur, err := p.parseDirectiveLocation(tokens, cur)
+				if err != nil {
+					return nil, 0, err
+				}
+				locations = append(locations, location)
+				cur = newCur
+			case Pipe:
+				cur++
+			default:
+				return locations, cur, nil
+			}
+		}
+	}
+
+	return locations, cur, nil
+}
+
+func (p *Parser) parseDirectiveLocation(tokens Tokens, cur int) (*Location, int, error) {
+	location := &Location{
+		Name: tokens[cur].Value,
+	}
+	cur++
+	return location, cur, nil
 }
 
 func (p *Parser) parseOperationFields(tokens Tokens, cur int) ([]*FieldDefinition, int, error) {
@@ -629,8 +747,16 @@ func (p *Parser) parseFieldDefinitions(tokens Tokens, cur int) ([]*FieldDefiniti
 			if err != nil {
 				return nil, 0, err
 			}
-			definitions = append(definitions, fieldDefinition)
 			cur = newCur
+
+			directives, newCur, err := p.parseDirectives(tokens, cur)
+			if err != nil {
+				return nil, 0, err
+			}
+			cur = newCur
+
+			fieldDefinition.Directives = directives
+			definitions = append(definitions, fieldDefinition)
 		case CurlyClose, ParenClose:
 			return definitions, cur, nil
 		case EOF:
