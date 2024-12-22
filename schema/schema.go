@@ -17,6 +17,8 @@ type TypeDefinition struct {
 	Name []byte
 	Fields []*FieldDefinition
 	tokens Tokens
+	Interfaces []*InterfaceDefinition
+	Directives []*Directive
 	Extentions []*TypeDefinition
 }
 

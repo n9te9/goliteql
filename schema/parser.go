@@ -49,7 +49,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 
 			if t == ReservedType && tokens[cur].Type == Identifier {
-				typeDefinition, newCur, err := p.parseTypeDefinition(tokens, cur)
+				typeDefinition, newCur, err := p.parseTypeDefinition(schema, tokens, cur)
 				if err != nil {
 					return nil, err
 				}
@@ -189,7 +189,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 	case ReservedType:
 		cur++
 		if tokens[cur].Type == Identifier {
-			typeDefinition, newCur, err := p.parseTypeDefinition(tokens, cur)
+			typeDefinition, newCur, err := p.parseTypeDefinition(schema, tokens, cur)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -339,7 +339,7 @@ func (p *Parser) parseSchemaDefinition(tokens Tokens, cur int) (*SchemaDefinitio
 	return definition, cur, nil
 }
 
-func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, int, error) {
+func (p *Parser) parseTypeDefinition(schema *Schema,tokens Tokens, cur int) (*TypeDefinition, int, error) {
 	start := cur
 	definition := &TypeDefinition{
 		Fields: make([]*FieldDefinition, 0),
@@ -347,6 +347,46 @@ func (p *Parser) parseTypeDefinition(tokens Tokens, cur int) (*TypeDefinition, i
 	}
 
 	cur++
+	if tokens[cur].Type == Implements {
+		cur++
+		if tokens[cur].Type != Identifier {
+			return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+		}
+
+		for tokens[cur].Type != CurlyOpen {
+			if tokens[cur].Type == And {
+				cur++
+				continue
+			}
+
+			if tokens[cur].Type == At {
+				break
+			}
+
+			if tokens[cur].Type != Identifier {
+				return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+			}
+
+			i := get(schema.indexes, string(tokens[cur].Value), &InterfaceDefinition{})
+			if i == nil {
+				return nil, 0, fmt.Errorf("%s is not defined", tokens[cur].Value)
+			}
+
+			definition.Interfaces = append(definition.Interfaces, i)
+			cur++
+		}
+	}
+
+	if tokens[cur].Type == At {
+		directives, newCur, err := p.parseDirectives(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		cur = newCur
+		definition.Directives = directives
+	}
+
 	if tokens[cur].Type != CurlyOpen {
 		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
 	}

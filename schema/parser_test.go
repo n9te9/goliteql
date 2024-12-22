@@ -2064,6 +2064,380 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Lex that implements a single interface",
+			input: []byte(`
+				interface Node {
+					id: ID!
+				}
+
+				type User implements Node {
+					id: ID!
+					name: String
+				}
+			`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+				},
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("User"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("name"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Interfaces: []*schema.InterfaceDefinition{
+							{
+								Name: []byte("Node"),
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("id"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse type that implements multiple interfaces",
+			input: []byte(`interface Node {
+					id: ID!
+				}
+				interface Timestamp {
+					createdAt: String
+					updatedAt: String
+				}
+
+				type User implements Node & Timestamp {
+					id: ID!
+					name: String
+					createdAt: String
+					updatedAt: String
+				}
+			`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+					{
+						Name: []byte("Timestamp"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("createdAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("updatedAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+				},
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("User"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("name"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("createdAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("updatedAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Interfaces: []*schema.InterfaceDefinition{
+							{
+								Name: []byte("Node"),
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("id"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+							{
+								Name: []byte("Timestamp"),
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("createdAt"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+											IsList:   false,
+										},
+										Directives: []*schema.Directive{},
+									},
+									{
+										Name: []byte("updatedAt"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+											IsList:   false,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},{
+			name: "Parse type implements multiple interfaces with directive",
+			input: []byte(`
+				interface Node {
+					id: ID!
+				}
+				interface Timestamp {
+					createdAt: String
+					updatedAt: String
+				}
+		
+				type User implements Node & Timestamp @anotherDirective {
+					id: ID!
+					name: String
+					createdAt: String
+					updatedAt: String
+				}
+			`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+					{
+						Name: []byte("Timestamp"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("createdAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("updatedAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+				},
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("User"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("name"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("createdAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("updatedAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Interfaces: []*schema.InterfaceDefinition{
+							{
+								Name: []byte("Node"),
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("id"),
+										Type: &schema.FieldType{
+											Name:     []byte("ID"),
+											Nullable: false,
+											IsList:   false,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+							{
+								Name: []byte("Timestamp"),
+								Fields: []*schema.FieldDefinition{
+									{
+										Name: []byte("createdAt"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+											IsList:   false,
+										},
+										Directives: []*schema.Directive{},
+									},
+									{
+										Name: []byte("updatedAt"),
+										Type: &schema.FieldType{
+											Name:     []byte("String"),
+											Nullable: true,
+											IsList:   false,
+										},
+										Directives: []*schema.Directive{},
+									},
+								},
+							},
+						},
+						Directives: []*schema.Directive{
+							{
+								Name: []byte("anotherDirective"),
+								Arguments: nil,
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	ignores := []any{
