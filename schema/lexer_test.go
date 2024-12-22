@@ -1209,14 +1209,68 @@ func TestLexer_Lex(t *testing.T) {
 				{Type: schema.EOF,         Value: nil,               Line:1, Column:68},
 			},
 		},
+		{
+			name: "Lex simple scalar definition",
+			input: []byte(`scalar DateTime`),
+			expected: []*schema.Token{
+				{Type: schema.Scalar,      Value: []byte("scalar"),   Line:1, Column:1},
+				{Type: schema.Identifier,  Value: []byte("DateTime"), Line:1, Column:8},
+				{Type: schema.EOF,         Value: nil,                 Line:1, Column:16},
+			},
+		},{
+			name: "Parse scalar with directive",
+			input: []byte(`scalar URL @specifiedBy(url: "https://example.com/url-spec")`),
+			expected: []*schema.Token{
+				{Type: schema.Scalar,      Value: []byte("scalar"),   Line:1, Column:1},
+				{Type: schema.Identifier,  Value: []byte("URL"),      Line:1, Column:8},
+				{Type: schema.At,          Value: []byte("@"),         Line:1, Column:12},
+				{Type: schema.Identifier,  Value: []byte("specifiedBy"), Line:1, Column:13},
+				{Type: schema.ParenOpen,   Value: []byte("("),         Line:1, Column:24},
+				{Type: schema.Field,       Value: []byte("url"),       Line:1, Column:25},
+				{Type: schema.Colon,       Value: []byte(":"),         Line:1, Column:28},
+				{Type: schema.Value,       Value: []byte(`"https://example.com/url-spec"`), Line:1, Column:30},
+				{Type: schema.ParenClose,  Value: []byte(")"),         Line:1, Column:60},
+				{Type: schema.EOF,         Value: nil,                 Line:1, Column:61},
+			},
+		},
+		{
+			name: "Parse scalar with multiple directives",
+			input: []byte(`scalar JSON 
+				@specifiedBy(url: "https://example.com/json-spec") 
+				@deprecated(reason: "Prefer using JSON2")`),
+			expected: []*schema.Token{
+				{Type: schema.Scalar,      Value: []byte("scalar"),   Line:1, Column:1},
+				{Type: schema.Identifier,  Value: []byte("JSON"),     Line:1, Column:8},
+				{Type: schema.At,          Value: []byte("@"),         Line:2, Column:5},
+				{Type: schema.Identifier,  Value: []byte("specifiedBy"), Line:2, Column:6},
+				{Type: schema.ParenOpen,   Value: []byte("("),         Line:2, Column:17},
+				{Type: schema.Field,       Value: []byte("url"),       Line:2, Column:18},
+				{Type: schema.Colon,       Value: []byte(":"),         Line:2, Column:21},
+				{Type: schema.Value,       Value: []byte(`"https://example.com/json-spec"`), Line:2, Column:23},
+				{Type: schema.ParenClose,  Value: []byte(")"),         Line:2, Column:54},
+				{Type: schema.At,          Value: []byte("@"),         Line:3, Column:5},
+				{Type: schema.Identifier,  Value: []byte("deprecated"), Line:3, Column:6},
+				{Type: schema.ParenOpen,   Value: []byte("("),         Line:3, Column:16},
+				{Type: schema.Field,       Value: []byte("reason"),    Line:3, Column:17},
+				{Type: schema.Colon,       Value: []byte(":"),         Line:3, Column:23},
+				{Type: schema.Value,       Value: []byte(`"Prefer using JSON2"`), Line:3, Column:25},
+				{Type: schema.ParenClose,  Value: []byte(")"),         Line:3, Column:45},
+				{Type: schema.EOF,         Value: nil,                 Line:3, Column:46},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lexer := schema.NewLexer()
 			got, err := lexer.Lex(tt.input)
-			if err != tt.wantErr {
-				t.Errorf("Lex() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
+				t.Errorf("Parse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr == nil && err != nil {
+				t.Errorf("Parse() error %v", err)
 				return
 			}
 

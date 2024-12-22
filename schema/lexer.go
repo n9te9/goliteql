@@ -503,6 +503,22 @@ func (t Tokens) isDirectiveField() bool {
 	return lastToken.Type == On
 }
 
+func (t Tokens) isScalarDeclearation() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	itr := len(t) - 1
+	for itr >= 0 {
+		if t, ok := keywords[keyword(t[itr].Value)]; ok {
+			return t == Scalar
+		}
+		itr--
+	}
+
+	return false
+}
+
 type Lexer struct{}
 
 func NewLexer() *Lexer {
@@ -624,7 +640,8 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 				tokens.isType() ||
 				tokens.isInput() ||
 				tokens.isInterface() ||
-				tokens.isDirectiveDeclearation() {
+				tokens.isDirectiveDeclearation() ||
+				tokens.isScalarDeclearation() {
 				token, cur = newIdentifierToken(input, cur, col, line)
 				tokens = append(tokens, token)
 				col += len(token.Value)
