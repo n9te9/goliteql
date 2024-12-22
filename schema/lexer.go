@@ -29,6 +29,7 @@ const (
 	EOF          Type = "EOF"
 
 	DirectiveLocation Type = "DIRECTIVE_LOCATION"
+	Repeatable				Type = "REPEATABLE"
 
 	CurlyOpen    Type = "CURLY_OPEN"    // '{'
 	CurlyClose   Type = "CURLY_CLOSE"   // '}'
@@ -194,8 +195,23 @@ func newDirectiveDeclearationArgumentTokens(input []byte, cur, col, line int) (T
 			continue
 		}
 
-		if input[cur] == ',' {
-			token, cur = newPunctuatorToken(input, Comma, cur, col, line)
+		if input[cur] == '=' {
+			token, cur = newPunctuatorToken(input, Equal, cur, col, line)
+			tokens = append(tokens, token)
+			col++
+			continue
+		}
+
+		if tokens.isDefaultArgument() {
+			end := defaultArgumentKeywordEnd(input, cur)
+			token, cur = newValueToken(input, cur, end, col, line)
+			tokens = append(tokens, token)
+			col += len(token.Value)
+			continue
+		}
+
+		if t, ok := punctuators[punctuator(input[cur])]; ok {
+			token, cur = newPunctuatorToken(input, t, cur, col, line)
 			tokens = append(tokens, token)
 			col++
 			continue
@@ -208,6 +224,27 @@ func newDirectiveDeclearationArgumentTokens(input []byte, cur, col, line int) (T
 
 	tokens = append(tokens, &Token{Type: ParenClose, Value: []byte{')'}, Column: col, Line: line})
 	cur++
+
+	return tokens, cur
+}
+
+func newDirectiveApplication(input []byte, cur, line, col int) (Tokens, int) {
+	var token *Token
+	tokens := make(Tokens, 0)
+	token, cur = newIdentifierToken(input, cur, col, line)
+	tokens = append(tokens, token)
+	col += len(token.Value)
+
+	if input[cur] == '(' {
+		token, cur = newPunctuatorToken(input, ParenOpen, cur, col, line)
+		tokens = append(tokens, token)
+		col++
+	}
+
+	args, newCur := newDirectiveArgumentTokens(input, cur, col, line)
+	tokens = append(tokens, args...)
+	col += newCur - cur
+	cur = newCur
 
 	return tokens, cur
 }
@@ -229,11 +266,25 @@ func newEnumTokens(input []byte, cur, col, line int) (Tokens, int, int, int) {
 			continue
 		}
 
+		if tokens.isDirectiveApplication() {
+			newTokens, newCur := newDirectiveApplication(input, cur, line, col)
+			tokens = append(tokens, newTokens...)
+			col += newCur - cur
+			cur = newCur
+			continue
+		}
+
 		switch input[cur] {
 		case '{', ',':
 			token, cur = newPunctuatorToken(input, punctuators[punctuator(input[cur])], cur, col, line)
 			tokens = append(tokens, token)
 			col++
+			continue
+		}
+
+		if input[cur] == '@' {
+			token, cur = newPunctuatorToken(input, At, cur, col, line)
+			tokens = append(tokens, token)
 			continue
 		}
 
@@ -262,8 +313,16 @@ func newUnionTokens(input []byte, cur, col, line int) (Tokens, int, int, int) {
 			continue
 		}
 
+		if tokens.isDirectiveApplication() {
+			newTokens, newCur := newDirectiveApplication(input, cur, line, col)
+			tokens = append(tokens, newTokens...)
+			col += newCur - cur
+			cur = newCur
+			continue
+		}
+
 		switch input[cur] {
-		case '|', '=':
+		case '|', '=', '@':
 			token, cur = newPunctuatorToken(input, punctuators[punctuator(input[cur])], cur, col, line)
 			tokens = append(tokens, token)
 			col++
@@ -392,6 +451,15 @@ func (t Tokens) isDirectiveArgument() bool {
 		lastToken.Type == ParenOpen
 }
 
+func (t Tokens) isDirectiveApplication() bool {
+	if len(t) < 2 {
+		return false
+	}
+
+	lastToken := t[len(t)-1]
+	return lastToken.Type == At
+}
+
 func (t Tokens) isEnum() bool {
 	if len(t) == 0 {
 		return false
@@ -410,7 +478,7 @@ func (t Tokens) isUnion() bool {
 	return lastToken.Type == Union
 }
 
-func (t Tokens) isDirecriveDeclearation() bool {
+func (t Tokens) isDirectiveDeclearation() bool {
 	if len(t) == 0 {
 		return false
 	}
@@ -488,7 +556,7 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 			continue
 		}
 		
-		if tokens.isDirectiveArgument() && tokens.isDirecriveDeclearation() {
+		if tokens.isDirectiveArgument() && tokens.isDirectiveDeclearation() {
 			newTokens, newCur := newDirectiveDeclearationArgumentTokens(input, cur, col, line)
 			tokens = append(tokens, newTokens...)
 			col += newCur - cur
@@ -497,7 +565,7 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 			continue
 		}
 
-		if tokens.isDirectiveArgument() && !tokens.isDirecriveDeclearation() {
+		if tokens.isDirectiveArgument() && !tokens.isDirectiveDeclearation() {
 			newTokens, newCur := newDirectiveArgumentTokens(input, cur, col, line)
 			tokens = append(tokens, newTokens...)
 			col += newCur - cur
@@ -530,6 +598,13 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 				continue
 			}
 
+			if keyword.isRepeatable() {
+				token, cur = newKeywordToken(input, Repeatable, cur, col, line)
+				tokens = append(tokens, token)
+				col += len(token.Value)
+				continue
+			}
+
 			if keyword.isOn() {
 				token, cur = newToken(input, cur, end, On, col, line)
 				tokens = append(tokens, token)
@@ -549,7 +624,7 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 				tokens.isType() ||
 				tokens.isInput() ||
 				tokens.isInterface() ||
-				tokens.isDirecriveDeclearation() {
+				tokens.isDirectiveDeclearation() {
 				token, cur = newIdentifierToken(input, cur, col, line)
 				tokens = append(tokens, token)
 				col += len(token.Value)
@@ -594,6 +669,10 @@ func (k keyword) isOn() bool {
 	return k == "on"
 }
 
+func (k keyword) isRepeatable() bool {
+	return k == "repeatable"
+}
+
 type punctuator byte
 
 var punctuators = map[punctuator]Type{
@@ -608,6 +687,7 @@ var punctuators = map[punctuator]Type{
 	'[': BracketOpen,
 	']': BracketClose,
 	'|': Pipe,
+	'!': Exclamation,
 }
 
 func defaultArgumentKeywordEnd(input []byte, cur int) int {

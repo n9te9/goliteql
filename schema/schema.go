@@ -48,9 +48,15 @@ type OperationDefinition struct {
 	Extentions []*OperationDefinition
 }
 
+type EnumElement struct {
+	Name []byte
+	Value []byte
+	Directives []*Directive
+}
+
 type EnumDefinition struct {
 	Name []byte
-	Values [][]byte
+	Values []*EnumElement
 	Extentions []*EnumDefinition
 }
 
