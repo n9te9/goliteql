@@ -1258,6 +1258,208 @@ func TestLexer_Lex(t *testing.T) {
 				{Type: schema.EOF,         Value: nil,                 Line:3, Column:46},
 			},
 		},
+		{
+			name: "Lex that implements a single interface",
+			input: []byte(`
+				interface Node {
+					id: ID!
+				}
+
+				type User implements Node {
+					id: ID!
+					name: String
+				}
+			`),
+			expected: []*schema.Token{
+				{Type: schema.Interface,  Value: []byte("interface"), Line:2, Column:5},
+				{Type: schema.Identifier, Value: []byte("Node"),      Line:2, Column:15},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:2, Column:20},
+				{Type: schema.Field,      Value: []byte("id"),        Line:3, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:3, Column:8},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:3, Column:10},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:3, Column:12},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:4, Column:5},
+				{Type: schema.ReservedType,Value: []byte("type"),     Line:6, Column:5},
+				{Type: schema.Identifier, Value: []byte("User"),      Line:6, Column:10},
+				{Type: schema.Implements, Value: []byte("implements"),Line:6, Column:15},
+				{Type: schema.Identifier, Value: []byte("Node"),      Line:6, Column:26},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:6, Column:31},
+				{Type: schema.Field,      Value: []byte("id"),        Line:7, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:7, Column:8},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:7, Column:10},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:7, Column:12},
+				{Type: schema.Field,      Value: []byte("name"),      Line:8, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:8, Column:10},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:8, Column:12},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:9, Column:5},
+				{Type: schema.EOF,        Value: nil,                 Line:10, Column:4},
+			},
+		},
+		{
+			name: "Parse type that implements multiple interfaces",
+			input: []byte(`interface Node {
+					id: ID!
+				}
+				interface Timestamp {
+					createdAt: String
+					updatedAt: String
+				}
+
+				type User implements Node & Timestamp {
+					id: ID!
+					name: String
+					createdAt: String
+					updatedAt: String
+				}
+			`),
+			expected: []*schema.Token{
+				{Type: schema.Interface,  Value: []byte("interface"), Line:1, Column:1},
+				{Type: schema.Identifier, Value: []byte("Node"),      Line:1, Column:11},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:1, Column:16},
+				{Type: schema.Field,      Value: []byte("id"),        Line:2, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:2, Column:8},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:2, Column:10},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:2, Column:12},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:3, Column:5},
+				{Type: schema.Interface,  Value: []byte("interface"), Line:4, Column:5},
+				{Type: schema.Identifier, Value: []byte("Timestamp"), Line:4, Column:15},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:4, Column:25},
+				{Type: schema.Field,      Value: []byte("createdAt"), Line:5, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:5, Column:15},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:5, Column:17},
+				{Type: schema.Field,      Value: []byte("updatedAt"), Line:6, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:6, Column:15},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:6, Column:17},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:7, Column:5},
+				{Type: schema.ReservedType,Value: []byte("type"),     Line:9, Column:5},
+				{Type: schema.Identifier, Value: []byte("User"),      Line:9, Column:10},
+				{Type: schema.Implements, Value: []byte("implements"),Line:9, Column:15},
+				{Type: schema.Identifier, Value: []byte("Node"),      Line:9, Column:26},
+				{Type: schema.And,  Value: []byte("&"),         Line:9, Column:31},
+				{Type: schema.Identifier, Value: []byte("Timestamp"), Line:9, Column:33},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:9, Column:43},
+				{Type: schema.Field,      Value: []byte("id"),        Line:10, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:10, Column:8},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:10, Column:10},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:10, Column:12},
+				{Type: schema.Field,      Value: []byte("name"),      Line:11, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:11, Column:10},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:11, Column:12},
+				{Type: schema.Field,      Value: []byte("createdAt"), Line:12, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:12, Column:15},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:12, Column:17},
+				{Type: schema.Field,      Value: []byte("updatedAt"), Line:13, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:13, Column:15},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:13, Column:17},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:14, Column:5},
+				{Type: schema.EOF,        Value: nil,                 Line:15, Column:4},
+			},
+		},
+		{
+			name: "Parse type implements interface with directive on type",
+			input: []byte(`interface Node {
+					id: ID!
+				}
+		
+				type User implements Node @key(fields: "id") {
+					id: ID!
+					name: String
+				}
+			`),
+			expected: []*schema.Token{
+				{Type: schema.Interface,  Value: []byte("interface"), Line:1, Column:1},
+				{Type: schema.Identifier, Value: []byte("Node"),      Line:1, Column:11},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:1, Column:16},
+				{Type: schema.Field,      Value: []byte("id"),        Line:2, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:2, Column:8},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:2, Column:10},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:2, Column:12},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:3, Column:5},
+				{Type: schema.ReservedType,Value: []byte("type"),     Line:5, Column:5},
+				{Type: schema.Identifier, Value: []byte("User"),      Line:5, Column:10},
+				{Type: schema.Implements, Value: []byte("implements"),Line:5, Column:15},
+				{Type: schema.Identifier, Value: []byte("Node"),      Line:5, Column:26},
+				{Type: schema.At,          Value: []byte("@"),         Line:5, Column:31},
+				{Type: schema.Identifier, Value: []byte("key"), 		 Line:5, Column:32},
+				{Type: schema.ParenOpen,   Value: []byte("("),         Line:5, Column:35},
+				{Type: schema.Field,       Value: []byte("fields"),    Line:5, Column:36},
+				{Type: schema.Colon,       Value: []byte(":"),         Line:5, Column:42},
+				{Type: schema.Value,       Value: []byte(`"id"`),      Line:5, Column:44},
+				{Type: schema.ParenClose,  Value: []byte(")"),         Line:5, Column:48},
+				{Type: schema.CurlyOpen,   Value: []byte("{"),         Line:5, Column:50},
+				{Type: schema.Field,       Value: []byte("id"),        Line:6, Column:6},
+				{Type: schema.Colon,       Value: []byte(":"),         Line:6, Column:8},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:6, Column:10},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:6, Column:12},
+				{Type: schema.Field,       Value: []byte("name"),      Line:7, Column:6},
+				{Type: schema.Colon,       Value: []byte(":"),         Line:7, Column:10},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:7, Column:12},
+				{Type: schema.CurlyClose,  Value: []byte("}"),         Line:8, Column:5},
+				{Type: schema.EOF,         Value: nil,                 Line:9, Column:4},
+			},
+		},
+		{
+			name: "Parse type implements multiple interfaces with directive",
+			input: []byte(`interface Node {
+					id: ID!
+				}
+				interface Timestamp {
+					createdAt: String
+					updatedAt: String
+				}
+		
+				type User implements Node & Timestamp @anotherDirective {
+					id: ID!
+					name: String
+					createdAt: String
+					updatedAt: String
+				}
+			`),
+			expected: []*schema.Token{
+				{Type: schema.Interface,  Value: []byte("interface"), Line:1, Column:1},
+				{Type: schema.Identifier, Value: []byte("Node"),      Line:1, Column:11},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:1, Column:16},
+				{Type: schema.Field,      Value: []byte("id"),        Line:2, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:2, Column:8},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:2, Column:10},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:2, Column:12},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:3, Column:5},
+				{Type: schema.Interface,  Value: []byte("interface"), Line:4, Column:5},
+				{Type: schema.Identifier, Value: []byte("Timestamp"), Line:4, Column:15},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:4, Column:25},
+				{Type: schema.Field,      Value: []byte("createdAt"), Line:5, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:5, Column:15},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:5, Column:17},
+				{Type: schema.Field,      Value: []byte("updatedAt"), Line:6, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:6, Column:15},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:6, Column:17},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:7, Column:5},
+				{Type: schema.ReservedType,Value: []byte("type"),     Line:9, Column:5},
+				{Type: schema.Identifier, Value: []byte("User"),      Line:9, Column:10},
+				{Type: schema.Implements, Value: []byte("implements"),Line:9, Column:15},
+				{Type: schema.Identifier, Value: []byte("Node"),      Line:9, Column:26},
+				{Type: schema.And,  Value: []byte("&"),         Line:9, Column:31},
+				{Type: schema.Identifier, Value: []byte("Timestamp"), Line:9, Column:33},
+				{Type: schema.At,          Value: []byte("@"),         Line:9, Column:43},
+				{Type: schema.Identifier, Value: []byte("anotherDirective"), Line:9, Column:44},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:9, Column:61},
+				{Type: schema.Field,      Value: []byte("id"),        Line:10, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:10, Column:8},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:10, Column:10},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:10, Column:12},
+				{Type: schema.Field,      Value: []byte("name"),      Line:11, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:11, Column:10},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:11, Column:12},
+				{Type: schema.Field,      Value: []byte("createdAt"), Line:12, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:12, Column:15},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:12, Column:17},
+				{Type: schema.Field,      Value: []byte("updatedAt"), Line:13, Column:6},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:13, Column:15},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:13, Column:17},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:14, Column:5},
+				{Type: schema.EOF,         Value: nil,                 Line:15, Column:4},
+			},
+		},
 	}
 
 	for _, tt := range tests {

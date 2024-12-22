@@ -30,6 +30,7 @@ const (
 
 	DirectiveLocation Type = "DIRECTIVE_LOCATION"
 	Repeatable				Type = "REPEATABLE"
+	Implements 		 Type = "IMPLEMENTS"
 
 	CurlyOpen    Type = "CURLY_OPEN"    // '{'
 	CurlyClose   Type = "CURLY_CLOSE"   // '}'
@@ -44,6 +45,7 @@ const (
 	Exclamation  Type = "EXCLAMATION"   // '!'
 	Pipe         Type = "PIPE"          // '|'
 	On           Type = "ON"            // 'on'
+	And 				Type = "AND"           // 'and'
 )
 
 type Token struct {
@@ -519,6 +521,15 @@ func (t Tokens) isScalarDeclearation() bool {
 	return false
 }
 
+func (t Tokens) isImplementation() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	lastToken := t[len(t)-1]
+	return lastToken.Type == Implements || lastToken.Type == And
+}
+
 type Lexer struct{}
 
 func NewLexer() *Lexer {
@@ -591,7 +602,7 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 		}
 
 		switch input[cur] {
-		case '{', '}', '(', ')', ':', '@', ',', '=', '[', ']', '|':
+		case '{', '}', '(', ')', ':', '@', ',', '=', '[', ']', '|', '&':
 			if t, ok := punctuators[punctuator(input[cur])]; ok {
 				token, cur = newPunctuatorToken(input, t, cur, col, line)
 				tokens = append(tokens, token)
@@ -641,7 +652,8 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 				tokens.isInput() ||
 				tokens.isInterface() ||
 				tokens.isDirectiveDeclearation() ||
-				tokens.isScalarDeclearation() {
+				tokens.isScalarDeclearation() ||
+				tokens.isImplementation() {
 				token, cur = newIdentifierToken(input, cur, col, line)
 				tokens = append(tokens, token)
 				col += len(token.Value)
@@ -680,6 +692,7 @@ var keywords = map[keyword]Type{
 	"input":     Input,
 	"interface": Interface,
 	"union":     Union,
+	"implements": Implements,
 }
 
 func (k keyword) isOn() bool {
@@ -705,6 +718,7 @@ var punctuators = map[punctuator]Type{
 	']': BracketClose,
 	'|': Pipe,
 	'!': Exclamation,
+	'&': And,
 }
 
 func defaultArgumentKeywordEnd(input []byte, cur int) int {
