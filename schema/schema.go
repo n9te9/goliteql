@@ -129,6 +129,7 @@ type Schema struct {
 	Interfaces []*InterfaceDefinition
 	Directives []*DirectiveDefinition
 	Inputs []*InputDefinition
+	Scalars []*ScalarDefinition
 
 	// indexes is used when extend
 	indexes *Indexes
@@ -197,6 +198,11 @@ func get[T DefinitionType](indexes *Indexes, key string, t T) T {
 	}
 
 	return any(nil).(T)
+}
+
+type ScalarDefinition struct {
+	Name []byte
+	Directives []*Directive
 }
 
 type SchemaDefinition struct {

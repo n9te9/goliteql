@@ -1991,6 +1991,79 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Lex simple scalar definition",
+			input: []byte(`scalar DateTime`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Scalars: []*schema.ScalarDefinition{
+					{
+						Name: []byte("DateTime"),
+						Directives: nil,
+					},
+				},
+			},
+		},
+		{
+			name: "Parse scalar with directive",
+			input: []byte(`scalar URL @specifiedBy(url: "https://example.com/url-spec")`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Scalars: []*schema.ScalarDefinition{
+					{
+						Name: []byte("URL"),
+						Directives: []*schema.Directive{
+							{
+								Name: []byte("specifiedBy"),
+								Arguments: []*schema.DirectiveArgument{
+									{Name: []byte("url"), Value: []byte(`"https://example.com/url-spec"`)},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse scalar with multiple directives",
+			input: []byte(`scalar JSON 
+				@specifiedBy(url: "https://example.com/json-spec") 
+				@deprecated(reason: "Prefer using JSON2")`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Scalars: []*schema.ScalarDefinition{
+					{
+						Name: []byte("JSON"),
+						Directives: []*schema.Directive{
+							{
+								Name: []byte("specifiedBy"),
+								Arguments: []*schema.DirectiveArgument{
+									{Name: []byte("url"), Value: []byte(`"https://example.com/json-spec"`)},
+								},
+							},
+							{
+								Name: []byte("deprecated"),
+								Arguments: []*schema.DirectiveArgument{
+									{Name: []byte("reason"), Value: []byte(`"Prefer using JSON2"`)},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	ignores := []any{

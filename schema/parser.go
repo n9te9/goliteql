@@ -137,12 +137,42 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			if err != nil {
 				return nil, err
 			}
+		case Scalar:
+			scalarDefinition, newCur, err := p.parseScalarDefinition(tokens, cur)
+			if err != nil {
+				return nil, err
+			}
+			cur = newCur
+			schema.Scalars = append(schema.Scalars, scalarDefinition)
 		case EOF:
 			return schema, nil
 		}
 	}
 
 	return nil, fmt.Errorf("unexpected end of input")
+}
+
+func (p *Parser) parseScalarDefinition(tokens Tokens, cur int) (*ScalarDefinition, int, error) {
+	cur++
+	if tokens[cur].Type != Identifier {
+		return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+	}
+
+	scalarDefinition := &ScalarDefinition{
+		Name: tokens[cur].Value,
+	}
+	cur++
+
+	if tokens[cur].Type == At {
+		directives, newCur, err := p.parseDirectives(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		scalarDefinition.Directives = directives
+		cur = newCur
+	}
+
+	return scalarDefinition, cur, nil
 }
 
 func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (*Schema, int, error) {
