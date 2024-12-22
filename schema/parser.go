@@ -246,6 +246,15 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 
 func (p *Parser) parseSchemaDefinition(tokens Tokens, cur int) (*SchemaDefinition, int, error) {
 	definition := new(SchemaDefinition)
+	if tokens[cur].Type == At {
+		directives, newCur, err := p.parseDirectives(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		definition.Directives = directives
+		cur = newCur
+	}
+
 	if tokens[cur].Type != CurlyOpen {
 		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
 	}
@@ -375,6 +384,15 @@ func (p *Parser) parseEnumDefinition(tokens Tokens, cur int) (*EnumDefinition, i
 	}
 	cur++
 
+	if tokens[cur].Type == At {
+		directives, newCur, err := p.parseDirectives(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		enumDefinition.Directives = directives
+		cur = newCur
+	}
+
 	if tokens[cur].Type != CurlyOpen {
 		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
 	}
@@ -383,8 +401,13 @@ func (p *Parser) parseEnumDefinition(tokens Tokens, cur int) (*EnumDefinition, i
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
 		case Identifier:
-			enumDefinition.Values = append(enumDefinition.Values, tokens[cur].Value)
-			cur++
+			element, newCur, err := p.parseEnumElement(tokens, cur)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			enumDefinition.Values = append(enumDefinition.Values, element)
+			cur = newCur
 		case CurlyClose:
 			cur++
 			return enumDefinition, cur, nil
@@ -394,6 +417,39 @@ func (p *Parser) parseEnumDefinition(tokens Tokens, cur int) (*EnumDefinition, i
 	}
 
 	return nil, 0, fmt.Errorf("unexpected end of input")
+}
+
+func (p *Parser) parseEnumElement(tokens Tokens, cur int) (*EnumElement, int, error) {
+	if tokens[cur].Type != Identifier {
+		return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+	}
+
+	element := &EnumElement{
+		Name: tokens[cur].Value,
+		Value: tokens[cur].Value,
+	}
+	cur++
+
+	if tokens[cur].Type == At {
+		directives, newCur, err := p.parseDirectives(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		element.Directives = directives
+		cur = newCur
+	}
+
+	if tokens[cur].Type == Equal {
+		cur++
+		if tokens[cur].Type != Value {
+			return nil, 0, fmt.Errorf("expected value but got %s", string(tokens[cur].Value))
+		}
+
+		element.Value = tokens[cur].Value
+		cur++
+	}
+
+	return element, cur, nil
 }
 
 func (p *Parser) parseOperationDefinition(tokens Tokens, cur int) (*OperationDefinition, int, error) {
@@ -457,6 +513,11 @@ func (p *Parser) parseDirectiveDefinition(tokens Tokens, cur int) (*DirectiveDef
 	}
 	definition.Arguments = args
 	cur = newCur
+
+	if tokens[cur].Type == Repeatable {
+		definition.Repeatable = true
+		cur++
+	}
 
 	locations, newCur, err := p.parseDirectiveLocations(tokens, cur)
 	if err != nil {
@@ -647,6 +708,8 @@ func (p *Parser) parseArguments(tokens Tokens, cur int) ([]*ArgumentDefinition, 
 	args := make([]*ArgumentDefinition, 0)
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
+		case On:
+			return args, cur, nil
 		case ParenOpen, Comma:
 			cur++
 			continue
@@ -711,6 +774,15 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDef
 		Fields: make([]*FieldDefinition, 0),
 	}
 	cur++
+
+	if tokens[cur].Type == At {
+		directives, newCur, err := p.parseDirectives(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		interfaceDefinition.Directives = directives
+		cur = newCur
+	}
 
 	if tokens[cur].Type != CurlyOpen {
 		return nil, 0, fmt.Errorf("expected '{' but got %s", string(tokens[cur].Value))
@@ -847,6 +919,15 @@ func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition,
 		Name: tokens[cur].Value,
 	}
 	cur++
+
+	if tokens[cur].Type == At {
+		directives, newCur, err := p.parseDirectives(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		unionDefinition.Directives = directives
+		cur = newCur
+	}
 
 	if tokens[cur].Type != Equal {
 		return nil, 0, fmt.Errorf("expected '=' but got %s", string(tokens[cur].Value))

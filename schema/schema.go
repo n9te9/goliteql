@@ -58,18 +58,21 @@ type EnumDefinition struct {
 	Name []byte
 	Values []*EnumElement
 	Extentions []*EnumDefinition
+	Directives []*Directive
 }
 
 type UnionDefinition struct {
 	Name []byte
 	Types [][]byte
 	Extentions []*UnionDefinition
+	Directives []*Directive
 }
 
 type InterfaceDefinition struct {
 	Name []byte
 	Fields []*FieldDefinition
 	Extentions []*InterfaceDefinition
+	Directives []*Directive
 }
 
 type Location struct {
@@ -201,4 +204,6 @@ type SchemaDefinition struct {
 	Mutation []byte
 	Subscription []byte
 	Extentions []*SchemaDefinition
+
+	Directives []*Directive
 }

@@ -1406,16 +1406,32 @@ func TestParser_Parse(t *testing.T) {
 				Enums: []*schema.EnumDefinition{
 					{
 						Name: []byte("Role"),
-						Values: [][]byte{
-							[]byte("ADMIN"),
-							[]byte("USER"),
+						Values: []*schema.EnumElement{
+							{
+								Name: []byte("ADMIN"),
+								Value: []byte("ADMIN"),
+								Directives: nil,
+							},
+							{
+								Name: []byte("USER"),
+								Value: []byte("USER"),
+								Directives: nil,
+							},
 						},
 						Extentions: []*schema.EnumDefinition{
 							{
 								Name: []byte("Role"),
-								Values: [][]byte{
-									[]byte("GUEST"),
-									[]byte("SUPERADMIN"),
+								Values: []*schema.EnumElement{
+									{
+										Name: []byte("GUEST"),
+										Value: []byte("GUEST"),
+										Directives: nil,
+									},
+									{
+										Name: []byte("SUPERADMIN"),
+										Value: []byte("SUPERADMIN"),
+										Directives: nil,
+									},
 								},
 							},
 						},
@@ -1691,6 +1707,290 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Simple directive definition (no args, single location)",
+			input: []byte(`
+				directive @deprecated on FIELD_DEFINITION
+			`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Directives: []*schema.DirectiveDefinition{
+					{
+						Name: []byte("deprecated"),
+						Arguments: []*schema.ArgumentDefinition{},
+						Locations: []*schema.Location{
+							{Name: []byte("FIELD_DEFINITION")},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Directive definition with arguments, repeatable, multiple locations",
+			input: []byte(`
+				directive @auth(
+					role: String = "USER",
+					enabled: Boolean!
+				) repeatable on FIELD_DEFINITION | OBJECT
+			`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Directives: []*schema.DirectiveDefinition{
+					{
+						Name:       []byte("auth"),
+						Repeatable: true,
+						Arguments: []*schema.ArgumentDefinition{
+							{
+								Name: []byte("role"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Default: []byte(`"USER"`),
+							},
+							{
+								Name: []byte("enabled"),
+								Type: &schema.FieldType{
+									Name:     []byte("Boolean"),
+									Nullable: false,
+									IsList:   false,
+								},
+							},
+						},
+						Locations: []*schema.Location{
+							{Name: []byte("FIELD_DEFINITION")},
+							{Name: []byte("OBJECT")},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Directive usage on enum value",
+			input: []byte(`enum Direction {
+				NORTH
+				EAST @deprecated(reason: "No longer used")
+				SOUTH
+				WEST
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Enums: []*schema.EnumDefinition{
+					{
+						Name: []byte("Direction"),
+						Values: []*schema.EnumElement{
+							{
+								Name: []byte("NORTH"),
+								Value: []byte("NORTH"),
+								Directives: nil,
+							},
+							{
+								Name: []byte("EAST"),
+								Value: []byte("EAST"),
+								Directives: []*schema.Directive{
+									{
+										Name: []byte("deprecated"),
+										Arguments: []*schema.DirectiveArgument{
+											{Name: []byte("reason"), Value: []byte("\"No longer used\"")},
+										},
+									},
+								},
+							},
+							{
+								Name: []byte("SOUTH"),
+								Value: []byte("SOUTH"),
+								Directives: nil,
+							},
+							{
+								Name: []byte("WEST"),
+								Value: []byte("WEST"),
+								Directives: nil,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Directive usage on interface",
+			input: []byte(`interface Node @auth(role: "ADMIN") {
+				id: ID!
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Directives: []*schema.Directive{
+							{
+								Name: []byte("auth"),
+								Arguments: []*schema.DirectiveArgument{
+									{
+										Name:  []byte("role"),
+										Value: []byte(`"ADMIN"`),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Directive usage on union",
+			input: []byte(`union Entity @deprecated(reason: "Use another union") = User | Post`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Unions: []*schema.UnionDefinition{
+					{
+						Name: []byte("Entity"),
+						Types: [][]byte{
+							[]byte("User"),
+							[]byte("Post"),
+						},
+						Directives: []*schema.Directive{
+							{
+								Name: []byte("deprecated"),
+								Arguments: []*schema.DirectiveArgument{
+									{
+										Name:  []byte("reason"),
+										Value: []byte(`"Use another union"`),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Directive usage on schema",
+			input: []byte(`schema @example {
+				query: RootQuery
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query: []byte("RootQuery"),
+					Directives: []*schema.Directive{
+						{
+							Name: []byte("example"),
+							Arguments: nil,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Multiple directives on interface",
+			input: []byte(`interface Node @auth(role: "ADMIN") @deprecated(reason: "Will be removed") {
+				id: ID!
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+						Directives: []*schema.Directive{
+							{
+								Name: []byte("auth"),
+								Arguments: []*schema.DirectiveArgument{
+									{Name: []byte("role"), Value: []byte(`"ADMIN"`)},
+								},
+							},
+							{
+								Name: []byte("deprecated"),
+								Arguments: []*schema.DirectiveArgument{
+									{Name: []byte("reason"), Value: []byte(`"Will be removed"`)},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Enum with directives on itself and values",
+			input: []byte(`enum Role @upperCase {
+			ADMIN @deprecated
+			USER
+		}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Enums: []*schema.EnumDefinition{
+					{
+						Name: []byte("Role"),
+						Directives: []*schema.Directive{
+							{Name: []byte("upperCase")},
+						},
+						Values: []*schema.EnumElement{
+							{
+								Name: []byte("ADMIN"),
+								Value: []byte("ADMIN"),
+								Directives: []*schema.Directive{
+									{Name: []byte("deprecated")},
+								},
+							},
+							{
+								Name: []byte("USER"),
+								Value: []byte("USER"),
+								Directives: nil,
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	ignores := []any{
@@ -1715,6 +2015,7 @@ func TestParser_Parse(t *testing.T) {
 
 			if tt.wantErr == nil && err != nil {
 				t.Errorf("Parse() error %v", err)
+				return
 			}
 
 			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(ignores...)); diff != "" {

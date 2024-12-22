@@ -239,12 +239,12 @@ func newDirectiveApplication(input []byte, cur, line, col int) (Tokens, int) {
 		token, cur = newPunctuatorToken(input, ParenOpen, cur, col, line)
 		tokens = append(tokens, token)
 		col++
-	}
 
-	args, newCur := newDirectiveArgumentTokens(input, cur, col, line)
-	tokens = append(tokens, args...)
-	col += newCur - cur
-	cur = newCur
+		args, newCur := newDirectiveArgumentTokens(input, cur, col, line)
+		tokens = append(tokens, args...)
+		col += newCur - cur
+		cur = newCur
+	}
 
 	return tokens, cur
 }
