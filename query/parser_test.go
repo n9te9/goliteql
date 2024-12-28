@@ -22,7 +22,7 @@ func TestQueryParse(t *testing.T) {
 				}
 			}`),
 			expected: &query.Document{
-				Tokens: []*query.QueryToken{
+				Tokens: []*query.Token{
 					{Type: query.Query, Value: []byte("query"), Column: 1, Line: 1},
 					{Type: query.Name, Value: []byte("MyQuery"), Column: 7, Line: 1},
 					{Type: query.CurlyOpen, Value: []byte("{"), Column: 15, Line: 1},

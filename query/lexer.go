@@ -7,7 +7,7 @@ import (
 
 type Type string
 
-type QueryToken struct {
+type Token struct {
 	Type Type
 	Value []byte
 	Line int
@@ -41,28 +41,28 @@ var queryKeywords = map[string]Type{
 	"subscription": Subscription,
 }
 
-func newFieldQueryToken(input []byte, cur, col, line int) (*QueryToken, int) {
+func newFieldToken(input []byte, cur, col, line int) (*Token, int) {
 	start := cur
 	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
 		cur++
 	}
 
 	if tokenType, ok := queryKeywords[string(input[start:cur])]; ok {
-		return &QueryToken{Type: tokenType, Value: input[start:cur], Column: col, Line: line}, cur
+		return &Token{Type: tokenType, Value: input[start:cur], Column: col, Line: line}, cur
 	}
-	return &QueryToken{Type: Name, Value: input[start:cur], Column: col, Line: line}, cur
+	return &Token{Type: Name, Value: input[start:cur], Column: col, Line: line}, cur
 }
 
-func newIntQueryToken(input []byte, cur, col, line int) (*QueryToken, int) {
+func newIntToken(input []byte, cur, col, line int) (*Token, int) {
 	start := cur
 	for cur < len(input) && unicode.IsDigit(rune(input[cur])) {
 		cur++
 	}
 
-	return &QueryToken{Type: Int, Value: input[start:cur], Column: col, Line: line}, cur
+	return &Token{Type: Int, Value: input[start:cur], Column: col, Line: line}, cur
 }
 
-func newStringQueryToken(input []byte, cur, col, line int) (*QueryToken, int, error) {
+func newStringToken(input []byte, cur, col, line int) (*Token, int, error) {
 	start := cur + 1
 	cur++
 	for cur < len(input) && input[cur] != '"' {
@@ -73,11 +73,11 @@ func newStringQueryToken(input []byte, cur, col, line int) (*QueryToken, int, er
 		return nil, -1, errors.New("unterminated string")
 	}
 
-	return &QueryToken{Type: String, Value: input[start:cur], Column: col, Line: line}, cur + 1, nil
+	return &Token{Type: String, Value: input[start:cur], Column: col, Line: line}, cur + 1, nil
 }
 
-func newEOFQueryToken(col, line int) *QueryToken {
-	return &QueryToken{Type: EOF, Value: nil, Column: col, Line: line}
+func newEOFToken(col, line int) *Token {
+	return &Token{Type: EOF, Value: nil, Column: col, Line: line}
 }
 
 var queryPunctuators = map[byte]Type{
@@ -100,12 +100,12 @@ func NewLexer() *Lexer {
 	return &Lexer{}
 }
 
-func (l *Lexer) Lex(input []byte) ([]*QueryToken, error) {
-	tokens := make([]*QueryToken, 0)
+func (l *Lexer) Lex(input []byte) ([]*Token, error) {
+	tokens := make([]*Token, 0)
 	cur := 0
 	col, line := 1, 1
 
-	var token *QueryToken
+	var token *Token
 	var err error
 	for cur < len(input) {
 		switch input[cur] {
@@ -122,28 +122,28 @@ func (l *Lexer) Lex(input []byte) ([]*QueryToken, error) {
 
 		switch input[cur] {
 		case '{', '}', '(', ')', ':', '@', ',', '=':
-			tokens = append(tokens, &QueryToken{Type: queryPunctuators[input[cur]], Value: []byte{input[cur]}, Column: col, Line: line})
+			tokens = append(tokens, &Token{Type: queryPunctuators[input[cur]], Value: []byte{input[cur]}, Column: col, Line: line})
 			cur++
 			col++
 			continue
 		}
 
 		if unicode.IsLetter(rune(input[cur])) {
-			token, cur = newFieldQueryToken(input, cur, col, line)
+			token, cur = newFieldToken(input, cur, col, line)
 			tokens = append(tokens, token)
 			col += len(token.Value)
 			continue
 		}
 
 		if unicode.IsDigit(rune(input[cur])) {
-			token, cur = newIntQueryToken(input, cur, col, line)
+			token, cur = newIntToken(input, cur, col, line)
 			tokens = append(tokens, token)
 			col += len(token.Value)
 			continue
 		}
 
 		if input[cur] == '"' {
-			token, cur, err = newStringQueryToken(input, cur, col, line)
+			token, cur, err = newStringToken(input, cur, col, line)
 			if err != nil {
 				return nil, err
 			}
@@ -154,6 +154,6 @@ func (l *Lexer) Lex(input []byte) ([]*QueryToken, error) {
 		}
 	}
 
-	tokens = append(tokens, newEOFQueryToken(col, line))
+	tokens = append(tokens, newEOFToken(col, line))
 	return tokens, nil
 }

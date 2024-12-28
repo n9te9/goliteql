@@ -1,7 +1,7 @@
 package query
 
 type Document struct {
-	Tokens []*QueryToken
+	Tokens []*Token
 }
 
 type Parser struct {

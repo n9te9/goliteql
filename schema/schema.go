@@ -162,6 +162,10 @@ func NewSchema(tokens Tokens) *Schema {
 	}
 }
 
+func (s *Schema) Merge() (*Schema, error) {
+	return nil, nil
+}
+
 func add[T DefinitionType](indexes *Indexes, definition T) (*Indexes, error) {
 	switch d := any(definition).(type) {
 	case *OperationDefinition:
