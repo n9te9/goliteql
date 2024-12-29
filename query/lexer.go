@@ -33,6 +33,9 @@ const (
 	Equal        Type = "EQUAL"        // '='
 	BracketOpen  Type = "BRACKET_OPEN" // '['
 	BracketClose Type = "BRACKET_CLOSE" // ']'
+	Daller      Type = "DALLAR"       // '$'
+	Exclamation Type = "EXCLAMATION" // '!'
+
 )
 
 var queryKeywords = map[string]Type{
@@ -91,6 +94,8 @@ var queryPunctuators = map[byte]Type{
 	'=': Equal,
 	'[': BracketOpen,
 	']': BracketClose,
+	'$': Daller,
+	'!': Exclamation,
 }
 
 type Lexer struct {
@@ -121,7 +126,7 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 		}
 
 		switch input[cur] {
-		case '{', '}', '(', ')', ':', '@', ',', '=':
+		case '{', '}', '(', ')', ':', '@', ',', '=', '[', ']', '$', '!':
 			tokens = append(tokens, &Token{Type: queryPunctuators[input[cur]], Value: []byte{input[cur]}, Column: col, Line: line})
 			cur++
 			col++
