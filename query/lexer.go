@@ -16,10 +16,8 @@ type Token struct {
 
 const (
 	Name Type = "NAME"
-	Int Type = "INT"
-	String Type = "STRING"
 	Query Type = "QUERY"
-	Mutate Type = "MUTATION"
+	Mutation Type = "MUTATION"
 	Subscription Type = "SUBSCRIPTION"
 	EOF Type = "EOF"
 
@@ -35,16 +33,21 @@ const (
 	BracketClose Type = "BRACKET_CLOSE" // ']'
 	Daller      Type = "DALLAR"       // '$'
 	Exclamation Type = "EXCLAMATION" // '!'
-
+	Spread 		Type = "SPREAD"      // '...'
+	On 			Type = "ON"
+	Fragment Type = "FRAGMENT"
+	Value Type = "VALUE"
 )
 
 var queryKeywords = map[string]Type{
 	"query": Query,
-	"mutation": Mutate,
+	"mutation": Mutation,
 	"subscription": Subscription,
+	"on": On,
+	"fragment": Fragment,
 }
 
-func newFieldToken(input []byte, cur, col, line int) (*Token, int) {
+func newNameToken(input []byte, cur, col, line int) (*Token, int) {
 	start := cur
 	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
 		cur++
@@ -56,17 +59,8 @@ func newFieldToken(input []byte, cur, col, line int) (*Token, int) {
 	return &Token{Type: Name, Value: input[start:cur], Column: col, Line: line}, cur
 }
 
-func newIntToken(input []byte, cur, col, line int) (*Token, int) {
+func newStringValueToken(input []byte, cur, col, line int) (*Token, int, error) {
 	start := cur
-	for cur < len(input) && unicode.IsDigit(rune(input[cur])) {
-		cur++
-	}
-
-	return &Token{Type: Int, Value: input[start:cur], Column: col, Line: line}, cur
-}
-
-func newStringToken(input []byte, cur, col, line int) (*Token, int, error) {
-	start := cur + 1
 	cur++
 	for cur < len(input) && input[cur] != '"' {
 		cur++
@@ -76,7 +70,20 @@ func newStringToken(input []byte, cur, col, line int) (*Token, int, error) {
 		return nil, -1, errors.New("unterminated string")
 	}
 
-	return &Token{Type: String, Value: input[start:cur], Column: col, Line: line}, cur + 1, nil
+	return &Token{Type: Value, Value: input[start:cur+1], Column: col, Line: line}, cur + 1, nil
+}
+
+
+func newValueToken(input []byte, cur, col, line int) (*Token, int) {
+	start := cur
+	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
+		cur++
+	}
+
+	if tokenType, ok := queryKeywords[string(input[start:cur])]; ok {
+		return &Token{Type: tokenType, Value: input[start:cur], Column: col, Line: line}, cur
+	}
+	return &Token{Type: Name, Value: input[start:cur], Column: col, Line: line}, cur
 }
 
 func newEOFToken(col, line int) *Token {
@@ -105,8 +112,34 @@ func NewLexer() *Lexer {
 	return &Lexer{}
 }
 
-func (l *Lexer) Lex(input []byte) ([]*Token, error) {
-	tokens := make([]*Token, 0)
+type Tokens []*Token
+
+func (t Tokens) isDefaultValue() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	if t[len(t) - 1].Type == Equal {
+		return true
+	}
+
+	return false
+}
+
+func (t Tokens) isArgument() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	if t[len(t) - 1].Type == Colon {
+		return true
+	}
+
+	return false
+}
+
+func (l *Lexer) Lex(input []byte) (Tokens, error) {
+	tokens := make(Tokens, 0)
 	cur := 0
 	col, line := 1, 1
 
@@ -133,29 +166,42 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 			continue
 		}
 
-		if unicode.IsLetter(rune(input[cur])) {
-			token, cur = newFieldToken(input, cur, col, line)
-			tokens = append(tokens, token)
-			col += len(token.Value)
-			continue
-		}
-
-		if unicode.IsDigit(rune(input[cur])) {
-			token, cur = newIntToken(input, cur, col, line)
-			tokens = append(tokens, token)
-			col += len(token.Value)
-			continue
-		}
-
-		if input[cur] == '"' {
-			token, cur, err = newStringToken(input, cur, col, line)
-			if err != nil {
-				return nil, err
+		if tokens.isDefaultValue() || tokens.isArgument() {
+			if unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
+				token, cur = newValueToken(input, cur, col, line)
+				tokens = append(tokens, token)
+				col += len(token.Value)
+				continue
 			}
 
+			if input[cur] == '"' {
+				token, cur, err = newStringValueToken(input, cur, col, line)
+				if err != nil {
+					return nil, err
+				}
+
+				tokens = append(tokens, token)
+				col += len(token.Value) + 2
+				continue
+			}
+		}
+
+		if unicode.IsLetter(rune(input[cur])) || input[cur] == '_' || unicode.IsDigit(rune(input[cur])) {
+			token, cur = newNameToken(input, cur, col, line)
 			tokens = append(tokens, token)
-			col += len(token.Value) + 2
+			col += len(token.Value)
 			continue
+		}
+
+		if input[cur] == '.' {
+			if input[cur + 1] == '.' && input[cur + 2] == '.' {
+				tokens = append(tokens, &Token{Type: Spread, Value: []byte("..."), Column: col, Line: line})
+				cur += 3
+				col += 3
+				continue
+			} else {
+				return nil, errors.New("invalid token")
+			}
 		}
 	}
 

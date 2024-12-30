@@ -30,7 +30,7 @@ func TestQueryParse(t *testing.T) {
 					{Type: query.ParenOpen, Value: []byte("("), Column: 9, Line: 2},
 					{Type: query.Name, Value: []byte("id"), Column: 10, Line: 2},
 					{Type: query.Colon, Value: []byte(":"), Column: 12, Line: 2},
-					{Type: query.Int, Value: []byte("123"), Column: 14, Line: 2},
+					{Type: query.Name, Value: []byte("123"), Column: 14, Line: 2},
 					{Type: query.ParenClose, Value: []byte(")"), Column: 17, Line: 2},
 					{Type: query.CurlyOpen, Value: []byte("{"), Column: 19, Line: 2},
 					{Type: query.Name, Value: []byte("name"), Column: 6, Line: 3},
