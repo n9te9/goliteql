@@ -2,6 +2,7 @@ package query
 
 import (
 	"errors"
+	"fmt"
 	"unicode"
 )
 
@@ -59,10 +60,40 @@ func newNameToken(input []byte, cur, col, line int) (*Token, int) {
 	return &Token{Type: Name, Value: input[start:cur], Column: col, Line: line}, cur
 }
 
-func newStringValueToken(input []byte, cur, col, line int) (*Token, int, error) {
+func newBlockStringValueToken(input []byte, cur, col, line int) (*Token, int, int, int, error) {
+	start := cur
+	cur += 3
+
+	tokenStartLine := line
+	for cur + 2 < len(input) {
+		if input[cur] == '"' && input[cur + 1] == '"' && input[cur + 2] == '"' {
+			break
+		}
+		cur++
+
+		if input[cur] == '\n' {
+			line++
+			col = 1
+		} else {
+			col++
+		}
+	}
+
+	if cur + 2 > len(input) {
+		return nil, -1, -1, -1, fmt.Errorf("unterminated string at line %d, column %d", tokenStartLine, col)
+	}
+	cur += 3
+
+	return &Token{Type: Value, Value: input[start:cur], Column: col, Line: tokenStartLine}, cur, line, col, nil
+}
+
+func newStringValueToken(input []byte, cur, col, line int) (*Token, int, int, int, error) {
+	if cur + 3 < len(input) && input[cur] == '"' && input[cur + 1] == '"' && input[cur + 2] == '"' {
+		return newBlockStringValueToken(input, cur, col, line)
+	}
+
 	start := cur
 	cur++
-
 	escape := false
 	for (cur < len(input) && input[cur] != '"') || escape {
 		if input[cur] == '\\' {
@@ -71,26 +102,28 @@ func newStringValueToken(input []byte, cur, col, line int) (*Token, int, error) 
 			escape = false
 		}
 		cur++
+		col++
 	}
 
 	if cur >= len(input) {
-		return nil, -1, errors.New("unterminated string")
+		return nil, -1, -1, -1, fmt.Errorf("unterminated string at line %d, column %d", line, col)
 	}
 
-	return &Token{Type: Value, Value: input[start:cur+1], Column: col, Line: line}, cur + 1, nil
+	return &Token{Type: Value, Value: input[start:cur+1], Column: col, Line: line}, cur + 1, line, col, nil
 }
 
 
-func newValueToken(input []byte, cur, col, line int) (*Token, int) {
+func newValueToken(input []byte, cur, col, line int) (*Token, int, int, int) {
 	start := cur
 	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
 		cur++
+		col++
 	}
 
 	if tokenType, ok := queryKeywords[string(input[start:cur])]; ok {
-		return &Token{Type: tokenType, Value: input[start:cur], Column: col, Line: line}, cur
+		return &Token{Type: tokenType, Value: input[start:cur], Column: col, Line: line}, cur, line, col
 	}
-	return &Token{Type: Name, Value: input[start:cur], Column: col, Line: line}, cur
+	return &Token{Type: Name, Value: input[start:cur], Column: col, Line: line}, cur, line, col
 }
 
 func newEOFToken(col, line int) *Token {
@@ -150,7 +183,7 @@ func (l *Lexer) Lex(input []byte) (Tokens, error) {
 	cur := 0
 	col, line := 1, 1
 
-	var token *Token
+	var token, prev *Token
 	var err error
 	for cur < len(input) {
 		switch input[cur] {
@@ -175,14 +208,14 @@ func (l *Lexer) Lex(input []byte) (Tokens, error) {
 
 		if tokens.isDefaultValue() || tokens.isArgument() {
 			if unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
-				token, cur = newValueToken(input, cur, col, line)
+				token, cur, line, col = newValueToken(input, cur, col, line)
 				tokens = append(tokens, token)
 				col += len(token.Value)
 				continue
 			}
 
 			if input[cur] == '"' {
-				token, cur, err = newStringValueToken(input, cur, col, line)
+				token, cur, line, col, err = newStringValueToken(input, cur, col, line)
 				if err != nil {
 					return nil, err
 				}
@@ -210,6 +243,11 @@ func (l *Lexer) Lex(input []byte) (Tokens, error) {
 				return nil, errors.New("invalid token")
 			}
 		}
+
+		if token == prev {
+			return nil, fmt.Errorf("invalid token at line %d, column %d", line, col)
+		}
+		prev = token
 	}
 
 	tokens = append(tokens, newEOFToken(col, line))

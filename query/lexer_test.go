@@ -1,6 +1,7 @@
 package query_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -470,7 +471,124 @@ func TestQueryLex(t *testing.T) {
 				{Type: query.EOF, Value: nil, Line: 6, Column: 3},
 			},
 		},
-		
+		{
+			name: "Query with block strings",
+			input: []byte(`query MyQuery {
+				description: """This is a
+				multi-line
+				block string"""
+			}`),
+			expected: query.Tokens{
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.Name, Value: []byte("MyQuery"), Line: 1, Column: 7},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 15},
+				{Type: query.Name, Value: []byte("description"), Line: 2, Column: 3},
+				{Type: query.Colon, Value: []byte(":"), Line: 2, Column: 15},
+				{Type: query.Value, Value: []byte(`"""This is a
+				multi-line
+				block string"""`), Line: 2, Column: 17},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 5, Column: 1},
+				{Type: query.EOF, Value: nil, Line: 5, Column: 2},
+			},
+		},
+		{
+			name: "Empty block string",
+			input: []byte(`query EmptyString {
+				description: """"""
+			}`),
+			expected: query.Tokens{
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.Name, Value: []byte("EmptyString"), Line: 1, Column: 7},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 19},
+				{Type: query.Name, Value: []byte("description"), Line: 2, Column: 3},
+				{Type: query.Colon, Value: []byte(":"), Line: 2, Column: 15},
+				{Type: query.Value, Value: []byte(`""""""`), Line: 2, Column: 17},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 3, Column: 1},
+				{Type: query.EOF, Value: nil, Line: 3, Column: 2},
+			},
+		},{
+			name: "Nested structure with block strings",
+			input: []byte(`query NestedBlock {
+				user {
+					bio: """This is
+					a nested block
+					string"""
+				}
+			}`),
+			expected: query.Tokens{
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.Name, Value: []byte("NestedBlock"), Line: 1, Column: 7},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 19},
+				{Type: query.Name, Value: []byte("user"), Line: 2, Column: 3},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 2, Column: 9},
+				{Type: query.Name, Value: []byte("bio"), Line: 3, Column: 4},
+				{Type: query.Colon, Value: []byte(":"), Line: 3, Column: 8},
+				{Type: query.Value, Value: []byte(`"""This is
+					a nested block
+					string"""`), Line: 3, Column: 10},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 6, Column: 3},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 7, Column: 2},
+				{Type: query.EOF, Value: nil, Line: 7, Column: 3},
+			},
+		},{
+			name: "Unterminated string literal",
+			input: []byte(`query {
+					user(name: "Alice)
+			}`),
+			wantErr: errors.New("unterminated string at line 2, column 28"),
+		},{
+			name: "Single directive with complex arguments",
+			input: []byte(`query { user { name @include(if: true, reason: "test") } }`),
+			expected: query.Tokens{
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 7},
+				{Type: query.Name, Value: []byte("user"), Line: 1, Column: 9},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 14},
+				{Type: query.Name, Value: []byte("name"), Line: 1, Column: 16},
+				{Type: query.At, Value: []byte("@"), Line: 1, Column: 21},
+				{Type: query.Name, Value: []byte("include"), Line: 1, Column: 22},
+				{Type: query.ParenOpen, Value: []byte("("), Line: 1, Column: 29},
+				{Type: query.Name, Value: []byte("if"), Line: 1, Column: 30},
+				{Type: query.Colon, Value: []byte(":"), Line: 1, Column: 32},
+				{Type: query.Name, Value: []byte("true"), Line: 1, Column: 34},
+				{Type: query.Comma, Value: []byte(","), Line: 1, Column: 38},
+				{Type: query.Name, Value: []byte("reason"), Line: 1, Column: 40},
+				{Type: query.Colon, Value: []byte(":"), Line: 1, Column: 47},
+				{Type: query.Value, Value: []byte("\"test\""), Line: 1, Column: 49},
+				{Type: query.ParenClose, Value: []byte(")"), Line: 1, Column: 56},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 1, Column: 58},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 1, Column: 60},
+				{Type: query.EOF, Value: nil, Line: 1, Column: 61},
+			},
+		},
+		{
+			name: "Nested list arguments",
+			input: []byte(`query { data(matrix: [[1, 2], [3, 4]]) }`),
+			expected: query.Tokens{
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 7},
+				{Type: query.Name, Value: []byte("data"), Line: 1, Column: 9},
+				{Type: query.ParenOpen, Value: []byte("("), Line: 1, Column: 13},
+				{Type: query.Name, Value: []byte("matrix"), Line: 1, Column: 14},
+				{Type: query.Colon, Value: []byte(":"), Line: 1, Column: 20},
+				{Type: query.BracketOpen, Value: []byte("["), Line: 1, Column: 22},
+				{Type: query.BracketOpen, Value: []byte("["), Line: 1, Column: 23},
+				{Type: query.Name, Value: []byte("1"), Line: 1, Column: 24},
+				{Type: query.Comma, Value: []byte(","), Line: 1, Column: 25},
+				{Type: query.Name, Value: []byte("2"), Line: 1, Column: 27},
+				{Type: query.BracketClose, Value: []byte("]"), Line: 1, Column: 28},
+				{Type: query.Comma, Value: []byte(","), Line: 1, Column: 29},
+				{Type: query.BracketOpen, Value: []byte("["), Line: 1, Column: 31},
+				{Type: query.Name, Value: []byte("3"), Line: 1, Column: 32},
+				{Type: query.Comma, Value: []byte(","), Line: 1, Column: 33},
+				{Type: query.Name, Value: []byte("4"), Line: 1, Column: 35},
+				{Type: query.BracketClose, Value: []byte("]"), Line: 1, Column: 36},
+				{Type: query.BracketClose, Value: []byte("]"), Line: 1, Column: 37},
+				{Type: query.ParenClose, Value: []byte(")"), Line: 1, Column: 38},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 1, Column: 40},
+				{Type: query.EOF, Value: nil, Line: 1, Column: 41},
+			},
+		},
 	}
 
 	ignores := cmpopts.IgnoreFields(query.Token{}, "Column")
