@@ -31,7 +31,7 @@ const (
 	Equal        Type = "EQUAL"        // '='
 	BracketOpen  Type = "BRACKET_OPEN" // '['
 	BracketClose Type = "BRACKET_CLOSE" // ']'
-	Daller      Type = "DALLAR"       // '$'
+	Dollar      Type = "DALLAR"       // '$'
 	Exclamation Type = "EXCLAMATION" // '!'
 	Spread 		Type = "SPREAD"      // '...'
 	On 			Type = "ON"
@@ -101,7 +101,7 @@ var queryPunctuators = map[byte]Type{
 	'=': Equal,
 	'[': BracketOpen,
 	']': BracketClose,
-	'$': Daller,
+	'$': Dollar,
 	'!': Exclamation,
 }
 
