@@ -62,7 +62,14 @@ func newNameToken(input []byte, cur, col, line int) (*Token, int) {
 func newStringValueToken(input []byte, cur, col, line int) (*Token, int, error) {
 	start := cur
 	cur++
-	for cur < len(input) && input[cur] != '"' {
+
+	escape := false
+	for (cur < len(input) && input[cur] != '"') || escape {
+		if input[cur] == '\\' {
+			escape = true
+		} else {
+			escape = false
+		}
 		cur++
 	}
 

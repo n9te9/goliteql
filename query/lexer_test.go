@@ -444,6 +444,33 @@ func TestQueryLex(t *testing.T) {
 				{Type: query.EOF, Value: nil, Line: 6, Column: 4},
 			},
 		},
+		{
+			name: "Query with escaped strings",
+			input: []byte(`query EscapedStrings {
+				user(name: "Alice\nBob\tCarol\"Quoted\"") {
+					id
+					name
+				}
+			}`),
+			expected: query.Tokens{
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.Name, Value: []byte("EscapedStrings"), Line: 1, Column: 7},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 22},
+				{Type: query.Name, Value: []byte("user"), Line: 2, Column: 3},
+				{Type: query.ParenOpen, Value: []byte("("), Line: 2, Column: 7},
+				{Type: query.Name, Value: []byte("name"), Line: 2, Column: 8},
+				{Type: query.Colon, Value: []byte(":"), Line: 2, Column: 12},
+				{Type: query.Value, Value: []byte("\"Alice\\nBob\\tCarol\\\"Quoted\\\"\""), Line: 2, Column: 14},
+				{Type: query.ParenClose, Value: []byte(")"), Line: 2, Column: 43},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 2, Column: 45},
+				{Type: query.Name, Value: []byte("id"), Line: 3, Column: 4},
+				{Type: query.Name, Value: []byte("name"), Line: 4, Column: 4},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 5, Column: 3},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 6, Column: 2},
+				{Type: query.EOF, Value: nil, Line: 6, Column: 3},
+			},
+		},
+		
 	}
 
 	ignores := cmpopts.IgnoreFields(query.Token{}, "Column")
