@@ -8,11 +8,11 @@ import (
 )
 
 func TestQueryParse(t *testing.T) {
-	tests := []struct{
-		name string
-		input []byte
+	tests := []struct {
+		name     string
+		input    []byte
 		expected *query.Document
-		wantErr error
+		wantErr  error
 	}{
 		{
 			name: "Parse simple graphql query operation",
@@ -22,7 +22,7 @@ func TestQueryParse(t *testing.T) {
 				Operations: []*query.Operation{
 					{
 						OperationType: query.QueryOperation,
-						Name: "MyQuery",
+						Name:          "MyQuery",
 					},
 				},
 			},
@@ -34,14 +34,14 @@ func TestQueryParse(t *testing.T) {
 				Operations: []*query.Operation{
 					{
 						OperationType: query.QueryOperation,
-						Name: "MyQuery",
+						Name:          "MyQuery",
 						Variables: []*query.Variable{
 							{
 								Name: []byte("id"),
 								Type: &query.FieldType{
-									Name: []byte("Int"),
+									Name:     []byte("Int"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 								DefaultValue: nil,
 							},
@@ -58,14 +58,14 @@ func TestQueryParse(t *testing.T) {
 				Operations: []*query.Operation{
 					{
 						OperationType: query.QueryOperation,
-						Name: "UpdateSettings",
+						Name:          "UpdateSettings",
 						Variables: []*query.Variable{
 							{
 								Name: []byte("settings"),
 								Type: &query.FieldType{
-									Name: []byte("SettingsInput"),
+									Name:     []byte("SettingsInput"),
 									Nullable: true,
-									IsList: false,
+									IsList:   false,
 								},
 								DefaultValue: []byte(`{theme:"dark",notifications:true}`),
 							},
@@ -82,20 +82,180 @@ func TestQueryParse(t *testing.T) {
 				Operations: []*query.Operation{
 					{
 						OperationType: query.QueryOperation,
-						Name: "UpdateSettings",
+						Name:          "UpdateSettings",
 						Variables: []*query.Variable{
 							{
 								Name: []byte("settings"),
-								Type : &query.FieldType{
+								Type: &query.FieldType{
 									Nullable: false,
-									IsList: true,
+									IsList:   true,
 									ListType: &query.FieldType{
-										Name: []byte("SettingInput"),
+										Name:     []byte("SettingInput"),
 										Nullable: true,
-										IsList: false,
+										IsList:   false,
 									},
 								},
 								DefaultValue: []byte(`[{theme:"dark",notifications:true,options:{a:1,b:2}}]`),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse query with nullable variables and default value",
+			input: []byte(`query MyQuery($id: Int = 42, $name: String = "default") {
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Variables: []*query.Variable{
+							{
+								Name: []byte("id"),
+								Type: &query.FieldType{
+									Name:     []byte("Int"),
+									Nullable: true,
+									IsList:   false,
+								},
+								DefaultValue: []byte("42"),
+							},
+							{
+								Name: []byte("name"),
+								Type: &query.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								DefaultValue: []byte(`"default"`),
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Parse query with nested list variables",
+			input: []byte(`query NestedList($matrix: [[Int!]!]!) {
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "NestedList",
+						Variables: []*query.Variable{
+							{
+								Name: []byte("matrix"),
+								Type: &query.FieldType{
+									Nullable: false,
+									IsList:   true,
+									ListType: &query.FieldType{
+										Nullable: false,
+										IsList:   true,
+										ListType: &query.FieldType{
+											Name:     []byte("Int"),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+								},
+								DefaultValue: nil,
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Parse query with nullable complex default object values",
+			input: []byte(`query DefaultComplex($config: ConfigInput = { retries: 3, timeout: 30.5 }) {
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "DefaultComplex",
+						Variables: []*query.Variable{
+							{
+								Name: []byte("config"),
+								Type: &query.FieldType{
+									Name:     []byte("ConfigInput"),
+									Nullable: true,
+									IsList:   false,
+								},
+								DefaultValue: []byte(`{retries:3,timeout:30.5}`),
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Parse query with deeply nested default object values",
+			input: []byte(`query DeepDefaults($data: DataInput = { user: { id: 1, settings: { theme: "light" } } }) {
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "DeepDefaults",
+						Variables: []*query.Variable{
+							{
+								Name: []byte("data"),
+								Type: &query.FieldType{
+									Name:     []byte("DataInput"),
+									Nullable: true,
+									IsList:   false,
+								},
+								DefaultValue: []byte(`{user:{id:1,settings:{theme:"light"}}}`),
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Parse query with enum default value",
+			input: []byte(`query WithEnum($status: Status = ACTIVE) {
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "WithEnum",
+						Variables: []*query.Variable{
+							{
+								Name: []byte("status"),
+								Type: &query.FieldType{
+									Name:     []byte("Status"),
+									Nullable: true,
+									IsList:   false,
+								},
+								DefaultValue: []byte("ACTIVE"),
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Parse query with nullable list variables",
+			input: []byte(`query NullableList($ids: [ID]) {
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "NullableList",
+						Variables: []*query.Variable{
+							{
+								Name: []byte("ids"),
+								Type: &query.FieldType{
+									Nullable: true,
+									IsList:   true,
+									ListType: &query.FieldType{
+										Name:     []byte("ID"),
+										Nullable: true,
+										IsList:   false,
+									},
+								},
+								DefaultValue: nil,
 							},
 						},
 					},

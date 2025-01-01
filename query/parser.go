@@ -174,7 +174,6 @@ func (p *Parser) parseOperationVariables(tokens Tokens, cur int) ([]*Variable, i
 
 func (p *Parser) parseOperationVariable(tokens Tokens, cur int) (*Variable, int, error) {
 	if tokens[cur].Type != Dollar {
-		fmt.Println(string(tokens[cur].Value))
 		return nil, cur, fmt.Errorf("expected $ before variable")
 	}
 	cur++
@@ -200,8 +199,11 @@ func (p *Parser) parseOperationVariable(tokens Tokens, cur int) (*Variable, int,
 	var defaultValue []byte
 	if tokens[cur].Type == Equal {
 		cur++
-		if tokens[cur].Type != Value && tokens[cur].Type != CurlyOpen && tokens[cur].Type != BracketOpen {
-			return nil, cur, fmt.Errorf("expected default value")
+		if tokens[cur].Type != Value &&
+		 tokens[cur].Type != CurlyOpen &&
+		 tokens[cur].Type != BracketOpen &&
+		 tokens[cur].Type != Name {
+			return nil, cur, fmt.Errorf("expected default value but got %s(%s)", tokens[cur].Value, tokens[cur].Type)
 		}
 
 		defaultValue, cur, err = p.parseDefaultValue(tokens, cur)
@@ -258,12 +260,15 @@ func (p *Parser) parseFieldType(tokens Tokens, cur, nestedRank int) (*FieldType,
 }
 
 func (p *Parser) parseDefaultValue(tokens Tokens, cur int) ([]byte, int, error) {
-	if tokens[cur].Type != Value && tokens[cur].Type != CurlyOpen && tokens[cur].Type != BracketOpen {
+	if tokens[cur].Type != Value && 
+	tokens[cur].Type != CurlyOpen && 
+	tokens[cur].Type != BracketOpen &&
+	tokens[cur].Type != Name {
 		return nil, cur, fmt.Errorf("expected value")
 	}
 
-	if tokens[cur].Type == Value {
-		return tokens[cur].Value, cur, nil
+	if tokens[cur].Type == Value || tokens[cur].Type == Name {
+		return tokens[cur].Value, cur + 1, nil
 	}
 
 	if tokens[cur].Type == CurlyOpen {

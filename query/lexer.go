@@ -119,7 +119,7 @@ func newStringValueToken(input []byte, cur, col, line int) (*Token, int, int, in
 
 func newValueToken(input []byte, cur, col, line int) (*Token, int, int, int) {
 	start := cur
-	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
+	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) || input[cur] == '.' {
 		cur++
 		col++
 	}
