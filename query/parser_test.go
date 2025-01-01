@@ -51,8 +51,8 @@ func TestQueryParse(t *testing.T) {
 			},
 		},
 		{
-			name: "Query with default complex variable values",
-			input: []byte(`query UpdateSettings($settings: SettingsInput = { theme: "dark", notifications: true }) {
+			name: "Query with default complex variable object values",
+			input: []byte(`query UpdateSettings($settings: [SettingInput]! = [{ theme: "dark", notifications: true, options: { a: 1, b: 2 } }]) {
 			}`),
 			expected: &query.Document{
 				Operations: []*query.Operation{
@@ -67,7 +67,7 @@ func TestQueryParse(t *testing.T) {
 									Nullable: true,
 									IsList: false,
 								},
-								DefaultValue: []byte(`{theme:"dark",notifications:true}`),
+								DefaultValue: []byte(`{theme:"dark",notifications:true,options:{a:1,b:2}}`),
 							},
 						},
 					},

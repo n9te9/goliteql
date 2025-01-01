@@ -174,6 +174,7 @@ func (p *Parser) parseOperationVariables(tokens Tokens, cur int) ([]*Variable, i
 
 func (p *Parser) parseOperationVariable(tokens Tokens, cur int) (*Variable, int, error) {
 	if tokens[cur].Type != Dollar {
+		fmt.Println(string(tokens[cur].Value))
 		return nil, cur, fmt.Errorf("expected $ before variable")
 	}
 	cur++
@@ -278,26 +279,50 @@ func (p *Parser) parseDefaultValue(tokens Tokens, cur int) ([]byte, int, error) 
 
 func (p *Parser) parseObjectValue(tokens Tokens, cur int) ([]byte, int, error) {
 	objectValue := make([]byte, 0)
-	objectValue = append(objectValue, tokens[cur].Value...)
 
-	cur++
-	for tokens[cur].Type != CurlyClose {
+	nested := 0
+	for {
 		objectValue = append(objectValue, tokens[cur].Value...)
+
+		if tokens[cur].Type == CurlyOpen {
+			nested++
+		}
+
+		if tokens[cur].Type == CurlyClose {
+			nested--
+		}
+
+		if nested == 0 {
+			break
+		}
+
 		cur++
 	}
-
-	objectValue = append(objectValue, tokens[cur].Value...)
 
 	return objectValue, cur + 1, nil
 }
 
 func (p *Parser) parseListValue(tokens Tokens, cur int) ([]byte, int, error) {
-	cur++
 	listValue := make([]byte, 0)
-	for tokens[cur].Type != BracketClose {
+
+	nested := 0
+	for {
 		listValue = append(listValue, tokens[cur].Value...)
+
+		if tokens[cur].Type == BracketOpen {
+			nested++
+		}
+
+		if tokens[cur].Type == BracketClose {
+			nested--
+		}
+
+		if nested == 0 {
+			break
+		}
+
 		cur++
 	}
 
-	return listValue, cur, nil
+	return listValue, cur + 1, nil
 }
