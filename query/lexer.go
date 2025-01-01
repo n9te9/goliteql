@@ -8,6 +8,10 @@ import (
 
 type Type string
 
+func (t Type) IsOperation() bool {
+	return t == Query || t == Mutation || t == Subscription
+}
+
 type Token struct {
 	Type Type
 	Value []byte

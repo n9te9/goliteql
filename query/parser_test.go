@@ -15,44 +15,63 @@ func TestQueryParse(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "Parse simple graphql query",
+			name: "Parse simple graphql query operation",
 			input: []byte(`query MyQuery {
-				user(id: 123) {
-					name
-				}
 			}`),
 			expected: &query.Document{
-				Tokens: []*query.Token{
-					{Type: query.Query, Value: []byte("query"), Column: 1, Line: 1},
-					{Type: query.Name, Value: []byte("MyQuery"), Column: 7, Line: 1},
-					{Type: query.CurlyOpen, Value: []byte("{"), Column: 15, Line: 1},
-					{Type: query.Name, Value: []byte("user"), Column: 5, Line: 2},
-					{Type: query.ParenOpen, Value: []byte("("), Column: 9, Line: 2},
-					{Type: query.Name, Value: []byte("id"), Column: 10, Line: 2},
-					{Type: query.Colon, Value: []byte(":"), Column: 12, Line: 2},
-					{Type: query.Name, Value: []byte("123"), Column: 14, Line: 2},
-					{Type: query.ParenClose, Value: []byte(")"), Column: 17, Line: 2},
-					{Type: query.CurlyOpen, Value: []byte("{"), Column: 19, Line: 2},
-					{Type: query.Name, Value: []byte("name"), Column: 6, Line: 3},
-					{Type: query.CurlyClose, Value: []byte("}"), Column: 5, Line: 4},
-					{Type: query.CurlyClose, Value:[]byte("}"), Column: 4, Line: 5},
-					{Type: query.EOF, Value: nil, Column: 5, Line: 5},
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name: "MyQuery",
+					},
+				},
+			},
+		}, {
+			name: "Parse simple graphql query operation with variables",
+			input: []byte(`query MyQuery($id: Int!) {
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name: "MyQuery",
+						Variables: []*query.Variable{
+							{
+								Name: []byte("id"),
+								Type: &query.FieldType{
+									Name: []byte("Int"),
+									Nullable: false,
+									IsList: false,
+								},
+								DefaultValue: nil,
+							},
+						},
+					},
 				},
 			},
 		},
 	}
+
+	opts := cmp.FilterPath(func(p cmp.Path) bool {
+		return p.Last().String() == ".tokens"
+	}, cmp.Ignore())
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lexer := query.NewLexer()
 			parser := query.NewParser(lexer)
 			got, err := parser.Parse(tt.input)
-			if err != tt.wantErr {
+			if tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
 				t.Errorf("Parse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if diff := cmp.Diff(got, tt.expected); diff != "" {
+			if tt.wantErr == nil && err != nil {
+				t.Errorf("Parse() error %v", err)
+				return
+			}
+
+			if diff := cmp.Diff(got, tt.expected, opts); diff != "" {
 				t.Errorf("Parse() mismatch (-got +want):\n%s", diff)
 			}
 		})
