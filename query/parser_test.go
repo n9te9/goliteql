@@ -50,6 +50,30 @@ func TestQueryParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Query with default complex variable values",
+			input: []byte(`query UpdateSettings($settings: SettingsInput = { theme: "dark", notifications: true }) {
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name: "UpdateSettings",
+						Variables: []*query.Variable{
+							{
+								Name: []byte("settings"),
+								Type: &query.FieldType{
+									Name: []byte("SettingsInput"),
+									Nullable: true,
+									IsList: false,
+								},
+								DefaultValue: []byte(`{theme:"dark",notifications:true}`),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	opts := cmp.FilterPath(func(p cmp.Path) bool {

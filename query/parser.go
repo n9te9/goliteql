@@ -199,7 +199,7 @@ func (p *Parser) parseOperationVariable(tokens Tokens, cur int) (*Variable, int,
 	var defaultValue []byte
 	if tokens[cur].Type == Equal {
 		cur++
-		if tokens[cur].Type != Value {
+		if tokens[cur].Type != Value && tokens[cur].Type != CurlyOpen && tokens[cur].Type != BracketOpen {
 			return nil, cur, fmt.Errorf("expected default value")
 		}
 
@@ -207,8 +207,6 @@ func (p *Parser) parseOperationVariable(tokens Tokens, cur int) (*Variable, int,
 		if err != nil {
 			return nil, cur, err
 		}
-
-		cur = newCur
 	}
 
 	return &Variable{
@@ -219,7 +217,9 @@ func (p *Parser) parseOperationVariable(tokens Tokens, cur int) (*Variable, int,
 }
 
 func (p *Parser) parseFieldType(tokens Tokens, cur, nestedRank int) (*FieldType, int, error) {
-	fieldType := &FieldType{}
+	fieldType := &FieldType{
+		Nullable: true,
+	}
 	if tokens[cur].Type == BracketOpen {
 		newFieldType, cur, err := p.parseFieldType(tokens, cur, nestedRank + 1)
 		if err != nil {
@@ -277,14 +277,18 @@ func (p *Parser) parseDefaultValue(tokens Tokens, cur int) ([]byte, int, error) 
 }
 
 func (p *Parser) parseObjectValue(tokens Tokens, cur int) ([]byte, int, error) {
-	cur++
 	objectValue := make([]byte, 0)
+	objectValue = append(objectValue, tokens[cur].Value...)
+
+	cur++
 	for tokens[cur].Type != CurlyClose {
 		objectValue = append(objectValue, tokens[cur].Value...)
 		cur++
 	}
 
-	return objectValue, cur, nil
+	objectValue = append(objectValue, tokens[cur].Value...)
+
+	return objectValue, cur + 1, nil
 }
 
 func (p *Parser) parseListValue(tokens Tokens, cur int) ([]byte, int, error) {
