@@ -221,19 +221,19 @@ func (p *Parser) parseFieldType(tokens Tokens, cur, nestedRank int) (*FieldType,
 	fieldType := &FieldType{
 		Nullable: true,
 	}
+
 	if tokens[cur].Type == BracketOpen {
-		newFieldType, cur, err := p.parseFieldType(tokens, cur, nestedRank + 1)
+		newFieldType, newCur, err := p.parseFieldType(tokens, cur + 1, nestedRank + 1)
 		if err != nil {
 			return nil, cur, err
 		}
 
 		fieldType.ListType = newFieldType
+		fieldType.IsList = true
+		cur = newCur
 	}
 
 	if tokens[cur].Type == BracketClose {
-		if nestedRank == 0 {
-			return nil, cur, fmt.Errorf("unexpected ]")
-		}
 		cur++
 		if tokens[cur].Type == Exclamation {
 			fieldType.Nullable = false

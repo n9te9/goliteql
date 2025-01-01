@@ -62,12 +62,16 @@ func TestQueryParse(t *testing.T) {
 						Variables: []*query.Variable{
 							{
 								Name: []byte("settings"),
-								Type: &query.FieldType{
-									Name: []byte("SettingsInput"),
-									Nullable: true,
-									IsList: false,
+								Type : &query.FieldType{
+									Nullable: false,
+									IsList: true,
+									ListType: &query.FieldType{
+										Name: []byte("SettingInput"),
+										Nullable: true,
+										IsList: false,
+									},
 								},
-								DefaultValue: []byte(`{theme:"dark",notifications:true,options:{a:1,b:2}}`),
+								DefaultValue: []byte(`[{theme:"dark",notifications:true,options:{a:1,b:2}}]`),
 							},
 						},
 					},
