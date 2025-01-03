@@ -133,6 +133,7 @@ func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error)
 	if tokens[cur].Type != CurlyOpen {
 		return nil, cur, fmt.Errorf("expected { after operation")
 	}
+	cur++
 
 	selections, newCur, err := p.parseSelections(tokens, cur)
 	if err != nil {
@@ -150,15 +151,13 @@ func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error)
 }
 
 func (p *Parser) parseSelections(tokens Tokens, cur int) ([]Selection, int, error) {
-	cur++
-
 	var selections []Selection = nil
 	for tokens[cur].Type != CurlyClose {
-		selection, newCur, err := p.parseSelection(tokens, cur)
+		newSelection, newCur, err := p.parseSelection(tokens, cur)
 		if err != nil {
 			return nil, newCur, err
 		}
-		selections = append(selections, selection)
+		selections = append(selections, newSelection)
 		cur = newCur
 	}
 
@@ -176,7 +175,7 @@ func (p *Parser) parseSelection(tokens Tokens, cur int) (Selection, int, error) 
 
 func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {
 	if tokens[cur].Type != Name {
-		return nil, cur, fmt.Errorf("expected field name")
+		return nil, cur, fmt.Errorf("expected field name but got %s", tokens[cur].Value)
 	}
 
 	field := &Field{
@@ -194,11 +193,13 @@ func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {
 	}
 
 	if tokens[cur].Type == CurlyOpen {
+		cur++
+
 		selections, newCur, err := p.parseSelections(tokens, cur)
 		if err != nil {
 			return nil, newCur, err
 		}
-		cur = newCur
+		cur = newCur + 1
 		field.Selections = selections
 	}
 

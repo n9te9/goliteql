@@ -279,6 +279,32 @@ func TestQueryParse(t *testing.T) {
 					},
 				},
 			},
+		}, 
+		{
+			name: "Parse nested query selection",
+			input: []byte(`query MyQuery {
+				field {
+					subfield
+				}
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+								Selections: []query.Selection{
+									&query.Field{
+										Name: []byte("subfield"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
