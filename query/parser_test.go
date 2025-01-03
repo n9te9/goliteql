@@ -261,6 +261,24 @@ func TestQueryParse(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "Parse simple query selection",
+			input: []byte(`query MyQuery {
+				field
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 

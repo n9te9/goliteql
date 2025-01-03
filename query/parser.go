@@ -133,9 +133,14 @@ func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error)
 	if tokens[cur].Type != CurlyOpen {
 		return nil, cur, fmt.Errorf("expected { after operation")
 	}
-	cur++
 
-	// TODO: parse selections
+	selections, newCur, err := p.parseSelections(tokens, cur)
+	if err != nil {
+		return nil, newCur, err
+	}
+	cur = newCur
+	op.Selections = selections
+
 	if tokens[cur].Type != CurlyClose {
 		return nil, cur, fmt.Errorf("expected } after operation")
 	}
@@ -144,6 +149,123 @@ func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error)
 	return op, cur, nil
 }
 
+func (p *Parser) parseSelections(tokens Tokens, cur int) ([]Selection, int, error) {
+	cur++
+
+	var selections []Selection = nil
+	for tokens[cur].Type != CurlyClose {
+		selection, newCur, err := p.parseSelection(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		selections = append(selections, selection)
+		cur = newCur
+	}
+
+	return selections, cur, nil
+}
+
+func (p *Parser) parseSelection(tokens Tokens, cur int) (Selection, int, error) {
+	// TODO: Implement parse spread, inline fragment
+	// if tokens[cur].Type == Spread {
+	// 	return p.parseFragment(tokens, cur)
+	// }
+
+	return p.parseField(tokens, cur)
+}
+
+func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {
+	if tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected field name")
+	}
+
+	field := &Field{
+		Name: tokens[cur].Value,
+	}
+	cur++
+
+	if tokens[cur].Type == ParenOpen {
+		arguments, newCur, err := p.parseFieldArguments(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		cur = newCur
+		field.Arguments = arguments
+	}
+
+	if tokens[cur].Type == CurlyOpen {
+		selections, newCur, err := p.parseSelections(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		cur = newCur
+		field.Selections = selections
+	}
+
+	return field, cur, nil
+}
+
+func (p *Parser) parseFieldArguments(tokens Tokens, cur int) ([]*Argument, int, error) {
+	arguments := make([]*Argument, 0)
+	cur++
+
+	for tokens[cur].Type != ParenClose {
+		argument, newCur, err := p.parseFieldArgument(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		arguments = append(arguments, argument)
+		cur = newCur
+
+		if tokens[cur].Type == Comma {
+			cur++
+			continue
+		}
+	}
+
+	cur++
+
+	return arguments, cur, nil
+}
+
+func (p *Parser) parseFieldArgument(tokens Tokens, cur int) (*Argument, int, error) {
+	if tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected argument name")
+	}
+
+	argument := &Argument{
+		Name: tokens[cur].Value,
+	}
+	cur++
+
+	if tokens[cur].Type != Colon {
+		return nil, cur, fmt.Errorf("expected : after argument name")
+	}
+	cur++
+
+	fieldType, newCur, err := p.parseFieldType(tokens, cur, 0)
+	if err != nil {
+		return nil, newCur, err
+	}
+	cur = newCur
+	argument.Type = fieldType
+
+	if tokens[cur].Type == Equal {
+		cur++
+		if tokens[cur].Type != Value {
+			return nil, cur, fmt.Errorf("expected value after =")
+		}
+		argument.DefaultValue, cur, err = p.parseDefaultValue(tokens, cur)
+		if err != nil {
+			return nil, cur, err
+		}
+
+		cur++
+	}
+
+	return argument, cur, nil
+}
+ 
 func (p *Parser) parseOperationVariables(tokens Tokens, cur int) ([]*Variable, int, error) {
 	variables := make([]*Variable, 0)
 	cur++
