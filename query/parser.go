@@ -165,12 +165,57 @@ func (p *Parser) parseSelections(tokens Tokens, cur int) ([]Selection, int, erro
 }
 
 func (p *Parser) parseSelection(tokens Tokens, cur int) (Selection, int, error) {
-	// TODO: Implement parse spread, inline fragment
-	// if tokens[cur].Type == Spread {
-	// 	return p.parseFragment(tokens, cur)
-	// }
+	if tokens[cur].Type == Spread {
+		cur++
+		return p.parseFragment(tokens, cur)
+	}
 
 	return p.parseField(tokens, cur)
+}
+
+func (p *Parser) parseFragment(tokens Tokens, cur int) (Selection, int, error) {
+	if tokens[cur].Type == On {
+		cur++
+		return p.parseInlineFragment(tokens, cur)
+	}
+
+	return p.parseFragmentSpread(tokens, cur)
+}
+
+func (p *Parser) parseInlineFragment(tokens Tokens, cur int) (*InlineFragment, int, error) {
+	if tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected type name but got %s", tokens[cur].Value)
+	}
+
+	v := tokens[cur].Value
+	cur++
+
+	if tokens[cur].Type == CurlyOpen {
+		cur++
+	} else {
+		return nil, cur, fmt.Errorf("expected { after type name")
+	}
+
+	selections, newCur, err := p.parseSelections(tokens, cur)
+	if err != nil {
+		return nil, newCur, err
+	}
+	cur = newCur
+
+	return &InlineFragment{
+		TypeCondition: v,
+		Selections: selections,
+	}, cur + 1, nil
+}
+
+func (p *Parser) parseFragmentSpread(tokens Tokens, cur int) (*FragmentSpread, int, error) {
+	if tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected fragment name but got %s", tokens[cur].Value)
+	}
+
+	return &FragmentSpread{
+		Name: tokens[cur].Value,
+	}, cur + 1, nil
 }
 
 func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {

@@ -306,6 +306,100 @@ func TestQueryParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Parse query with fragment spread",
+			input: []byte(`query MyQuery {
+				field {
+					...FragmentName
+				}
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+								Selections: []query.Selection{
+									&query.FragmentSpread{
+										Name: []byte("FragmentName"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Parse query with inline fragment",
+			input: []byte(`query MyQuery {
+				field {
+					... on TypeName {
+						subfield
+					}
+				}
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+								Selections: []query.Selection{
+									&query.InlineFragment{
+										TypeCondition: []byte("TypeName"),
+										Selections: []query.Selection{
+											&query.Field{
+												Name: []byte("subfield"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Parse query with fragment spread and inline fragment",
+			input: []byte(`query MyQuery {
+				field {
+					...FragmentName
+					... on TypeName {
+						subfield
+					}
+				}
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+								Selections: []query.Selection{
+									&query.FragmentSpread{
+										Name: []byte("FragmentName"),
+									},
+									&query.InlineFragment{
+										TypeCondition: []byte("TypeName"),
+										Selections: []query.Selection{
+											&query.Field{
+												Name: []byte("subfield"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	opts := cmp.FilterPath(func(p cmp.Path) bool {
