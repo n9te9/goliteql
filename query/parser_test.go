@@ -400,10 +400,47 @@ func TestQueryParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Parse fragment spread with a single directive",
+			input: []byte(`query MyQuery {
+				field {
+					...FragmentName @include(if: true)
+				}
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+								Selections: []query.Selection{
+									&query.FragmentSpread{
+										Name: []byte("FragmentName"),
+										Directives: []*query.Directive{
+											{
+												Name: []byte("include"),
+												Arguments: []*query.DirectiveArgument{
+													{
+														Name:  []byte("if"),
+														Value: []byte("true"),
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	opts := cmp.FilterPath(func(p cmp.Path) bool {
-		return p.Last().String() == ".tokens"
+		return p.Last().String() == ".tokens" || p.Last().String() == ".isVariable"
 	}, cmp.Ignore())
 
 	for _, tt := range tests {

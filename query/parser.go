@@ -23,6 +23,11 @@ type Variable struct {
 	DefaultValue []byte
 }
 
+type Directive struct {
+	Name []byte
+	Arguments []*DirectiveArgument
+}
+
 type Operation struct {
 	OperationType OperationType
 	Name string
@@ -40,6 +45,12 @@ type Argument struct {
 	DefaultValue []byte
 }
 
+type DirectiveArgument struct {
+	Name []byte
+	Value []byte
+	IsVariable bool
+}
+
 type Field struct {
 	Name []byte
 	Arguments []*Argument
@@ -50,6 +61,7 @@ func (f *Field) isSelection() {}
 
 type FragmentSpread struct {
 	Name []byte
+	Directives []*Directive
 }
 
 func (f *FragmentSpread) isSelection() {}
@@ -210,11 +222,113 @@ func (p *Parser) parseInlineFragment(tokens Tokens, cur int) (*InlineFragment, i
 
 func (p *Parser) parseFragmentSpread(tokens Tokens, cur int) (*FragmentSpread, int, error) {
 	if tokens[cur].Type != Name {
+		fmt.Println(tokens[cur].Type)
 		return nil, cur, fmt.Errorf("expected fragment name but got %s", tokens[cur].Value)
 	}
 
+	v := tokens[cur].Value
+	var directives []*Directive = nil
+	cur++
+	for tokens[cur].Type == At {
+		cur++
+		directive, newCur, err := p.parseDirective(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+
+		cur = newCur
+		directives = append(directives, directive)
+	}
+
 	return &FragmentSpread{
-		Name: tokens[cur].Value,
+		Name: v,
+		Directives: directives,
+	}, cur, nil
+}
+
+func (p *Parser) parseDirective(tokens Tokens, cur int) (*Directive, int, error) {
+	if tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected directive name but got %s", tokens[cur].Value)
+	}
+
+	v := tokens[cur].Value
+
+	cur++
+
+	var arguments []*DirectiveArgument = nil
+	var err error
+	if tokens[cur].Type == ParenOpen {
+		arguments, cur, err = p.parseDirectiveArguments(tokens, cur)
+		if err != nil {
+			return nil, -1, err
+		}
+	}
+
+	return &Directive{
+		Arguments: arguments,
+		Name: v,
+	}, cur, nil
+}
+
+func (p *Parser) parseDirectiveArguments(tokens Tokens, cur int) ([]*DirectiveArgument, int, error) {
+	arguments := make([]*DirectiveArgument, 0)
+	cur++
+
+	for tokens[cur].Type != ParenClose {
+		argument, newCur, err := p.parseDirectiveArgument(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		arguments = append(arguments, argument)
+		cur = newCur
+
+		if tokens[cur].Type == Comma {
+			cur++
+			continue
+		}
+	}
+	cur++
+
+	return arguments, cur, nil
+}
+
+func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgument, int, error) {
+	if tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected directive argument name but got %s", tokens[cur].Value)
+	}
+
+	v := tokens[cur].Value
+	cur++
+
+	if tokens[cur].Type != Colon {
+		return nil, cur, fmt.Errorf("expected : but got %s", tokens[cur].Value)
+	}
+	cur++
+
+	var isVariable bool
+	if tokens[cur].Type == Dollar {
+		isVariable = true
+		cur++
+
+		if tokens[cur].Type != Name {
+			return nil, cur, fmt.Errorf("expected variable name after $")
+		}
+
+		return &DirectiveArgument{
+			Name: v,
+			Value: tokens[cur].Value,
+			IsVariable: isVariable,
+		}, cur, nil
+	}
+
+	if tokens[cur].Type != Value && tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected value or name but got %s", tokens[cur].Value)
+	}
+
+	return &DirectiveArgument{
+		Name: v,
+		Value: tokens[cur].Value,
+		IsVariable: isVariable,
 	}, cur + 1, nil
 }
 
