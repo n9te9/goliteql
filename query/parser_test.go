@@ -437,6 +437,181 @@ func TestQueryParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Parse fragment spread with multiple directives",
+			input: []byte(`query MyQuery {
+				field {
+					...FragmentName @include(if: true) @deprecated(reason: "Use newField")
+				}
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+								Selections: []query.Selection{
+									&query.FragmentSpread{
+										Name: []byte("FragmentName"),
+										Directives: []*query.Directive{
+											{
+												Name: []byte("include"),
+												Arguments: []*query.DirectiveArgument{
+													{
+														Name:  []byte("if"),
+														Value: []byte("true"),
+													},
+												},
+											},
+											{
+												Name: []byte("deprecated"),
+												Arguments: []*query.DirectiveArgument{
+													{
+														Name:  []byte("reason"),
+														Value: []byte("\"Use newField\""),
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse field with directive",
+			input: []byte(`query MyQuery {
+				user @include(if: true)
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("user"),
+								Directives: []*query.Directive{
+									{
+										Name: []byte("include"),
+										Arguments: []*query.DirectiveArgument{
+											{
+												Name:  []byte("if"),
+												Value: []byte("true"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse field with directive",
+			input: []byte(`query MyQuery {
+				user @include(if: true)
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("user"),
+								Directives: []*query.Directive{
+									{
+										Name: []byte("include"),
+										Arguments: []*query.DirectiveArgument{
+											{
+												Name:  []byte("if"),
+												Value: []byte("true"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse inline fragment with directive",
+			input: []byte(`query MyQuery {
+				user {
+					... on User @deprecated(reason: "Use newField") {
+						newField
+					}
+				}
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("user"),
+								Selections: []query.Selection{
+									&query.InlineFragment{
+										TypeCondition: []byte("User"),
+										Directives: []*query.Directive{
+											{
+												Name: []byte("deprecated"),
+												Arguments: []*query.DirectiveArgument{
+													{
+														Name:  []byte("reason"),
+														Value: []byte(`"Use newField"`),
+													},
+												},
+											},
+										},
+										Selections: []query.Selection{
+											&query.Field{
+												Name: []byte("newField"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse query operation with simple directive",
+			input: []byte(`query MyQuery @deprecated {
+				field
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Directives: []*query.Directive{
+							{
+								Name: []byte("deprecated"),
+							},
+						},
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+							},
+						},
+					},
+				},
+			},
+		},
+		
 	}
 
 	opts := cmp.FilterPath(func(p cmp.Path) bool {

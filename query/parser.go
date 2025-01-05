@@ -33,6 +33,7 @@ type Operation struct {
 	Name string
 	Variables []*Variable
 	Selections []Selection
+	Directives []*Directive
 }
 
 type Selection interface {
@@ -55,6 +56,7 @@ type Field struct {
 	Name []byte
 	Arguments []*Argument
 	Selections []Selection
+	Directives []*Directive
 }
 
 func (f *Field) isSelection() {}
@@ -69,6 +71,7 @@ func (f *FragmentSpread) isSelection() {}
 type InlineFragment struct {
 	TypeCondition []byte
 	Selections []Selection
+	Directives []*Directive
 }
 
 func (f *InlineFragment) isSelection() {}
@@ -142,6 +145,16 @@ func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error)
 		op.Variables = variables
 	}
 
+	for tokens[cur].Type == At {
+		cur++
+		directive, newCur, err := p.parseDirective(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		cur = newCur
+		op.Directives = append(op.Directives, directive)
+	}
+
 	if tokens[cur].Type != CurlyOpen {
 		return nil, cur, fmt.Errorf("expected { after operation")
 	}
@@ -202,6 +215,17 @@ func (p *Parser) parseInlineFragment(tokens Tokens, cur int) (*InlineFragment, i
 	v := tokens[cur].Value
 	cur++
 
+	var directives []*Directive = nil
+	for tokens[cur].Type == At {
+		cur++
+		directive, newCur, err := p.parseDirective(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		cur = newCur
+		directives = append(directives, directive)
+	}
+
 	if tokens[cur].Type == CurlyOpen {
 		cur++
 	} else {
@@ -217,6 +241,7 @@ func (p *Parser) parseInlineFragment(tokens Tokens, cur int) (*InlineFragment, i
 	return &InlineFragment{
 		TypeCondition: v,
 		Selections: selections,
+		Directives: directives,
 	}, cur + 1, nil
 }
 
@@ -321,6 +346,26 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		}, cur, nil
 	}
 
+	if tokens[cur].Type == CurlyOpen {
+		newValue, newCur, err := p.parseObjectValue(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+
+		v = newValue
+		cur = newCur
+	}
+
+	if tokens[cur].Type == BracketOpen {
+		newValue, newCur, err := p.parseListValue(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+
+		v = newValue
+		cur = newCur
+	}
+
 	if tokens[cur].Type != Value && tokens[cur].Type != Name {
 		return nil, cur, fmt.Errorf("expected value or name but got %s", tokens[cur].Value)
 	}
@@ -360,6 +405,16 @@ func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {
 		}
 		cur = newCur + 1
 		field.Selections = selections
+	}
+
+	for tokens[cur].Type == At {
+		cur++
+		directive, newCur, err := p.parseDirective(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		cur = newCur
+		field.Directives = append(field.Directives, directive)
 	}
 
 	return field, cur, nil
