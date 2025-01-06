@@ -3,6 +3,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"unicode"
 )
 
@@ -182,6 +183,20 @@ func (t Tokens) isArgument() bool {
 	return false
 }
 
+type Types []Type
+
+func (t Types) isArgument() bool {
+	if len(t) == 0 {
+		return false
+	}
+
+	if slices.Contains(t, ParenOpen) {
+		return true
+	}
+
+	return false
+}
+
 func (l *Lexer) Lex(input []byte) (Tokens, error) {
 	tokens := make(Tokens, 0)
 	cur := 0
@@ -189,6 +204,7 @@ func (l *Lexer) Lex(input []byte) (Tokens, error) {
 
 	var token, prev *Token
 	var err error
+	stack := make(Types, 0)
 	for cur < len(input) {
 		switch input[cur] {
 		case ' ', '\t':
@@ -203,14 +219,45 @@ func (l *Lexer) Lex(input []byte) (Tokens, error) {
 		}
 
 		switch input[cur] {
-		case '{', '}', '(', ')', ':', '@', ',', '=', '[', ']', '$', '!':
+		case '{', '(', '[':
+			stack = append(stack, queryPunctuators[input[cur]])
+			tokens = append(tokens, &Token{Type: queryPunctuators[input[cur]], Value: []byte{input[cur]}, Column: col, Line: line})
+			cur++
+			col++
+			continue
+		case '}', ')', ']':
+			if len(stack) == 0 {
+				return nil, errors.New("invalid token")
+			}
+
+			if stack[len(stack) - 1] == CurlyOpen && input[cur] != '}' {
+				return nil, errors.New("invalid token")
+			}
+
+			if stack[len(stack) - 1] == ParenOpen && input[cur] != ')' {
+				return nil, errors.New("invalid token")
+			}
+
+			if stack[len(stack) - 1] == BracketOpen && input[cur] != ']' {
+				return nil, errors.New("invalid token")
+			}
+
+			stack = stack[:len(stack) - 1]
 			tokens = append(tokens, &Token{Type: queryPunctuators[input[cur]], Value: []byte{input[cur]}, Column: col, Line: line})
 			cur++
 			col++
 			continue
 		}
 
-		if tokens.isDefaultValue() || tokens.isArgument() {
+		switch input[cur] {
+		case ':', '@', ',', '=', '$', '!':
+			tokens = append(tokens, &Token{Type: queryPunctuators[input[cur]], Value: []byte{input[cur]}, Column: col, Line: line})
+			cur++
+			col++
+			continue
+		}
+
+		if tokens.isDefaultValue() || tokens.isArgument() || stack.isArgument() {
 			if unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
 				token, cur, line, col = newValueToken(input, cur, col, line)
 				tokens = append(tokens, token)

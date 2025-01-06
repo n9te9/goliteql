@@ -611,7 +611,98 @@ func TestQueryParse(t *testing.T) {
 				},
 			},
 		},
-		
+		{
+			name: "Parse query operation with directive having arguments",
+			input: []byte(`query MyQuery @include(if: true) {
+				field
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Directives: []*query.Directive{
+							{
+								Name: []byte("include"),
+								Arguments: []*query.DirectiveArgument{
+									{
+										Name:  []byte("if"),
+										Value: []byte("true"),
+									},
+								},
+							},
+						},
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse query operation with multiple directives",
+			input: []byte(`query MyQuery @include(if: true) @deprecated {
+				field
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Directives: []*query.Directive{
+							{
+								Name: []byte("include"),
+								Arguments: []*query.DirectiveArgument{
+									{
+										Name:  []byte("if"),
+										Value: []byte("true"),
+									},
+								},
+							},
+							{
+								Name: []byte("deprecated"),
+							},
+						},
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+							},
+						},
+					},
+				},
+			},
+		},{
+			name: "Parse query operation with directive having complex arguments",
+			input: []byte(`query MyQuery @settings(config: { theme: "dark", features: ["a", "b"] }) {
+				field
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Directives: []*query.Directive{
+							{
+								Name: []byte("settings"),
+								Arguments: []*query.DirectiveArgument{
+									{
+										Name:  []byte("config"),
+										Value: []byte(`{theme:"dark",features:["a","b"]}`),
+									},
+								},
+							},
+						},
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("field"),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	opts := cmp.FilterPath(func(p cmp.Path) bool {

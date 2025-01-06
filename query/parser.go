@@ -322,7 +322,7 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		return nil, cur, fmt.Errorf("expected directive argument name but got %s", tokens[cur].Value)
 	}
 
-	v := tokens[cur].Value
+	name := tokens[cur].Value
 	cur++
 
 	if tokens[cur].Type != Colon {
@@ -340,10 +340,18 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		}
 
 		return &DirectiveArgument{
-			Name: v,
+			Name: name,
 			Value: tokens[cur].Value,
 			IsVariable: isVariable,
 		}, cur, nil
+	}
+
+	if tokens[cur].Type == Value || tokens[cur].Type == Name {
+		return &DirectiveArgument{
+			Name: name,
+			Value: tokens[cur].Value,
+			IsVariable: isVariable,
+		}, cur + 1, nil
 	}
 
 	if tokens[cur].Type == CurlyOpen {
@@ -352,8 +360,11 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 			return nil, newCur, err
 		}
 
-		v = newValue
-		cur = newCur
+		return &DirectiveArgument{
+			Name: name,
+			Value: newValue,
+			IsVariable: isVariable,
+		}, newCur, nil
 	}
 
 	if tokens[cur].Type == BracketOpen {
@@ -362,19 +373,15 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 			return nil, newCur, err
 		}
 
-		v = newValue
-		cur = newCur
+		return &DirectiveArgument{
+			Name: name,
+			Value: newValue,
+			IsVariable: isVariable,
+		}, newCur, nil
 	}
 
-	if tokens[cur].Type != Value && tokens[cur].Type != Name {
-		return nil, cur, fmt.Errorf("expected value or name but got %s", tokens[cur].Value)
-	}
 
-	return &DirectiveArgument{
-		Name: v,
-		Value: tokens[cur].Value,
-		IsVariable: isVariable,
-	}, cur + 1, nil
+	return nil, cur, fmt.Errorf("unexpected token")
 }
 
 func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {
@@ -624,6 +631,17 @@ func (p *Parser) parseObjectValue(tokens Tokens, cur int) ([]byte, int, error) {
 
 	nested := 0
 	for {
+		if tokens[cur].Type == BracketOpen {
+			listValue, newCur, err := p.parseListValue(tokens, cur)
+			if err != nil {
+				return nil, newCur, err
+			}
+
+			objectValue = append(objectValue, listValue...)
+			cur = newCur
+			continue
+		}
+
 		objectValue = append(objectValue, tokens[cur].Value...)
 
 		if tokens[cur].Type == CurlyOpen {
@@ -649,6 +667,17 @@ func (p *Parser) parseListValue(tokens Tokens, cur int) ([]byte, int, error) {
 
 	nested := 0
 	for {
+		if tokens[cur].Type == CurlyOpen {
+			objectValue, newCur, err := p.parseObjectValue(tokens, cur)
+			if err != nil {
+				return nil, newCur, err
+			}
+
+			listValue = append(listValue, objectValue...)
+			cur = newCur
+			continue
+		}
+
 		listValue = append(listValue, tokens[cur].Value...)
 
 		if tokens[cur].Type == BracketOpen {

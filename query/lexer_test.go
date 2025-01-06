@@ -535,7 +535,7 @@ func TestQueryLex(t *testing.T) {
 			input: []byte(`query {
 					user(name: "Alice)
 			}`),
-			wantErr: errors.New("unterminated string at line 2, column 28"),
+			wantErr: errors.New("unterminated string at line 2, column 32"),
 		},{
 			name: "Single directive with complex arguments",
 			input: []byte(`query { user { name @include(if: true, reason: "test") } }`),
@@ -587,6 +587,39 @@ func TestQueryLex(t *testing.T) {
 				{Type: query.ParenClose, Value: []byte(")"), Line: 1, Column: 38},
 				{Type: query.CurlyClose, Value: []byte("}"), Line: 1, Column: 40},
 				{Type: query.EOF, Value: nil, Line: 1, Column: 41},
+			},
+		},
+		{
+			name: "Lex query operation with directive having complex arguments",
+			input: []byte(`query MyQuery @settings(config: { theme: "dark", features: ["a", "b"] }) {
+				field
+			}`),
+			expected: query.Tokens{
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.Name, Value: []byte("MyQuery"), Line: 1, Column: 7},
+				{Type: query.At, Value: []byte("@"), Line: 1, Column: 16},
+				{Type: query.Name, Value: []byte("settings"), Line: 1, Column: 17},
+				{Type: query.ParenOpen, Value: []byte("("), Line: 1, Column: 25},
+				{Type: query.Name, Value: []byte("config"), Line: 1, Column: 26},
+				{Type: query.Colon, Value: []byte(":"), Line: 1, Column: 32},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 34},
+				{Type: query.Name, Value: []byte("theme"), Line: 1, Column: 36},
+				{Type: query.Colon, Value: []byte(":"), Line: 1, Column: 41},
+				{Type: query.Value, Value: []byte("\"dark\""), Line: 1, Column: 43},
+				{Type: query.Comma, Value: []byte(","), Line: 1, Column: 50},
+				{Type: query.Name, Value: []byte("features"), Line: 1, Column: 52},
+				{Type: query.Colon, Value: []byte(":"), Line: 1, Column: 61},
+				{Type: query.BracketOpen, Value: []byte("["), Line: 1, Column: 63},
+				{Type: query.Value, Value: []byte("\"a\""), Line: 1, Column: 64},
+				{Type: query.Comma, Value: []byte(","), Line: 1, Column: 69},
+				{Type: query.Value, Value: []byte("\"b\""), Line: 1, Column: 71},
+				{Type: query.BracketClose, Value: []byte("]"), Line: 1, Column: 76},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 1, Column: 77},
+				{Type: query.ParenClose, Value: []byte(")"), Line: 1, Column: 78},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 80},
+				{Type: query.Name, Value: []byte("field"), Line: 2, Column: 3},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 3, Column: 2},
+				{Type: query.EOF, Value: nil, Line: 3, Column: 3},
 			},
 		},
 	}
