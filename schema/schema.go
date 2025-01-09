@@ -162,8 +162,50 @@ func NewSchema(tokens Tokens) *Schema {
 	}
 }
 
+func (s *Schema) digOperation(name string, ops []*OperationDefinition) ([]*FieldDefinition, error) {
+	res := make([]*FieldDefinition, 0)
+
+	for _, op := range ops {
+		if string(op.Name) != name {
+			return nil, fmt.Errorf("operation %s not found", name)
+		}
+
+		res = append(res, op.Fields...)
+		if len(op.Extentions) > 0 {
+			field, err := s.digOperation(name, op.Extentions)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, field...)
+		}
+	}
+
+	return res, nil
+}
+
 func (s *Schema) Merge() (*Schema, error) {
-	return nil, nil
+	newSchema := new(Schema)
+	newSchema.Definition = s.Definition
+	newSchema.tokens = s.tokens
+	newSchema.indexes = s.indexes
+
+	
+	for _, t := range s.Operations {
+		newOp := new(OperationDefinition)
+		newOp.OperationType = t.OperationType
+		newOp.Name = t.Name
+		newOp.Fields = t.Fields
+
+		field, err := s.digOperation(string(newOp.Name), t.Extentions)
+		if err != nil {
+			return nil, err
+		}
+		newOp.Fields = append(newOp.Fields, field...)
+
+		newSchema.Operations = append(newSchema.Operations, newOp)
+	}
+
+	return newSchema, nil
 }
 
 func add[T DefinitionType](indexes *Indexes, definition T) (*Indexes, error) {
