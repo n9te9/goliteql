@@ -13,9 +13,32 @@ const (
 	SubscriptionOperation OperationType = "subscription"
 )
 
+type FieldDefinitions []*FieldDefinition
+
+func (f FieldDefinitions) Last(name string) *FieldDefinition {
+	var res *FieldDefinition
+	for _, field := range f {
+		if string(field.Name) == name {
+			res = field
+		}
+	}
+
+	return res
+}
+
+func (f FieldDefinitions) Has(name string) bool {
+	for _, field := range f {
+		if string(field.Name) == name {
+			return true
+		}
+	}
+	
+	return false
+}
+
 type TypeDefinition struct {
 	Name []byte
-	Fields []*FieldDefinition
+	Fields FieldDefinitions
 	tokens Tokens
 	Interfaces []*InterfaceDefinition
 	Directives []*Directive
@@ -46,7 +69,7 @@ type ArgumentDefinition struct {
 type OperationDefinition struct {
 	OperationType OperationType
 	Name []byte
-	Fields []*FieldDefinition
+	Fields FieldDefinitions
 	Extentions []*OperationDefinition
 }
 
@@ -72,7 +95,7 @@ type UnionDefinition struct {
 
 type InterfaceDefinition struct {
 	Name []byte
-	Fields []*FieldDefinition
+	Fields FieldDefinitions
 	Extentions []*InterfaceDefinition
 	Directives []*Directive
 }
@@ -103,7 +126,7 @@ type DirectiveDefinition struct {
 
 type InputDefinition struct {
 	Name []byte
-	Fields []*FieldDefinition
+	Fields FieldDefinitions
 	tokens Tokens
 	Extentions []*InputDefinition
 }
@@ -162,8 +185,8 @@ func NewSchema(tokens Tokens) *Schema {
 	}
 }
 
-func (s *Schema) digOperation(name string, ops []*OperationDefinition) ([]*FieldDefinition, error) {
-	res := make([]*FieldDefinition, 0)
+func (s *Schema) digOperation(name string, ops []*OperationDefinition) (FieldDefinitions, error) {
+	res := make(FieldDefinitions, 0)
 
 	for _, op := range ops {
 		if string(op.Name) != name {
@@ -183,13 +206,7 @@ func (s *Schema) digOperation(name string, ops []*OperationDefinition) ([]*Field
 	return res, nil
 }
 
-func (s *Schema) Merge() (*Schema, error) {
-	newSchema := new(Schema)
-	newSchema.Definition = s.Definition
-	newSchema.tokens = s.tokens
-	newSchema.indexes = s.indexes
-
-	
+func (s *Schema) mergeOperation(newSchema *Schema) error {
 	for _, t := range s.Operations {
 		newOp := new(OperationDefinition)
 		newOp.OperationType = t.OperationType
@@ -198,11 +215,36 @@ func (s *Schema) Merge() (*Schema, error) {
 
 		field, err := s.digOperation(string(newOp.Name), t.Extentions)
 		if err != nil {
-			return nil, err
+			return err
 		}
+
 		newOp.Fields = append(newOp.Fields, field...)
 
+		newFields := make(FieldDefinitions, 0)
+		for _, field := range newOp.Fields {
+			newField := newOp.Fields.Last(string(field.Name))
+			if newField == nil {
+				newFields = append(newFields, field)
+			} else if !newFields.Has(string(newField.Name)) {
+				newFields = append(newFields, newField)
+			}
+		}
+		newOp.Fields = newFields
+
 		newSchema.Operations = append(newSchema.Operations, newOp)
+	}
+
+	return nil
+}
+
+func (s *Schema) Merge() (*Schema, error) {
+	newSchema := new(Schema)
+	newSchema.Definition = s.Definition
+	newSchema.tokens = s.tokens
+	newSchema.indexes = s.indexes
+	
+	if err := s.mergeOperation(newSchema); err != nil {
+		return nil, err
 	}
 
 	return newSchema, nil
