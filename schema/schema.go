@@ -237,6 +237,60 @@ func (s *Schema) mergeOperation(newSchema *Schema) error {
 	return nil
 }
 
+func (s *Schema) digTypeDefinition(name string, types []*TypeDefinition) (FieldDefinitions, error) {
+	res := make(FieldDefinitions, 0)
+
+	for _, t := range types {
+		if string(t.Name) != name {
+			return nil, fmt.Errorf("type %s not found", name)
+		}
+
+		res = append(res, t.Fields...)
+		if len(t.Extentions) > 0 {
+			field, err := s.digTypeDefinition(name, t.Extentions)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, field...)
+		}
+	}
+
+	return res, nil
+}
+
+func (s *Schema) mergeTypeDefinition(newSchema *Schema) error {
+	for _, t := range s.Types {
+		newType := new(TypeDefinition)
+		newType.Name = t.Name
+		newType.Fields = t.Fields
+		newType.Interfaces = t.Interfaces
+		newType.Directives = t.Directives
+
+		newFields := make(FieldDefinitions, 0)
+
+		field, err := s.digTypeDefinition(string(newType.Name), t.Extentions)
+		if err != nil {
+			return err
+		}
+
+		newFields = append(newFields, field...)
+
+		for _, field := range newType.Fields {
+			newField := newType.Fields.Last(string(field.Name))
+			if newField == nil {
+				newFields = append(newFields, field)
+			} else if !newFields.Has(string(newField.Name)) {
+				newFields = append(newFields, newField)
+			}
+		}
+		newType.Fields = newFields
+
+		newSchema.Types = append(newSchema.Types, newType)
+	}
+
+	return nil
+}
+
 func (s *Schema) Merge() (*Schema, error) {
 	newSchema := new(Schema)
 	newSchema.Definition = s.Definition
@@ -244,6 +298,10 @@ func (s *Schema) Merge() (*Schema, error) {
 	newSchema.indexes = s.indexes
 	
 	if err := s.mergeOperation(newSchema); err != nil {
+		return nil, err
+	}
+
+	if err := s.mergeTypeDefinition(newSchema); err != nil {
 		return nil, err
 	}
 
