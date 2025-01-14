@@ -377,6 +377,42 @@ func TestLexer_Lex(t *testing.T) {
 			},
 		},
 		{
+			name: "Input with boolean default value",
+			input: []byte(`input User {
+				active: Boolean = true
+			}`),
+			expected: []*schema.Token{
+				{Type: schema.Input, Value: []byte("input"), Column: 1, Line: 1},
+				{Type: schema.Identifier, Value: []byte("User"), Column: 7, Line: 1},
+				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
+				{Type: schema.Field, Value: []byte("active"), Column: 5, Line: 2},
+				{Type: schema.Colon, Value: []byte(":"), Column: 11, Line: 2},
+				{Type: schema.Identifier, Value: []byte("Boolean"), Column: 13, Line: 2},
+				{Type: schema.Equal, Value: []byte("="), Column: 21, Line: 2},
+				{Type: schema.Value, Value: []byte("true"), Column: 23, Line: 2},
+				{Type: schema.CurlyClose, Value: []byte("}"), Column: 4, Line: 3},
+				{Type: schema.EOF, Value: nil, Column: 5, Line: 3},
+			},
+		},
+		{
+			name: "Input with object default value",
+			input: []byte(`input User {
+				profile: Profile = { name: "hoge" }
+			}`),
+			expected: []*schema.Token{
+				{Type: schema.Input, Value: []byte("input"), Column: 1, Line: 1},
+				{Type: schema.Identifier, Value: []byte("User"), Column: 7, Line: 1},
+				{Type: schema.CurlyOpen, Value: []byte("{"), Column: 12, Line: 1},
+				{Type: schema.Field, Value: []byte("profile"), Column: 5, Line: 2},
+				{Type: schema.Colon, Value: []byte(":"), Column: 12, Line: 2},
+				{Type: schema.Identifier, Value: []byte("Profile"), Column: 14, Line: 2},
+				{Type: schema.Equal, Value: []byte("="), Column: 22, Line: 2},
+				{Type: schema.Value, Value: []byte(`{ name: "hoge" }`), Column: 24, Line: 2},
+				{Type: schema.CurlyClose, Value: []byte("}"), Column: 4, Line: 3},
+				{Type: schema.EOF, Value: nil, Column: 5, Line: 3},
+			},
+		},
+		{
 			name: "Field with default list value",
 			input: []byte(`type Query {
 				getIds(ids: [ID] = ["id1", "id2"])

@@ -140,8 +140,8 @@ func newDirectiveArgumentTokens(input []byte, cur, col, line int) (Tokens, int) 
 			continue
 		}
 
-		end := defaultArgumentKeywordEnd(input, cur)
 		if tokens.isField() {
+			end := defaultArgumentKeywordEnd(input, cur)
 			token, cur = newValueToken(input, cur, end, col, line)
 			tokens = append(tokens, token)
 			col += len(token.Value)
@@ -727,22 +727,47 @@ func defaultArgumentKeywordEnd(input []byte, cur int) int {
 		isString = true
 	}
 
-	bracketOpenCount := 0
+	stack := make([]byte, 0)
 	for cur < len(input) {
 		if input[cur] == '[' {
-			bracketOpenCount++
+			stack = append(stack, '[')
 		}
+
 		if input[cur] == ']' {
-			bracketOpenCount--
+			if stack[len(stack)-1] != '[' {
+				panic("unexpected character")
+			}
+
+			stack = stack[:len(stack)-1]
+		}
+
+		if input[cur] == '{'{
+			stack = append(stack, '{')
+		}
+
+		if input[cur] == '}' {
+			if stack[len(stack)-1] != '{' {
+				panic("unexpected character")
+			}
+			
+			stack = stack[:len(stack)-1]
 		}
 
 		cur++
-		if input[cur] == ')' || (input[cur] == ',' && bracketOpenCount == 0) {
+		if (input[cur] == ')' || input[cur] == ',') && len(stack) == 0 {
 			break
 		}
 
 		if isString && input[cur] == '"' {
 			cur++
+			break
+		}
+
+		if input[cur] == ' ' && (len(stack) > 0 || isString) {
+			continue
+		}
+
+		if input[cur] == '\n' || input[cur] == '\t' || input[cur] == ' ' {
 			break
 		}
 	}
