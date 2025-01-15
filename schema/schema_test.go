@@ -9,12 +9,12 @@ import (
 )
 
 func TestSchema_Merge(t *testing.T) {
-	tests := []struct{
-		name string
-		input []byte
-		want *schema.Schema
+	tests := []struct {
+		name    string
+		input   []byte
+		want    *schema.Schema
 		wantErr error
-		isSkip bool
+		isSkip  bool
 	}{
 		{
 			name: "Merge extend query definition",
@@ -28,8 +28,8 @@ func TestSchema_Merge(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -37,45 +37,45 @@ func TestSchema_Merge(t *testing.T) {
 						OperationType: schema.QueryOperation,
 						Fields: []*schema.FieldDefinition{
 							{
-								Name: []byte("user"),
+								Name:       []byte("user"),
 								Directives: []*schema.Directive{},
 								Arguments: []*schema.ArgumentDefinition{
 									{
 										Name: []byte("id"),
 										Type: &schema.FieldType{
-											Name: []byte("ID"),
+											Name:     []byte("ID"),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 									},
 									{
 										Name: []byte("isActive"),
 										Type: &schema.FieldType{
-											Name: []byte("Boolean"),
+											Name:     []byte("Boolean"),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 										Default: []byte("false"),
 									},
 								},
 								Type: &schema.FieldType{
-									Name: []byte("User"),
+									Name:     []byte("User"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 							},
 							{
-								Name: []byte("users"),
-								Arguments: []*schema.ArgumentDefinition{},
+								Name:       []byte("users"),
+								Arguments:  []*schema.ArgumentDefinition{},
 								Directives: []*schema.Directive{},
 								Type: &schema.FieldType{
-									Name: nil,
+									Name:     nil,
 									Nullable: false,
-									IsList: true,
+									IsList:   true,
 									ListType: &schema.FieldType{
-										Name: []byte("User"),
+										Name:     []byte("User"),
 										Nullable: true,
-										IsList: false,
+										IsList:   false,
 									},
 								},
 							},
@@ -95,8 +95,8 @@ func TestSchema_Merge(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -104,58 +104,58 @@ func TestSchema_Merge(t *testing.T) {
 						OperationType: schema.MutationOperation,
 						Fields: []*schema.FieldDefinition{
 							{
-								Name: []byte("createUser"),
+								Name:       []byte("createUser"),
 								Directives: []*schema.Directive{},
 								Arguments: []*schema.ArgumentDefinition{
 									{
 										Name: []byte("name"),
 										Type: &schema.FieldType{
-											Name: []byte("String"),
+											Name:     []byte("String"),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 									},
 									{
 										Name: []byte("email"),
 										Type: &schema.FieldType{
-											Name: []byte("String"),
+											Name:     []byte("String"),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 									},
 									{
 										Name: []byte("isActive"),
 										Type: &schema.FieldType{
-											Name: []byte("Boolean"),
+											Name:     []byte("Boolean"),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 										Default: []byte("false"),
 									},
 								},
 								Type: &schema.FieldType{
-									Name: []byte("User"),
+									Name:     []byte("User"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 							},
 							{
-								Name: []byte("deleteUser"),
+								Name:       []byte("deleteUser"),
 								Directives: []*schema.Directive{},
 								Arguments: []*schema.ArgumentDefinition{
 									{
 										Name: []byte("id"),
 										Type: &schema.FieldType{
-											Name: []byte("ID"),
+											Name:     []byte("ID"),
 											Nullable: false,
-											IsList: false,
+											IsList:   false,
 										},
 									},
 								},
 								Type: &schema.FieldType{
-									Name: []byte("Boolean"),
+									Name:     []byte("Boolean"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 							},
 						},
@@ -174,8 +174,8 @@ func TestSchema_Merge(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Operations: []*schema.OperationDefinition{
@@ -183,23 +183,23 @@ func TestSchema_Merge(t *testing.T) {
 						OperationType: schema.SubscriptionOperation,
 						Fields: []*schema.FieldDefinition{
 							{
-								Name: []byte("userCreated"),
+								Name:       []byte("userCreated"),
 								Directives: []*schema.Directive{},
-								Arguments: []*schema.ArgumentDefinition{},
+								Arguments:  []*schema.ArgumentDefinition{},
 								Type: &schema.FieldType{
-									Name: []byte("User"),
+									Name:     []byte("User"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 							},
 							{
-								Name: []byte("userDeleted"),
+								Name:       []byte("userDeleted"),
 								Directives: []*schema.Directive{},
-								Arguments: []*schema.ArgumentDefinition{},
+								Arguments:  []*schema.ArgumentDefinition{},
 								Type: &schema.FieldType{
-									Name: []byte("User"),
+									Name:     []byte("User"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 							},
 						},
@@ -219,8 +219,8 @@ func TestSchema_Merge(t *testing.T) {
 			}`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
-					Query: []byte("Query"),
-					Mutation: []byte("Mutation"),
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
 				Types: []*schema.TypeDefinition{
@@ -230,27 +230,126 @@ func TestSchema_Merge(t *testing.T) {
 							{
 								Name: []byte("email"),
 								Type: &schema.FieldType{
-									Name: []byte("String"),
+									Name:     []byte("String"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
 							},
 							{
 								Name: []byte("id"),
 								Type: &schema.FieldType{
-									Name: []byte("ID"),
+									Name:     []byte("ID"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
 							},
 							{
 								Name: []byte("name"),
 								Type: &schema.FieldType{
-									Name: []byte("String"),
+									Name:     []byte("String"),
 									Nullable: false,
-									IsList: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Merge extend interface definition",
+			input: []byte(`interface Node {
+				id: ID!
+			}
+
+			extend interface Node {
+				createdAt: DateTime!
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("createdAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("DateTime"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Merge extend interface definition with multiple fields",
+			input: []byte(`interface Node {
+					id: ID!
+			}
+	
+			extend interface Node {
+					createdAt: DateTime!
+					hogehoge: [String!]!
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Interfaces: []*schema.InterfaceDefinition{
+					{
+						Name: []byte("Node"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("createdAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("DateTime"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("hogehoge"),
+								Type: &schema.FieldType{
+									Name:     nil,
+									Nullable: false,
+									IsList:   true,
+									ListType: &schema.FieldType{
+										Name:     []byte("String"),
+										Nullable: false,
+										IsList:   false,
+									},
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
 							},

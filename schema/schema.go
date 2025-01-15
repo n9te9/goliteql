@@ -291,6 +291,59 @@ func (s *Schema) mergeTypeDefinition(newSchema *Schema) error {
 	return nil
 }
 
+func (s *Schema) digInterfaceDefinition(name string, interfaces []*InterfaceDefinition) (FieldDefinitions, error) {
+	res := make(FieldDefinitions, 0)
+
+	for _, t := range interfaces {
+		if string(t.Name) != name {
+			return nil, fmt.Errorf("interface %s not found", name)
+		}
+
+		res = append(res, t.Fields...)
+		if len(t.Extentions) > 0 {
+			field, err := s.digInterfaceDefinition(name, t.Extentions)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, field...)
+		}
+	}
+
+	return res, nil
+}
+
+func (s *Schema) mergeInterfaceDefinition(newSchema *Schema) error {
+	for _, t := range s.Interfaces {
+		newInterface := new(InterfaceDefinition)
+		newInterface.Name = t.Name
+		newInterface.Fields = t.Fields
+		newInterface.Directives = t.Directives
+
+		newFields := make(FieldDefinitions, 0)
+
+		field, err := s.digInterfaceDefinition(string(newInterface.Name), t.Extentions)
+		if err != nil {
+			return err
+		}
+
+		newFields = append(newFields, field...)
+
+		for _, field := range newInterface.Fields {
+			newField := newInterface.Fields.Last(string(field.Name))
+			if newField == nil {
+				newFields = append(newFields, field)
+			} else if !newFields.Has(string(newField.Name)) {
+				newFields = append(newFields, newField)
+			}
+		}
+		newInterface.Fields = newFields
+
+		newSchema.Interfaces = append(newSchema.Interfaces, newInterface)
+	}
+
+	return nil
+}
+
 func (s *Schema) Merge() (*Schema, error) {
 	newSchema := new(Schema)
 	newSchema.Definition = s.Definition
@@ -302,6 +355,10 @@ func (s *Schema) Merge() (*Schema, error) {
 	}
 
 	if err := s.mergeTypeDefinition(newSchema); err != nil {
+		return nil, err
+	}
+
+	if err := s.mergeInterfaceDefinition(newSchema); err != nil {
 		return nil, err
 	}
 
