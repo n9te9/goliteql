@@ -93,6 +93,28 @@ type UnionDefinition struct {
 	Directives []*Directive
 }
 
+func (u *UnionDefinition) HasType(name string) bool {
+	for _, t := range u.Types {
+		if string(t) == name {
+			return true
+		}
+	}
+	
+	return false
+}
+
+type UnionDefinitions []*UnionDefinition
+
+func (u UnionDefinitions) Has(name string) bool {
+	for _, union := range u {
+		if string(union.Name) == name {
+			return true
+		}
+	}
+	
+	return false
+}
+
 type InterfaceDefinition struct {
 	Name []byte
 	Fields FieldDefinitions
@@ -344,6 +366,59 @@ func (s *Schema) mergeInterfaceDefinition(newSchema *Schema) error {
 	return nil
 }
 
+func (s *Schema) digUnionDefinition(name string, unions UnionDefinitions) ([][]byte, error) {
+	var res [][]byte
+
+	if !unions.Has(name) {
+		return nil, fmt.Errorf("union %s not found", name)
+	}
+
+	for _, u := range unions {
+		if string(u.Name) == name {
+			res = append(res, u.Types...)
+
+			if len(u.Extentions) > 0 {
+				types, err := s.digUnionDefinition(name, u.Extentions)
+				if err != nil {
+					return nil, err
+				}
+
+				res = append(res, types...)
+			}
+		}
+	}
+
+	return res, nil
+}
+
+func (s *Schema) mergeUnionDefinition(newSchema *Schema) error {
+	for _, t := range s.Unions {
+		newUnion := new(UnionDefinition)
+		newUnion.Name = t.Name
+		newUnion.Types = t.Types
+		newUnion.Directives = t.Directives
+
+		newSchema.Unions = append(newSchema.Unions, newUnion)
+
+		if len(t.Extentions) > 0 {
+			types, err := s.digUnionDefinition(string(newUnion.Name), t.Extentions)
+			if err != nil {
+				return err
+			}
+
+			for _, t := range types {
+				if newUnion.HasType(string(t)) {
+					return fmt.Errorf("type %s already exists in union %s", t, newUnion.Name)
+				}
+			}
+
+			newUnion.Types = append(newUnion.Types, types...)
+		}
+	}
+
+	return nil
+}
+
 func (s *Schema) Merge() (*Schema, error) {
 	newSchema := new(Schema)
 	newSchema.Definition = s.Definition
@@ -359,6 +434,10 @@ func (s *Schema) Merge() (*Schema, error) {
 	}
 
 	if err := s.mergeInterfaceDefinition(newSchema); err != nil {
+		return nil, err
+	}
+
+	if err := s.mergeUnionDefinition(newSchema); err != nil {
 		return nil, err
 	}
 

@@ -358,6 +358,29 @@ func TestSchema_Merge(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Merge extend union definition",
+			input: []byte(`union SearchResult = User | Post
+			
+			extend union SearchResult = Comment`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Unions: []*schema.UnionDefinition{
+					{
+						Name: []byte("SearchResult"),
+						Types: [][]byte{
+							[]byte("User"),
+							[]byte("Post"),
+							[]byte("Comment"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	ignores := []any{
