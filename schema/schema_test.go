@@ -381,6 +381,43 @@ func TestSchema_Merge(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Merge extend enum definition",
+			input: []byte(`enum Role {
+				ADMIN
+				USER
+			}
+
+			extend enum Role {
+				EDITOR
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Enums: []*schema.EnumDefinition{
+					{
+						Name: []byte("Role"),
+						Values: []*schema.EnumElement{
+							{
+								Name: []byte("ADMIN"),
+								Value: []byte("ADMIN"),
+							},
+							{
+								Name: []byte("USER"),
+								Value: []byte("USER"),
+							},
+							{
+								Name: []byte("EDITOR"),
+								Value: []byte("EDITOR"),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	ignores := []any{

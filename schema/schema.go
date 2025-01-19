@@ -469,7 +469,7 @@ func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
 				return err
 			}
 			
-			newEnum.Values = enumValues
+			newEnum.Values = append(newEnum.Values, enumValues...)
 		}
 	}
 
@@ -495,6 +495,10 @@ func (s *Schema) Merge() (*Schema, error) {
 	}
 
 	if err := s.mergeUnionDefinition(newSchema); err != nil {
+		return nil, err
+	}
+
+	if err := s.mergeEnumDefinition(newSchema); err != nil {
 		return nil, err
 	}
 
