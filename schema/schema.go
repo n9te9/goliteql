@@ -86,6 +86,18 @@ type EnumDefinition struct {
 	Directives []*Directive
 }
 
+type EnumDefinitions []*EnumDefinition
+
+func (e EnumDefinitions) Has(name string) bool {
+	for _, enum := range e {
+		if string(enum.Name) == name {
+			return true
+		}
+	}
+
+	return false
+}
+
 type UnionDefinition struct {
 	Name []byte
 	Types [][]byte
@@ -413,6 +425,51 @@ func (s *Schema) mergeUnionDefinition(newSchema *Schema) error {
 			}
 
 			newUnion.Types = append(newUnion.Types, types...)
+		}
+	}
+
+	return nil
+}
+
+func (s *Schema) digEnumDefinition(name string, extentions EnumDefinitions) ([]*EnumElement, error) {
+	if !extentions.Has(name) {
+		return nil, fmt.Errorf("enum %s not found", name)
+	}
+
+	res := make([]*EnumElement, 0)
+	for _, ext := range extentions {
+		if string(ext.Name) == name {
+			res = append(res, ext.Values...)
+			
+			if len(ext.Extentions) > 0 {
+				elms, err := s.digEnumDefinition(name, ext.Extentions)
+				if err != nil {
+					return nil, err
+				}
+
+				res = append(res, elms...)
+			}
+		}
+	}
+
+	return res, nil
+}
+
+func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
+	for _, enum := range s.Enums {
+		newEnum := new(EnumDefinition)
+		newEnum.Name = enum.Name
+		newEnum.Directives = enum.Directives
+		newEnum.Values = enum.Values
+
+		newSchema.Enums = append(newSchema.Enums, newEnum)
+		if len(enum.Extentions) > 0 {
+			enumValues, err := s.digEnumDefinition(string(newEnum.Name), enum.Extentions)
+			if err != nil {
+				return err
+			}
+			
+			newEnum.Values = enumValues
 		}
 	}
 
