@@ -125,16 +125,16 @@ func (p *Parser) Parse(input []byte) (*Document, error) {
 func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error) {
 	operationType := OperationType(tokens[cur].Value)
 	cur++
-
-	if tokens[cur].Type != Name {
-		return nil, cur, fmt.Errorf("expected name after operation type")
+	
+	operationName := ""
+	if tokens[cur].Type == Name {
+		operationName = string(tokens[cur].Value)
 	}
 
 	op := &Operation{
 		OperationType: operationType,
-		Name: string(tokens[cur].Value),
+		Name: operationName,
 	}
-	cur++
 
 	if tokens[cur].Type == ParenOpen {
 		variables, newCur, err := p.parseOperationVariables(tokens, cur)
