@@ -417,6 +417,58 @@ func TestSchema_Merge(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "Merge extend input definition",
+			input: []byte(`input CreateUserInput {
+				name: String!
+				email: String!
+			}
+
+			extend input CreateUserInput {
+				isActive: Boolean! = false
+			}`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Inputs: []*schema.InputDefinition{
+					{
+						Name: []byte("CreateUserInput"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("isActive"),
+								Type: &schema.FieldType{
+									Name:     []byte("Boolean"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Default: []byte("false"),
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("name"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("email"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 

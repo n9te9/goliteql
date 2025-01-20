@@ -476,6 +476,58 @@ func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
 	return nil
 }
 
+func (s *Schema) digInputDefinition(name string, exts []*InputDefinition) (FieldDefinitions, error) {
+	res := make(FieldDefinitions, 0)
+
+	for _, ext := range exts {
+		if string(ext.Name) == name {
+			res = append(res, ext.Fields...)
+
+			if len(ext.Extentions) > 0 {
+				fields, err := s.digInputDefinition(name, ext.Extentions)
+				if err != nil {
+					return nil, err
+				}
+
+				res = append(res, fields...)
+			}
+		}
+	}
+
+	return res, nil
+}
+
+func (s *Schema) mergeInputDefinition(newSchema *Schema) error {
+	for _, input := range s.Inputs {
+		newInput := new(InputDefinition)
+		newInput.Name = input.Name
+		newInput.Fields = input.Fields
+
+		newFields := make(FieldDefinitions, 0)
+
+		field, err := s.digInputDefinition(string(newInput.Name), input.Extentions)
+		if err != nil {
+			return err
+		}
+
+		newFields = append(newFields, field...)
+
+		for _, field := range newInput.Fields {
+			newField := newInput.Fields.Last(string(field.Name))
+			if newField == nil {
+				newFields = append(newFields, field)
+			} else if !newFields.Has(string(newField.Name)) {
+				newFields = append(newFields, newField)
+			}
+		}
+		newInput.Fields = newFields
+
+		newSchema.Inputs = append(newSchema.Inputs, newInput)
+	}
+
+	return nil
+} 
+
 func (s *Schema) Merge() (*Schema, error) {
 	newSchema := new(Schema)
 	newSchema.Definition = s.Definition
@@ -499,6 +551,10 @@ func (s *Schema) Merge() (*Schema, error) {
 	}
 
 	if err := s.mergeEnumDefinition(newSchema); err != nil {
+		return nil, err
+	}
+
+	if err := s.mergeInputDefinition(newSchema); err != nil {
 		return nil, err
 	}
 
