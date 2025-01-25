@@ -55,7 +55,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				}
 				cur = newCur
 				schema.Types = append(schema.Types, typeDefinition)
-				schema.indexes, err = add(schema.indexes, typeDefinition)
+				schema.Indexes, err = add(schema.Indexes, typeDefinition)
 				if err != nil {
 					return nil, err
 				}
@@ -71,7 +71,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				cur = newCur
 
 				schema.Operations = append(schema.Operations, operationDefinition)
-				schema.indexes, err = add(schema.indexes, operationDefinition)
+				schema.Indexes, err = add(schema.Indexes, operationDefinition)
 				if err != nil {
 					return nil, err
 				}
@@ -88,7 +88,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 				}
 				cur = newCur
 				schema.Inputs = append(schema.Inputs, inputDefinition)
-				schema.indexes, err = add(schema.indexes, inputDefinition)
+				schema.Indexes, err = add(schema.Indexes, inputDefinition)
 				if err != nil {
 					return nil, err
 				}
@@ -110,7 +110,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			cur = newCur
 			schema.Enums = append(schema.Enums, enumDefinition)
-			schema.indexes, err = add(schema.indexes, enumDefinition)
+			schema.Indexes, err = add(schema.Indexes, enumDefinition)
 			if err != nil {
 				return nil, err
 			}
@@ -122,7 +122,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			cur = newCur
 			schema.Interfaces = append(schema.Interfaces, interfaceDefinition)
-			schema.indexes, err = add(schema.indexes, interfaceDefinition)
+			schema.Indexes, err = add(schema.Indexes, interfaceDefinition)
 			if err != nil {
 				return nil, err
 			}
@@ -133,7 +133,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			cur = newCur
 			schema.Unions = append(schema.Unions, unionDefinition)
-			schema.indexes, err = add(schema.indexes, unionDefinition)
+			schema.Indexes, err = add(schema.Indexes, unionDefinition)
 			if err != nil {
 				return nil, err
 			}
@@ -194,7 +194,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 				return nil, 0, err
 			}
 			cur = newCur
-			t := get(schema.indexes, string(typeDefinition.Name), typeDefinition)
+			t := get(schema.Indexes, string(typeDefinition.Name), typeDefinition)
 			if t == nil {
 				return nil, 0, fmt.Errorf("%s is not defined", typeDefinition.Name)
 			}
@@ -209,7 +209,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 			}
 			cur = newCur
 
-			t := get(schema.indexes, string(operationDefinition.Name), operationDefinition)
+			t := get(schema.Indexes, string(operationDefinition.Name), operationDefinition)
 			if t == nil {
 				return nil, 0, fmt.Errorf("%s is not defined", operationDefinition.Name)
 			}
@@ -224,7 +224,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 				return nil, 0, err
 			}
 			cur = newCur
-			t := get(schema.indexes, string(inputDefinition.Name), inputDefinition)
+			t := get(schema.Indexes, string(inputDefinition.Name), inputDefinition)
 			if t == nil {
 				return nil, 0, fmt.Errorf("%s is not defined", inputDefinition.Name)
 			}
@@ -237,7 +237,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 			return nil, 0, err
 		}
 		cur = newCur
-		t := get(schema.indexes, string(enumDefinition.Name), enumDefinition)
+		t := get(schema.Indexes, string(enumDefinition.Name), enumDefinition)
 		if t == nil {
 			return nil, 0, fmt.Errorf("%s is not defined", enumDefinition.Name)
 		}
@@ -249,7 +249,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 			return nil, 0, err
 		}
 		cur = newCur
-		t := get(schema.indexes, string(interfaceDefinition.Name), interfaceDefinition)
+		t := get(schema.Indexes, string(interfaceDefinition.Name), interfaceDefinition)
 		if t == nil {
 			return nil, 0, fmt.Errorf("%s is not defined", interfaceDefinition.Name)
 		}
@@ -261,7 +261,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 			return nil, 0, err
 		}
 		cur = newCur
-		t := get(schema.indexes, string(unionDefinition.Name), unionDefinition)
+		t := get(schema.Indexes, string(unionDefinition.Name), unionDefinition)
 		if t == nil {
 			return nil, 0, fmt.Errorf("%s is not defined", unionDefinition.Name)
 		}
@@ -367,7 +367,7 @@ func (p *Parser) parseTypeDefinition(schema *Schema,tokens Tokens, cur int) (*Ty
 				return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
 			}
 
-			i := get(schema.indexes, string(tokens[cur].Value), &InterfaceDefinition{})
+			i := get(schema.Indexes, string(tokens[cur].Value), &InterfaceDefinition{})
 			if i == nil {
 				return nil, 0, fmt.Errorf("%s is not defined", tokens[cur].Value)
 			}

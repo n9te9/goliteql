@@ -39,14 +39,14 @@ func (v *Validator) validateOperations(operations query.Operations) error {
 	schemaQuery := v.Schema.GetQuery()
 
 
-	if err := validateField(schemaQuery, queryOperation); err != nil {
+	if err := validateField(schemaQuery, queryOperation, v.Schema.Indexes); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validateField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation) error {
+func validateField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation, indexes *schema.Indexes) error {
 	if schemaOperation == nil {
 		return errors.New("schema does not have a query operation")
 	}
@@ -55,14 +55,14 @@ func validateField(schemaOperation *schema.OperationDefinition, queryOperation *
 		return errors.New("query does not have a query operation")
 	}
 
-	if err := validateRootField(schemaOperation, queryOperation); err != nil {
+	if err := validateRootField(schemaOperation, queryOperation, indexes); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validateRootField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation) error {
+func validateRootField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation, indexes *schema.Indexes) error {
 	if schemaOperation == nil {
 		return errors.New("schema does not have a query operation")
 	}
@@ -81,6 +81,16 @@ func validateRootField(schemaOperation *schema.OperationDefinition, queryOperati
 			if err := validateFieldArguments(f.Arguments, field.Arguments); err != nil {
 				return fmt.Errorf("error validating field %s: %w", field.Name, err)
 			}
+
+			premitiveFieldType := f.Type.GetPremitiveType()
+			t := indexes.GetTypeDefinition(string(premitiveFieldType.Name))
+			if t == nil {
+				return nil
+			}
+
+			if err := validateSubField(t, field, indexes); err != nil {
+				return fmt.Errorf("error validating field %s: %w", field.Name, err)
+			}
 		}
 	}
 
@@ -93,7 +103,6 @@ func validateFieldArguments(schemaArguments schema.ArgumentDefinitions, queryArg
 	}
 
 	requireds := schemaArguments.RequiredArguments()
-	
 	for _, queryArg := range queryArguments {
 		for arg := range requireds {
 			if bytes.Equal(queryArg.Name, arg.Name) {
@@ -109,6 +118,43 @@ func validateFieldArguments(schemaArguments schema.ArgumentDefinitions, queryArg
 		}
 
 		return fmt.Errorf("missing required arguments: %v", args)
+	}
+
+	return nil
+}
+
+func validateSubField(t *schema.TypeDefinition, field *query.Field, indexes *schema.Indexes) error {
+	required := t.Fields.Required()
+	for _, sel := range field.Selections {
+		if f, ok := sel.(*query.Field); ok {
+			schemaField := t.GetFieldByName(f.Name)
+			if schemaField == nil {
+				return fmt.Errorf("field %s is not defined in schema", f.Name)
+			}
+
+			if schemaField.Type.IsList {
+				premitiveFieldType := schemaField.Type.GetPremitiveType()
+				t := indexes.GetTypeDefinition(string(premitiveFieldType.Name))
+				if t == nil {
+					return nil
+				}
+
+				if err := validateSubField(t, f, indexes); err != nil {
+					return fmt.Errorf("error validating field %s: %w", f.Name, err)
+				}
+			}
+
+			delete(required, schemaField)
+		}
+	}
+
+	if len(required) > 0 {
+		fields := make([]string, 0, len(required))
+		for f := range required {
+			fields = append(fields, string(f.Name))
+		}
+
+		return fmt.Errorf("missing required fields: %v", fields)
 	}
 
 	return nil

@@ -49,6 +49,17 @@ func (f FieldDefinitions) Has(name string) bool {
 	return false
 }
 
+func (f FieldDefinitions) Required() map[*FieldDefinition]struct{} {
+	res := make(map[*FieldDefinition]struct{})
+	for _, field := range f {
+		if !field.Type.Nullable {
+			res[field] = struct{}{}
+		}
+	}
+
+	return res
+}
+
 type TypeDefinition struct {
 	Name []byte
 	Fields FieldDefinitions
@@ -58,11 +69,29 @@ type TypeDefinition struct {
 	Extentions []*TypeDefinition
 }
 
+func (t *TypeDefinition) GetFieldByName(name []byte) *FieldDefinition {
+	for _, field := range t.Fields {
+		if bytes.Equal(field.Name, name) {
+			return field
+		}
+	}
+
+	return nil
+}
+
 type FieldType struct {
 	Name []byte
 	Nullable bool
 	IsList bool
 	ListType *FieldType
+}
+
+func (f *FieldType) GetPremitiveType() *FieldType {
+	if f.IsList {
+		return f.ListType.GetPremitiveType()
+	}
+
+	return f
 }
 
 type FieldDefinition struct {
@@ -214,6 +243,10 @@ type Indexes struct {
 	OperationIndexes map[OperationType]map[string]*OperationDefinition
 }
 
+func (i *Indexes) GetTypeDefinition(name string) *TypeDefinition {
+	return i.TypeIndex[name]
+}
+
 type Schema struct {
 	tokens Tokens
 	Definition *SchemaDefinition
@@ -226,7 +259,7 @@ type Schema struct {
 	Inputs []*InputDefinition
 	Scalars []*ScalarDefinition
 
-	indexes *Indexes
+	Indexes *Indexes
 }
 
 func NewSchema(tokens Tokens) *Schema {
@@ -243,7 +276,7 @@ func NewSchema(tokens Tokens) *Schema {
 			Mutation:     []byte("Mutation"),
 			Subscription: []byte("Subscription"),
 		},
-		indexes: &Indexes{
+		Indexes: &Indexes{
 			TypeIndex: make(map[string]*TypeDefinition),
 			OperationIndexes: operationIndexes,
 			EnumIndex: make(map[string]*EnumDefinition),
@@ -567,7 +600,7 @@ func (s *Schema) Merge() (*Schema, error) {
 	newSchema := new(Schema)
 	newSchema.Definition = s.Definition
 	newSchema.tokens = s.tokens
-	newSchema.indexes = s.indexes
+	newSchema.Indexes = s.Indexes
 	
 	if err := s.mergeOperation(newSchema); err != nil {
 		return nil, err
