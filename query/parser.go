@@ -1,6 +1,9 @@
 package query
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 type OperationType string
 
@@ -70,6 +73,7 @@ func (o Operations) GetSubscription() *Operation {
 
 type Selection interface {
 	isSelection()
+	GetSelections() []Selection
 }
 
 type Argument struct {
@@ -93,12 +97,20 @@ type Field struct {
 
 func (f *Field) isSelection() {}
 
+func (f *Field) GetSelections() []Selection {
+	return f.Selections
+}
+
 type FragmentSpread struct {
 	Name []byte
 	Directives []*Directive
 }
 
 func (f *FragmentSpread) isSelection() {}
+
+func (f *FragmentSpread) GetSelections() []Selection {
+	return nil
+}
 
 type InlineFragment struct {
 	TypeCondition []byte
@@ -108,10 +120,39 @@ type InlineFragment struct {
 
 func (f *InlineFragment) isSelection() {}
 
+func (f *InlineFragment) GetSelections() []Selection {
+	return f.Selections
+}
+
 type Document struct {
 	tokens []*Token
-	Operations []*Operation
+	Operations Operations
+	FragmentDefinitions FragmentDefinitions
 	Name []byte
+}
+
+type FragmentDefinitions []*FragmentDefinition
+
+func (f FragmentDefinitions) GetFragment(name []byte) *FragmentDefinition {
+	for _, fragment := range f {
+		if bytes.Equal(fragment.Name, name) {
+			return fragment
+		}
+	}
+
+	return nil
+}
+
+type FragmentDefinition struct {
+	Name []byte
+	BasedTypeName []byte
+	Selections []Selection
+}
+
+func (f *FragmentDefinition) isSelection() {}
+
+func (f *FragmentDefinition) GetSelections() []Selection {
+	return f.Selections
 }
 
 type Parser struct {
@@ -146,12 +187,66 @@ func (p *Parser) Parse(input []byte) (*Document, error) {
 			doc.Operations = append(doc.Operations, op)
 		}
 
+		if tokens[cur].Type == Fragment {
+			fragmentDefinition, newCur, err := p.parseFragmentDefinition(tokens, cur)
+			if err != nil {
+				return nil, err
+			}
+
+			cur = newCur
+			doc.FragmentDefinitions = append(doc.FragmentDefinitions, fragmentDefinition)
+		}
+
 		if tokens[cur].Type == EOF {
 			break
 		}
 	}
 
 	return doc, nil
+}
+
+func (p *Parser) parseFragmentDefinition(tokens Tokens, cur int) (*FragmentDefinition, int, error) {
+	cur++
+	if tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected fragment name but got %s", tokens[cur].Value)
+	}
+
+	fragmentName := tokens[cur].Value
+	cur++
+
+	if tokens[cur].Type != On {
+		return nil, cur, fmt.Errorf("expected on after fragment name")
+	}
+	cur++
+
+	if tokens[cur].Type != Name {
+		return nil, cur, fmt.Errorf("expected type name after on")
+	}
+
+	typeName := tokens[cur].Value
+	cur++
+
+	if tokens[cur].Type != CurlyOpen {
+		return nil, cur, fmt.Errorf("expected { after type name")
+	}
+	cur++
+
+	selections, newCur, err := p.parseSelections(tokens, cur)
+	if err != nil {
+		return nil, newCur, err
+	}
+	cur = newCur
+
+	if tokens[cur].Type != CurlyClose {
+		return nil, cur, fmt.Errorf("expected } after fragment")
+	}
+	cur++
+
+	return &FragmentDefinition{
+		Name: fragmentName,
+		BasedTypeName: typeName,
+		Selections: selections,
+	}, cur, nil
 }
 
 func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error) {
@@ -161,6 +256,7 @@ func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error)
 	operationName := ""
 	if tokens[cur].Type == Name {
 		operationName = string(tokens[cur].Value)
+		cur++
 	}
 
 	op := &Operation{

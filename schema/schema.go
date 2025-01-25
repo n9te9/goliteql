@@ -60,14 +60,23 @@ func (f FieldDefinitions) required() map[*FieldDefinition]struct{} {
 	return res
 }
 
+type CompositeType interface {
+	RequiredFields() map[*FieldDefinition]struct{}
+	GetFieldByName(name []byte) *FieldDefinition
+}
+
 type TypeDefinition struct {
 	Name []byte
 	Fields FieldDefinitions
-	RequiredFields map[*FieldDefinition]struct{}
+	Required map[*FieldDefinition]struct{}
 	tokens Tokens
 	Interfaces []*InterfaceDefinition
 	Directives []*Directive
 	Extentions []*TypeDefinition
+}
+
+func (t *TypeDefinition) RequiredFields() map[*FieldDefinition]struct{} {
+	return t.Required
 }
 
 func (t *TypeDefinition) GetFieldByName(name []byte) *FieldDefinition {
@@ -171,6 +180,25 @@ type UnionDefinition struct {
 	Directives []*Directive
 }
 
+func (u *UnionDefinition) GetFieldByName(name []byte) *FieldDefinition {
+	for _, t := range u.Types {
+		if bytes.Equal(t, name) {
+			return &FieldDefinition{Name: name, Type: &FieldType{Name: name, Nullable: false}}
+		}
+	}
+
+	return nil
+}
+
+func (u *UnionDefinition) RequiredFields() map[*FieldDefinition]struct{} {
+	res := make(map[*FieldDefinition]struct{})
+	for _, t := range u.Types {
+		res[&FieldDefinition{Name: t, Type: &FieldType{Name: t, Nullable: false} }] = struct{}{}
+	}
+
+	return res
+}
+
 func (u *UnionDefinition) HasType(name string) bool {
 	for _, t := range u.Types {
 		if string(t) == name {
@@ -198,6 +226,27 @@ type InterfaceDefinition struct {
 	Fields FieldDefinitions
 	Extentions []*InterfaceDefinition
 	Directives []*Directive
+}
+
+func (i *InterfaceDefinition) GetFieldByName(name []byte) *FieldDefinition {
+	for _, field := range i.Fields {
+		if bytes.Equal(field.Name, name) {
+			return field
+		}
+	}
+
+	return nil
+}
+
+func (i *InterfaceDefinition) RequiredFields() map[*FieldDefinition]struct{} {
+	res := make(map[*FieldDefinition]struct{})
+	for _, field := range i.Fields {
+		if !field.Type.Nullable {
+			res[field] = struct{}{}
+		}
+	}
+
+	return res
 }
 
 type Location struct {
@@ -246,6 +295,14 @@ type Indexes struct {
 
 func (i *Indexes) GetTypeDefinition(name string) *TypeDefinition {
 	return i.TypeIndex[name]
+}
+
+func (i *Indexes) GetInterfaceDefinition(name string) *InterfaceDefinition {
+	return i.InterfaceIndex[name]
+}
+
+func (i *Indexes) GetUnionDefinition(name string) *UnionDefinition {
+	return i.UnionIndex[name]
 }
 
 type Schema struct {
@@ -632,7 +689,7 @@ func (s *Schema) Merge() (*Schema, error) {
 
 func (s *Schema) Preload() {
 	for _, t := range s.Types {
-		t.RequiredFields = t.Fields.required()
+		t.Required = t.Fields.required()
 	}
 }
 
