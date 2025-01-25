@@ -36,6 +36,38 @@ type Operation struct {
 	Directives []*Directive
 }
 
+type Operations []*Operation
+
+func (o Operations) GetQuery() *Operation {
+	for _, op := range o {
+		if op.OperationType == QueryOperation {
+			return op
+		}
+	}
+
+	return nil
+}
+
+func (o Operations) GetMutation() *Operation {
+	for _, op := range o {
+		if op.OperationType == MutationOperation {
+			return op
+		}
+	}
+
+	return nil
+}
+
+func (o Operations) GetSubscription() *Operation {
+	for _, op := range o {
+		if op.OperationType == SubscriptionOperation {
+			return op
+		}
+	}
+
+	return nil
+}
+
 type Selection interface {
 	isSelection()
 }

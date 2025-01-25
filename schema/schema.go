@@ -1,11 +1,24 @@
 package schema
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 )
 
 type OperationType string
+
+func (o OperationType) isQuery() bool {
+	return o == QueryOperation
+}
+
+func (o OperationType) isMutation() bool {
+	return o == MutationOperation
+}
+
+func (o OperationType) isSubscription() bool {
+	return o == SubscriptionOperation
+}
 
 const (
 	QueryOperation OperationType = "query"
@@ -66,11 +79,34 @@ type ArgumentDefinition struct {
 	Type *FieldType
 }
 
+type ArgumentDefinitions []*ArgumentDefinition
+
+func (a ArgumentDefinitions) RequiredArguments() map[*ArgumentDefinition]struct{} {
+	res := make(map[*ArgumentDefinition]struct{})
+	for _, arg := range a {
+		if !arg.Type.Nullable {
+			res[arg] = struct{}{}
+		}
+	}
+
+	return res
+}
+
 type OperationDefinition struct {
 	OperationType OperationType
 	Name []byte
 	Fields FieldDefinitions
 	Extentions []*OperationDefinition
+}
+
+func (o *OperationDefinition) GetFieldByName(name []byte) *FieldDefinition {
+	for _, field := range o.Fields {
+		if bytes.Equal(field.Name, name) {
+			return field
+		}
+	}
+
+	return nil
 }
 
 type EnumElement struct {
@@ -190,7 +226,6 @@ type Schema struct {
 	Inputs []*InputDefinition
 	Scalars []*ScalarDefinition
 
-	// indexes is used when extend
 	indexes *Indexes
 }
 
@@ -561,6 +596,36 @@ func (s *Schema) Merge() (*Schema, error) {
 	return newSchema, nil
 }
 
+func (s *Schema) GetQuery() *OperationDefinition {
+	for _, op := range s.Operations {
+		if op.OperationType.isQuery() {
+			return op
+		}
+	}
+
+	return nil
+}
+
+func (s *Schema) GetMutation() *OperationDefinition {
+	for _, op := range s.Operations {
+		if op.OperationType.isMutation() {
+			return op
+		}
+	}
+
+	return nil
+}
+
+func (s *Schema) GetSubscription() *OperationDefinition {
+	for _, op := range s.Operations {
+		if op.OperationType.isSubscription() {
+			return op
+		}
+	}
+
+	return nil
+}
+
 func add[T DefinitionType](indexes *Indexes, definition T) (*Indexes, error) {
 	switch d := any(definition).(type) {
 	case *OperationDefinition:
@@ -598,7 +663,7 @@ func get[T DefinitionType](indexes *Indexes, key string, t T) T {
 		return any(indexes.InputIndex[key]).(T)
 	}
 
-	return any(nil).(T)
+	return nil
 }
 
 type ScalarDefinition struct {
