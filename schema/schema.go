@@ -49,7 +49,7 @@ func (f FieldDefinitions) Has(name string) bool {
 	return false
 }
 
-func (f FieldDefinitions) Required() map[*FieldDefinition]struct{} {
+func (f FieldDefinitions) required() map[*FieldDefinition]struct{} {
 	res := make(map[*FieldDefinition]struct{})
 	for _, field := range f {
 		if !field.Type.Nullable {
@@ -63,6 +63,7 @@ func (f FieldDefinitions) Required() map[*FieldDefinition]struct{} {
 type TypeDefinition struct {
 	Name []byte
 	Fields FieldDefinitions
+	RequiredFields map[*FieldDefinition]struct{}
 	tokens Tokens
 	Interfaces []*InterfaceDefinition
 	Directives []*Directive
@@ -627,6 +628,12 @@ func (s *Schema) Merge() (*Schema, error) {
 	}
 
 	return newSchema, nil
+}
+
+func (s *Schema) Preload() {
+	for _, t := range s.Types {
+		t.RequiredFields = t.Fields.required()
+	}
 }
 
 func (s *Schema) GetQuery() *OperationDefinition {

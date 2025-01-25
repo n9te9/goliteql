@@ -23,7 +23,6 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 
 	schema := NewSchema(tokens)
 
-
 	cur := 0
 	for cur < len(tokens) {
 		switch tokens[cur].Type {

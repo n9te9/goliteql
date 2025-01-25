@@ -124,7 +124,7 @@ func validateFieldArguments(schemaArguments schema.ArgumentDefinitions, queryArg
 }
 
 func validateSubField(t *schema.TypeDefinition, field *query.Field, indexes *schema.Indexes) error {
-	required := t.Fields.Required()
+	required := t.RequiredFields
 	for _, sel := range field.Selections {
 		if f, ok := sel.(*query.Field); ok {
 			schemaField := t.GetFieldByName(f.Name)

@@ -183,6 +183,9 @@ func TestValidator_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			lexer := schema.NewLexer()
 			s := tt.schemaFunc(schema.NewParser(lexer))
+			s, _ = s.Merge()
+			s.Preload()
+			
 			queryLexer := query.NewLexer()
 			queryParser := query.NewParser(queryLexer)
 
