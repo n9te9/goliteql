@@ -154,27 +154,37 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 			return fmt.Errorf("fragment %s is not defined", f.Name)
 		}
 
-		// TODO: implement this
-		if td := indexes.GetTypeDefinition(string(fd.BasedTypeName)); td != nil {
-			for _, f := range td.Fields {
-				delete(required, f)
+		td := indexes.GetTypeDefinition(string(fd.BasedTypeName))
+		id := indexes.GetInterfaceDefinition(string(fd.BasedTypeName))
+		ud := indexes.GetUnionDefinition(string(fd.BasedTypeName))
+
+		if td == nil && id == nil && ud == nil {
+			return fmt.Errorf("type %s is not defined in schema", fd.BasedTypeName)
+		}
+
+		if td != nil {
+			tdRequired := td.RequiredFields()
+			for f := range tdRequired {
+				required[f] = struct{}{}
 			}
 		}
 
-		if id := indexes.GetInterfaceDefinition(string(fd.BasedTypeName)); id != nil {
-			for _, f := range id.Fields {
-				delete(required, f)
+		if id != nil {
+			idRequired := id.RequiredFields()
+			for f := range idRequired {
+				required[f] = struct{}{}
 			}
 		}
 
-		if ud := indexes.GetUnionDefinition(string(fd.BasedTypeName)); ud != nil {
-			for _, t := range ud.Types {
-				if td := indexes.GetTypeDefinition(string(t)); td != nil {
-					for _, f := range td.Fields {
-						delete(required, f)
-					}
-				}
+		if ud != nil {
+			udRequired := ud.RequiredFields()
+			for f := range udRequired {
+				required[f] = struct{}{}
 			}
+		}
+
+		if !bytes.Equal(fd.BasedTypeName, t.TypeName()) {
+			return fmt.Errorf("fragment %s is based on type %s, but field is of type %s", f.Name, fd.BasedTypeName, t.TypeName())
 		}
 
 		if err := validateSubField(t, fd, fragmentDefinitions, indexes); err != nil {

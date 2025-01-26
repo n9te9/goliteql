@@ -3,18 +3,18 @@ package validator_test
 import (
 	"testing"
 
+	"errors"
 	"github.com/lkeix/gg-parser/query"
 	"github.com/lkeix/gg-parser/schema"
 	"github.com/lkeix/gg-parser/validator"
-	"errors"
 )
 
 func TestValidator_Validate(t *testing.T) {
 	tests := []struct {
-		name string
+		name       string
 		schemaFunc func(parser *schema.Parser) *schema.Schema
-		query []byte
-		want error
+		query      []byte
+		want       error
 	}{
 		{
 			name: "Validate query with missing operation",
@@ -137,7 +137,7 @@ func TestValidator_Validate(t *testing.T) {
 				}
 			}`),
 			want: nil,
-		},{
+		}, {
 			name: "Validate nested query",
 			schemaFunc: func(parser *schema.Parser) *schema.Schema {
 				input := []byte(`type Query {
@@ -286,113 +286,151 @@ func TestValidator_Validate(t *testing.T) {
 			}`),
 			want: nil,
 		},
-		// {
-		// 	name: "Validate query with invalid fragment",
-		// 	schemaFunc: func(parser *schema.Parser) *schema.Schema {
-		// 		input := []byte(`type Query {
-		// 			user: User
-		// 		}
+		{
+			name: "Validate query with missing field in nested type",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					users: [User]
+				}
 
-		// 		type User {
-		// 			id: ID!
-		// 			name: String
-		// 			age: Int
-		// 		}
+				type User {
+					id: ID!
+					name: String
+					posts: [Post]
+				}
 
-		// 		type Post {
-		// 			id: ID!
-		// 			title: String
-		// 		}`)
-		// 		s, err := parser.Parse(input)
-		// 		if err != nil {
-		// 			panic(err)
-		// 		}
+				type Post {
+					id: ID!
+					title: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
 
-		// 		return s
-		// 	},
-		// 	query: []byte(`query {
-		// 		user {
-		// 			...PostFragment
-		// 		}
-		// 	}
+				return s
+			},
+			query: []byte(`query {
+				users {
+					id
+					posts {
+						id
+						unknownField
+					}
+				}
+			}`),
+			want: errors.New("error validating operations: error validating field users: error validating field posts: field unknownField is not defined in schema"),
+		},
+		{
+			name: "Validate valid nested query",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					users: [User]
+				}
 
-		// 	fragment PostFragment on Post {
-		// 		id
-		// 		title
-		// 	}`),
-		// 	want: errors.New("error validating operations: fragment 'PostFragment' cannot be applied to type 'User'"),
-		// },
-		// {
-		// 	name: "Validate query with missing field in nested type",
-		// 	schemaFunc: func(parser *schema.Parser) *schema.Schema {
-		// 		input := []byte(`type Query {
-		// 			users: [User]
-		// 		}
+				type User {
+					id: ID!
+					name: String
+					posts: [Post]
+				}
 
-		// 		type User {
-		// 			id: ID!
-		// 			name: String
-		// 			posts: [Post]
-		// 		}
+				type Post {
+					id: ID!
+					title: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
 
-		// 		type Post {
-		// 			id: ID!
-		// 			title: String
-		// 		}`)
-		// 		s, err := parser.Parse(input)
-		// 		if err != nil {
-		// 			panic(err)
-		// 		}
+				return s
+			},
+			query: []byte(`query {
+				users {
+					id
+					name
+					posts {
+						id
+						title
+					}
+				}
+			}`),
+			want: nil,
+		},
+		{
+			name: "Validate query with invalid fragment",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					user: User
+				}
 
-		// 		return s
-		// 	},
-		// 	query: []byte(`query {
-		// 		users {
-		// 			id
-		// 			posts {
-		// 				id
-		// 				unknownField
-		// 			}
-		// 		}
-		// 	}`),
-		// 	want: errors.New("error validating operations: error validating field posts: field unknownField is not defined in schema"),
-		// },
-		// {
-		// 	name: "Validate valid nested query",
-		// 	schemaFunc: func(parser *schema.Parser) *schema.Schema {
-		// 		input := []byte(`type Query {
-		// 			users: [User]
-		// 		}
+				type User {
+					id: ID!
+					name: String
+					age: Int
+				}
 
-		// 		type User {
-		// 			id: ID!
-		// 			name: String
-		// 			posts: [Post]
-		// 		}
+				type Post {
+					id: ID!
+					title: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
 
-		// 		type Post {
-		// 			id: ID!
-		// 			title: String
-		// 		}`)
-		// 		s, err := parser.Parse(input)
-		// 		if err != nil {
-		// 			panic(err)
-		// 		}
+				return s
+			},
+			query: []byte(`query {
+				user {
+					...PostFragment
+				}
+			}
 
-		// 		return s
-		// 	},
-		// 	query: []byte(`query {
-		// 		users {
-		// 			id
-		// 			name
-		// 			posts {
-		// 				id
-		// 				title
-		// 			}
-		// 		}
-		// 	}`),
-		// 	want: nil,
-		// },
+			fragment PostFragment on Post {
+				id
+				title
+			}`),
+			want: errors.New(`error validating operations: error validating field user: fragment PostFragment is based on type Post, but field is of type User`),
+		},
+		{
+			name: "Validate query with valid fragment spread",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					user: User
+				}
+		
+				type User {
+					id: ID!
+					name: String
+					posts: [Post]
+				}
+		
+				type Post {
+					id: ID!
+					title: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+
+				return s
+			},
+			query: []byte(`query {
+				user {
+					posts {
+						...PostFragment
+					}
+				}
+			}
+		
+			fragment PostFragment on Post {
+				id
+				title
+			}`),
+			want: nil,
+		},
 	}
 
 	for _, tt := range tests {

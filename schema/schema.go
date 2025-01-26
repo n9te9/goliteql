@@ -63,6 +63,7 @@ func (f FieldDefinitions) required() map[*FieldDefinition]struct{} {
 type CompositeType interface {
 	RequiredFields() map[*FieldDefinition]struct{}
 	GetFieldByName(name []byte) *FieldDefinition
+	TypeName() []byte
 }
 
 type TypeDefinition struct {
@@ -87,6 +88,10 @@ func (t *TypeDefinition) GetFieldByName(name []byte) *FieldDefinition {
 	}
 
 	return nil
+}
+
+func (t *TypeDefinition) TypeName() []byte {
+	return t.Name
 }
 
 type FieldType struct {
@@ -221,6 +226,10 @@ func (u UnionDefinitions) Has(name string) bool {
 	return false
 }
 
+func (u *UnionDefinition) TypeName() []byte {
+	return u.Name
+}
+
 type InterfaceDefinition struct {
 	Name []byte
 	Fields FieldDefinitions
@@ -247,6 +256,10 @@ func (i *InterfaceDefinition) RequiredFields() map[*FieldDefinition]struct{} {
 	}
 
 	return res
+}
+
+func (i *InterfaceDefinition) TypeName() []byte {
+	return i.Name
 }
 
 type Location struct {
