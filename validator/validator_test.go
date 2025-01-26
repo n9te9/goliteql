@@ -431,6 +431,163 @@ func TestValidator_Validate(t *testing.T) {
 			}`),
 			want: nil,
 		},
+		{
+			name: "Validate query with valid inline fragment",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					searchResults: [SearchResult]
+				}
+		
+				union SearchResult = User | Post
+		
+				type User {
+					id: ID!
+					name: String
+				}
+		
+				type Post {
+					id: ID!
+					title: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				searchResults {
+					...on User {
+						id
+						name
+					}
+					...on Post {
+						id
+						title
+					}
+				}
+			}`),
+			want: nil,
+		},
+		{
+			name: "Validate query with empty invalid inline fragment",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					searchResults: [SearchResult]
+				}
+		
+				union SearchResult = User | Post
+		
+				type User {
+					id: ID!
+					name: String
+				}
+		
+				type Post {
+					id: ID!
+					title: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				searchResults {}
+			}`),
+			want: errors.New("error validating operations: error validating field searchResults: union type SearchResult must have subfields"),
+		},
+		{
+			name: "Validate query with invalid inline fragment type",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					searchResults: [SearchResult]
+				}
+		
+				union SearchResult = User | Post
+		
+				type User {
+					id: ID!
+					name: String
+				}
+		
+				type Post {
+					id: ID!
+					title: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				searchResults {
+					...on InvalidType {
+						id
+					}
+				}
+			}`),
+			want: errors.New("error validating operations: error validating field searchResults: type InvalidType is not defined in schema"),
+		},
+		{
+			name: "Validate query with nested inline fragment",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					searchResults: [SearchResult]
+				}
+		
+				union SearchResult = User | Post
+		
+				type User {
+					id: ID!
+					name: String
+					posts: [Post]
+				}
+		
+				type Post {
+					id: ID!
+					title: String
+					comments: [Comment]
+				}
+		
+				type Comment {
+					id: ID!
+					content: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				searchResults {
+					...on User {
+						id
+						name
+						posts {
+							...on Post {
+								id
+								title
+								comments {
+									...on Comment {
+										id
+										content
+									}
+								}
+							}
+						}
+					}
+				}
+			}`),
+			want: nil,
+		},		
 	}
 
 	for _, tt := range tests {

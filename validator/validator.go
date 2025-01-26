@@ -63,14 +63,6 @@ func validateField(schemaOperation *schema.OperationDefinition, queryOperation *
 }
 
 func validateRootField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation, fragmentDefinitions query.FragmentDefinitions, indexes *schema.Indexes) error {
-	if schemaOperation == nil {
-		return errors.New("schema does not have a query operation")
-	}
-
-	if queryOperation == nil {
-		return errors.New("query does not have a query operation")
-	}
-
 	for _, sel := range queryOperation.Selections {
 		if field, ok := sel.(*query.Field); ok {
 			f := schemaOperation.GetFieldByName(field.Name)
@@ -83,13 +75,29 @@ func validateRootField(schemaOperation *schema.OperationDefinition, queryOperati
 			}
 
 			premitiveFieldType := f.Type.GetPremitiveType()
-			t := indexes.GetTypeDefinition(string(premitiveFieldType.Name))
-			if t == nil {
+			td := indexes.GetTypeDefinition(string(premitiveFieldType.Name))
+			ud := indexes.GetUnionDefinition(string(premitiveFieldType.Name))
+			id := indexes.GetInterfaceDefinition(string(premitiveFieldType.Name))
+			if td == nil && ud == nil && id == nil {
 				return nil
 			}
 
-			if err := validateSubField(t, field, fragmentDefinitions, indexes); err != nil {
-				return fmt.Errorf("error validating field %s: %w", field.Name, err)
+			if td != nil {
+				if err := validateSubField(td, field, fragmentDefinitions, indexes); err != nil {
+					return fmt.Errorf("error validating field %s: %w", field.Name, err)
+				}
+			}
+
+			if ud != nil {
+				if err := validateSubField(ud, field, fragmentDefinitions, indexes); err != nil {
+					return fmt.Errorf("error validating field %s: %w", field.Name, err)
+				}
+			}
+
+			if id != nil {
+				if err := validateSubField(id, field, fragmentDefinitions, indexes); err != nil {
+					return fmt.Errorf("error validating field %s: %w", field.Name, err)
+				}
 			}
 		}
 	}
@@ -124,6 +132,12 @@ func validateFieldArguments(schemaArguments schema.ArgumentDefinitions, queryArg
 }
 
 func validateSubField(t schema.CompositeType, field query.Selection, fragmentDefinitions query.FragmentDefinitions, indexes *schema.Indexes) error {
+	if _, ok := t.(*schema.UnionDefinition); ok {
+		if len(field.GetSelections()) == 0 {
+			return fmt.Errorf("union type %s must have subfields", t.TypeName())
+		}
+	}
+
 	required := t.RequiredFields()
 
 	fieldValidator := func(f *query.Field) error {
@@ -144,7 +158,16 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 			}
 		}
 
+		if len(f.Selections) > 0 {
+			for _, sel := range f.Selections {
+				if err := validateSubField(t, sel, fragmentDefinitions, indexes); err != nil {
+					return fmt.Errorf("error validating field %s: %w", f.Name, err)
+				}
+			}
+		}
+
 		delete(required, schemaField)
+		
 		return nil
 	}
 
@@ -194,6 +217,42 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 		return nil
 	}
 
+	inlineFragmentValidator := func(f *query.InlineFragment) error {
+		td := indexes.GetTypeDefinition(string(f.TypeCondition))
+		id := indexes.GetInterfaceDefinition(string(f.TypeCondition))
+		ud := indexes.GetUnionDefinition(string(f.TypeCondition))
+
+		if td == nil && id == nil && ud == nil {
+			return fmt.Errorf("type %s is not defined in schema", f.TypeCondition)
+		}
+
+		if td != nil {
+			for _, sel := range f.Selections {
+				if err := validateSubField(td, sel, fragmentDefinitions, indexes); err != nil {
+					return err
+				}
+			}
+		}
+
+		if id != nil {
+			for _, sel := range f.Selections {
+				if err := validateSubField(id, sel, fragmentDefinitions, indexes); err != nil {
+					return err
+				}
+			}
+		}
+
+		if ud != nil {
+			for _, sel := range f.Selections {
+				if err := validateSubField(ud, sel, fragmentDefinitions, indexes); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	}
+
 	for _, sel := range field.GetSelections()	{
 		switch f := sel.(type) {
 			case *query.Field:
@@ -202,6 +261,10 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 				}
 			case *query.FragmentSpread:
 				if err := fragmentValidator(f); err != nil {
+					return err
+				}
+			case *query.InlineFragment:
+				if err := inlineFragmentValidator(f); err != nil {
 					return err
 				}
 		}

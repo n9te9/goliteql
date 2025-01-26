@@ -196,12 +196,7 @@ func (u *UnionDefinition) GetFieldByName(name []byte) *FieldDefinition {
 }
 
 func (u *UnionDefinition) RequiredFields() map[*FieldDefinition]struct{} {
-	res := make(map[*FieldDefinition]struct{})
-	for _, t := range u.Types {
-		res[&FieldDefinition{Name: t, Type: &FieldType{Name: t, Nullable: false} }] = struct{}{}
-	}
-
-	return res
+	return map[*FieldDefinition]struct{}{}
 }
 
 func (u *UnionDefinition) HasType(name string) bool {
