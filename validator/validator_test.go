@@ -587,7 +587,54 @@ func TestValidator_Validate(t *testing.T) {
 				}
 			}`),
 			want: nil,
-		},		
+		},{
+			name: "Validate query with invalid nested inline fragment type",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					searchResults: [SearchResult]
+				}
+		
+				union SearchResult = User | Post
+		
+				type User {
+					id: ID!
+					name: String
+					posts: [Post]
+				}
+		
+				type Post {
+					id: ID!
+					title: String
+					comments: [Comment]
+				}
+		
+				type Comment {
+					id: ID!
+					content: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				searchResults {
+					...on User {
+						id
+						name
+						posts {
+							...on InvalidType {
+								id
+								title
+							}
+						}
+					}
+				}
+			}`),
+			want: errors.New("error validating operations: error validating field searchResults: type InvalidType is not defined in schema"),
+		},
 	}
 
 	for _, tt := range tests {
