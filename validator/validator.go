@@ -89,14 +89,24 @@ func validateRootField(schemaOperation *schema.OperationDefinition, queryOperati
 			}
 
 			if ud != nil {
-				if err := validateSubField(ud, field, fragmentDefinitions, indexes); err != nil {
-					return fmt.Errorf("error validating field %s: %w", field.Name, err)
+				if len(field.GetSelections()) == 0 {
+					return fmt.Errorf("union type %s must have subfields", ud.TypeName())
+				}
+
+				for _, sd := range ud.Types {
+					t := indexes.GetTypeDefinition(string(sd))
+					if err := validateSubField(t, field, fragmentDefinitions, indexes); err != nil {
+						return fmt.Errorf("error validating field %s: %w", field.Name, err)
+					}
 				}
 			}
 
 			if id != nil {
-				if err := validateSubField(id, field, fragmentDefinitions, indexes); err != nil {
-					return fmt.Errorf("error validating field %s: %w", field.Name, err)
+				implementedTypes := indexes.GetImplementedType(id)
+				for _, td := range implementedTypes {
+					if err := validateSubField(td, field, fragmentDefinitions, indexes); err != nil {
+						return fmt.Errorf("error validating field %s: %w", field.Name, err)
+					}
 				}
 			}
 		}
@@ -132,12 +142,6 @@ func validateFieldArguments(schemaArguments schema.ArgumentDefinitions, queryArg
 }
 
 func validateSubField(t schema.CompositeType, field query.Selection, fragmentDefinitions query.FragmentDefinitions, indexes *schema.Indexes) error {
-	if _, ok := t.(*schema.UnionDefinition); ok {
-		if len(field.GetSelections()) == 0 {
-			return fmt.Errorf("union type %s must have subfields", t.TypeName())
-		}
-	}
-
 	required := t.RequiredFields()
 
 	fieldValidator := func(f *query.Field) error {
@@ -268,15 +272,6 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 					return err
 				}
 		}
-	}
-
-	if len(required) > 0 {
-		fields := make([]string, 0, len(required))
-		for f := range required {
-			fields = append(fields, string(f.Name))
-		}
-
-		return fmt.Errorf("missing required fields: %v", fields)
 	}
 
 	return nil

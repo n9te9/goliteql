@@ -313,6 +313,20 @@ func (i *Indexes) GetUnionDefinition(name string) *UnionDefinition {
 	return i.UnionIndex[name]
 }
 
+func (i *Indexes) GetImplementedType(id *InterfaceDefinition) []*TypeDefinition {
+	res := make([]*TypeDefinition, 0)
+
+	for _, t := range i.TypeIndex {
+		for _, iface := range t.Interfaces {
+			if bytes.Equal(iface.Name, id.Name) {
+				res = append(res, t)
+			}
+		}
+	}
+
+	return res
+}
+
 type Schema struct {
 	tokens Tokens
 	Definition *SchemaDefinition
