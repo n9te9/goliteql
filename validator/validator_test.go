@@ -633,7 +633,7 @@ func TestValidator_Validate(t *testing.T) {
 					}
 				}
 			}`),
-			want: errors.New("error validating operations: error validating field searchResults: type InvalidType is not defined in schema"),
+			want: errors.New("error validating operations: error validating field searchResults: error validating field posts: type InvalidType is not defined in schema"),
 		},
 		{
 			name: "Validate query with valid inline fragment on Interface type",
@@ -792,44 +792,6 @@ func TestValidator_Validate(t *testing.T) {
 			}`),
 			want: nil,
 		},
-		// TODO: will pass tomorrow
-		// {
-		// 	name: "Validate query with invalid field on Interface type",
-		// 	schemaFunc: func(parser *schema.Parser) *schema.Schema {
-		// 		input := []byte(`type Query {
-		// 			searchResults: [SearchResult]
-		// 		}
-		
-		// 		interface SearchResult {
-		// 			id: ID!
-		// 		}
-		
-		// 		type User implements SearchResult {
-		// 			id: ID!
-		// 			name: String
-		// 		}
-		
-		// 		type Post implements SearchResult {
-		// 			id: ID!
-		// 			title: String
-		// 		}`)
-		// 		s, err := parser.Parse(input)
-		// 		if err != nil {
-		// 			panic(err)
-		// 		}
-		
-		// 		return s
-		// 	},
-		// 	query: []byte(`query {
-		// 		searchResults {
-		// 			...on User {
-		// 				id
-		// 				unknownField
-		// 			}
-		// 		}
-		// 	}`),
-		// 	want: errors.New("error validating operations: error validating field searchResults: field unknownField is not defined in schema"),
-		// },		
 	}
 
 	for _, tt := range tests {

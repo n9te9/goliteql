@@ -142,8 +142,6 @@ func validateFieldArguments(schemaArguments schema.ArgumentDefinitions, queryArg
 }
 
 func validateSubField(t schema.CompositeType, field query.Selection, fragmentDefinitions query.FragmentDefinitions, indexes *schema.Indexes) error {
-	required := t.RequiredFields()
-
 	fieldValidator := func(f *query.Field) error {
 		schemaField := t.GetFieldByName(f.Name)
 		if schemaField == nil {
@@ -161,16 +159,6 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 				return fmt.Errorf("error validating field %s: %w", f.Name, err)
 			}
 		}
-
-		if len(f.Selections) > 0 {
-			for _, sel := range f.Selections {
-				if err := validateSubField(t, sel, fragmentDefinitions, indexes); err != nil {
-					return fmt.Errorf("error validating field %s: %w", f.Name, err)
-				}
-			}
-		}
-
-		delete(required, schemaField)
 		
 		return nil
 	}
@@ -187,27 +175,6 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 
 		if td == nil && id == nil && ud == nil {
 			return fmt.Errorf("type %s is not defined in schema", fd.BasedTypeName)
-		}
-
-		if td != nil {
-			tdRequired := td.RequiredFields()
-			for f := range tdRequired {
-				required[f] = struct{}{}
-			}
-		}
-
-		if id != nil {
-			idRequired := id.RequiredFields()
-			for f := range idRequired {
-				required[f] = struct{}{}
-			}
-		}
-
-		if ud != nil {
-			udRequired := ud.RequiredFields()
-			for f := range udRequired {
-				required[f] = struct{}{}
-			}
 		}
 
 		if !bytes.Equal(fd.BasedTypeName, t.TypeName()) {
@@ -231,26 +198,20 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 		}
 
 		if td != nil {
-			for _, sel := range f.Selections {
-				if err := validateSubField(td, sel, fragmentDefinitions, indexes); err != nil {
-					return err
-				}
+			if err := validateSubField(td, f, fragmentDefinitions, indexes); err != nil {
+				return err
 			}
 		}
 
 		if id != nil {
-			for _, sel := range f.Selections {
-				if err := validateSubField(id, sel, fragmentDefinitions, indexes); err != nil {
-					return err
-				}
+			if err := validateSubField(id, f, fragmentDefinitions, indexes); err != nil {
+				return err
 			}
 		}
 
 		if ud != nil {
-			for _, sel := range f.Selections {
-				if err := validateSubField(ud, sel, fragmentDefinitions, indexes); err != nil {
-					return err
-				}
+			if err := validateSubField(ud, f, fragmentDefinitions, indexes); err != nil {
+				return err
 			}
 		}
 
