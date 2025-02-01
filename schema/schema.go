@@ -413,6 +413,7 @@ func (s *Schema) mergeOperation(newSchema *Schema) error {
 		}
 		newOp.Fields = newFields
 
+		newSchema.Indexes.OperationIndexes[newOp.OperationType][string(newOp.Name)] = newOp
 		newSchema.Operations = append(newSchema.Operations, newOp)
 	}
 
@@ -465,9 +466,11 @@ func (s *Schema) mergeTypeDefinition(newSchema *Schema) error {
 				newFields = append(newFields, newField)
 			}
 		}
+
 		newType.Fields = newFields
 
 		newSchema.Types = append(newSchema.Types, newType)
+		newSchema.Indexes.TypeIndex[string(newType.Name)] = newType
 	}
 
 	return nil
@@ -520,6 +523,7 @@ func (s *Schema) mergeInterfaceDefinition(newSchema *Schema) error {
 		}
 		newInterface.Fields = newFields
 
+		newSchema.Indexes.InterfaceIndex[string(newInterface.Name)] = newInterface
 		newSchema.Interfaces = append(newSchema.Interfaces, newInterface)
 	}
 
@@ -572,6 +576,7 @@ func (s *Schema) mergeUnionDefinition(newSchema *Schema) error {
 				}
 			}
 
+			newSchema.Indexes.UnionIndex[string(newUnion.Name)] = newUnion
 			newUnion.Types = append(newUnion.Types, types...)
 		}
 	}
@@ -617,6 +622,7 @@ func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
 				return err
 			}
 			
+			newSchema.Indexes.EnumIndex[string(newEnum.Name)] = newEnum
 			newEnum.Values = append(newEnum.Values, enumValues...)
 		}
 	}
@@ -670,6 +676,7 @@ func (s *Schema) mergeInputDefinition(newSchema *Schema) error {
 		}
 		newInput.Fields = newFields
 
+		newSchema.Indexes.InputIndex[string(newInput.Name)] = newInput
 		newSchema.Inputs = append(newSchema.Inputs, newInput)
 	}
 

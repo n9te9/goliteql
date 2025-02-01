@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"errors"
+
 	"github.com/lkeix/gg-parser/query"
 	"github.com/lkeix/gg-parser/schema"
 	"github.com/lkeix/gg-parser/validator"
@@ -106,7 +107,7 @@ func TestValidator_Validate(t *testing.T) {
 					posts
 				}
 			}`),
-			want: errors.New("error validating operations: error validating field users: field posts is not defined in schema"),
+			want: errors.New("error validating operations: error validating field users: field posts is not defined on User in schema"),
 		},
 		{
 			name: "Validate simple query",
@@ -201,7 +202,7 @@ func TestValidator_Validate(t *testing.T) {
 					unknownField
 				}
 			}`),
-			want: errors.New("error validating operations: error validating field users: field unknownField is not defined in schema"),
+			want: errors.New("error validating operations: error validating field users: field unknownField is not defined on User in schema"),
 		},
 		{
 			name: "Validate query with missing required argument",
@@ -319,7 +320,7 @@ func TestValidator_Validate(t *testing.T) {
 					}
 				}
 			}`),
-			want: errors.New("error validating operations: error validating field users: error validating field posts: field unknownField is not defined in schema"),
+			want: errors.New("error validating operations: error validating field users: error validating field posts: field unknownField is not defined on Post in schema"),
 		},
 		{
 			name: "Validate valid nested query",
@@ -792,19 +793,150 @@ func TestValidator_Validate(t *testing.T) {
 			}`),
 			want: nil,
 		},
+		{
+			name: "Validate query with invalid field on Interface type",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					searchResults: [SearchResult]
+				}
+		
+				interface SearchResult {
+					id: ID!
+				}
+		
+				type User implements SearchResult {
+					id: ID!
+					name: String
+				}
+		
+				type Post implements SearchResult {
+					id: ID!
+					title: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				searchResults {
+					...on User {
+						id
+						unknownField
+					}
+				}
+			}`),
+			want: errors.New("error validating operations: error validating field searchResults: field unknownField is not defined on User in schema"),
+		},
+		{
+			name: "Validate query with extended field",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type User {
+					id: ID!
+					name: String
+				}
+		
+				extend type User {
+					email: String!
+				}
+		
+				type Query {
+					user: User
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name
+					email
+				}
+			}`),
+			want: nil,
+		},
+		{
+			name: "Validate query with extended interface implementation",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`interface Node {
+					id: ID!
+				}
+		
+				type User {
+					name: String
+				}
+		
+				extend type User implements Node {
+					id: ID!
+				}
+		
+				type Query {
+					user: User
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name
+				}
+			}`),
+			want: nil,
+		},
+		{
+			name: "Validate query with extended directive",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type User {
+					id: ID!
+					name: String
+				}
+		
+				extend type User {
+					email: String! @deprecated(reason: "Use username instead")
+				}
+		
+				type Query {
+					user: User
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+		
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name
+					email
+				}
+			}`),
+			want: nil,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lexer := schema.NewLexer()
 			s := tt.schemaFunc(schema.NewParser(lexer))
-			s, _ = s.Merge()
-			s.Preload()
+			mergedSchema, _ := s.Merge()
 
 			queryLexer := query.NewLexer()
 			queryParser := query.NewParser(queryLexer)
 
-			v := validator.NewValidator(s, queryParser)
+			v := validator.NewValidator(mergedSchema, queryParser)
 
 			err := v.Validate(tt.query)
 

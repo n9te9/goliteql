@@ -145,7 +145,11 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 	fieldValidator := func(f *query.Field) error {
 		schemaField := t.GetFieldByName(f.Name)
 		if schemaField == nil {
-			return fmt.Errorf("field %s is not defined in schema", f.Name)
+			tp := t.(*schema.TypeDefinition)
+			for _, field := range tp.Fields {
+				fmt.Println(string(field.Name))
+			}
+			return fmt.Errorf("field %s is not defined on %s in schema", f.Name, t.TypeName())
 		}
 
 		if schemaField.Type.IsList {
