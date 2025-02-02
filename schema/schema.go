@@ -26,42 +26,7 @@ const (
 	SubscriptionOperation OperationType = "subscription"
 )
 
-type FieldDefinitions []*FieldDefinition
-
-func (f FieldDefinitions) Last(name string) *FieldDefinition {
-	var res *FieldDefinition
-	for _, field := range f {
-		if string(field.Name) == name {
-			res = field
-		}
-	}
-
-	return res
-}
-
-func (f FieldDefinitions) Has(name string) bool {
-	for _, field := range f {
-		if string(field.Name) == name {
-			return true
-		}
-	}
-	
-	return false
-}
-
-func (f FieldDefinitions) required() map[*FieldDefinition]struct{} {
-	res := make(map[*FieldDefinition]struct{})
-	for _, field := range f {
-		if !field.Type.Nullable {
-			res[field] = struct{}{}
-		}
-	}
-
-	return res
-}
-
 type CompositeType interface {
-	RequiredFields() map[*FieldDefinition]struct{}
 	GetFieldByName(name []byte) *FieldDefinition
 	TypeName() []byte
 }
@@ -74,10 +39,6 @@ type TypeDefinition struct {
 	Interfaces []*InterfaceDefinition
 	Directives []*Directive
 	Extentions []*TypeDefinition
-}
-
-func (t *TypeDefinition) RequiredFields() map[*FieldDefinition]struct{} {
-	return t.Required
 }
 
 func (t *TypeDefinition) GetFieldByName(name []byte) *FieldDefinition {
@@ -107,14 +68,6 @@ func (f *FieldType) GetPremitiveType() *FieldType {
 	}
 
 	return f
-}
-
-type FieldDefinition struct {
-	Name []byte
-	Arguments []*ArgumentDefinition
-	Type *FieldType
-	Directives []*Directive
-	Default []byte
 }
 
 type ArgumentDefinition struct {
@@ -153,31 +106,6 @@ func (o *OperationDefinition) GetFieldByName(name []byte) *FieldDefinition {
 	return nil
 }
 
-type EnumElement struct {
-	Name []byte
-	Value []byte
-	Directives []*Directive
-}
-
-type EnumDefinition struct {
-	Name []byte
-	Values []*EnumElement
-	Extentions []*EnumDefinition
-	Directives []*Directive
-}
-
-type EnumDefinitions []*EnumDefinition
-
-func (e EnumDefinitions) Has(name string) bool {
-	for _, enum := range e {
-		if string(enum.Name) == name {
-			return true
-		}
-	}
-
-	return false
-}
-
 type UnionDefinition struct {
 	Name []byte
 	Types [][]byte
@@ -193,10 +121,6 @@ func (u *UnionDefinition) GetFieldByName(name []byte) *FieldDefinition {
 	}
 
 	return nil
-}
-
-func (u *UnionDefinition) RequiredFields() map[*FieldDefinition]struct{} {
-	return map[*FieldDefinition]struct{}{}
 }
 
 func (u *UnionDefinition) HasType(name string) bool {
@@ -223,43 +147,6 @@ func (u UnionDefinitions) Has(name string) bool {
 
 func (u *UnionDefinition) TypeName() []byte {
 	return u.Name
-}
-
-type InterfaceDefinition struct {
-	Name []byte
-	Fields FieldDefinitions
-	Extentions []*InterfaceDefinition
-	Directives []*Directive
-}
-
-func (i *InterfaceDefinition) GetFieldByName(name []byte) *FieldDefinition {
-	for _, field := range i.Fields {
-		if bytes.Equal(field.Name, name) {
-			return field
-		}
-	}
-
-	return nil
-}
-
-func (i *InterfaceDefinition) RequiredFields() map[*FieldDefinition]struct{} {
-	res := make(map[*FieldDefinition]struct{})
-	for _, field := range i.Fields {
-		if !field.Type.Nullable {
-			res[field] = struct{}{}
-		}
-	}
-
-	return res
-}
-
-func (i *InterfaceDefinition) TypeName() []byte {
-	return i.Name
-}
-
-type Location struct {
-	Name []byte
-	
 }
 
 type InputDefinition struct {
@@ -697,12 +584,6 @@ func (s *Schema) Merge() (*Schema, error) {
 	}
 
 	return newSchema, nil
-}
-
-func (s *Schema) Preload() {
-	for _, t := range s.Types {
-		t.Required = t.Fields.required()
-	}
 }
 
 func (s *Schema) GetQuery() *OperationDefinition {

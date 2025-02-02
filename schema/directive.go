@@ -3,6 +3,10 @@ package schema
 import "bytes"
 
 
+type Location struct {
+	Name []byte
+}
+
 type Directive struct {
 	Name []byte
 	Arguments []*DirectiveArgument
