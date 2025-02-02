@@ -281,6 +281,40 @@ type DirectiveDefinition struct {
 	Locations []*Location
 }
 
+func (d *DirectiveDefinition) IsAllowedApplySchema() bool {
+	for _, l := range d.Locations {
+		if bytes.Equal(l.Name, []byte("SCHEMA")) ||
+			bytes.Equal(l.Name, []byte("SCALAR")) ||
+			bytes.Equal(l.Name, []byte("OBJECT")) ||
+			bytes.Equal(l.Name, []byte("FIELD_DEFINITION")) ||
+			bytes.Equal(l.Name, []byte("ARGUMENT_DEFINITION")) ||
+			bytes.Equal(l.Name, []byte("INTERFACE")) ||
+			bytes.Equal(l.Name, []byte("UNION")) ||
+			bytes.Equal(l.Name, []byte("ENUM")) ||
+			bytes.Equal(l.Name, []byte("ENUM_VALUE")) ||
+			bytes.Equal(l.Name, []byte("INPUT_OBJECT")) ||
+			bytes.Equal(l.Name, []byte("INPUT_FIELD_DEFINITION")) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *DirectiveDefinition) IsAllowedApplyField() bool {
+	for _, l := range d.Locations {
+		if bytes.Equal(l.Name, []byte("FIELD")) ||
+			bytes.Equal(l.Name, []byte("FRAGMENT_DEFINITION")) ||
+			bytes.Equal(l.Name, []byte("FRAGMENT_SPREAD")) ||
+			bytes.Equal(l.Name, []byte("INLINE_FRAGMENT")) ||
+			bytes.Equal(l.Name, []byte("VARIABLE_DEFINITION")) {
+			return true
+		}
+	}
+
+	return false
+}
+
 type InputDefinition struct {
 	Name []byte
 	Fields FieldDefinitions
@@ -335,11 +369,33 @@ type Schema struct {
 	Enums []*EnumDefinition
 	Unions []*UnionDefinition
 	Interfaces []*InterfaceDefinition
-	Directives []*DirectiveDefinition
+	Directives DirectiveDefinitions
 	Inputs []*InputDefinition
 	Scalars []*ScalarDefinition
 
 	Indexes *Indexes
+}
+
+type DirectiveDefinitions []*DirectiveDefinition
+
+func (d DirectiveDefinitions) IsAllowedApplySchema(fieldName []byte) bool {
+	for _, directive := range d {
+		if bytes.Equal(directive.Name, fieldName) && directive.IsAllowedApplySchema() {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d DirectiveDefinitions) IsAllowedApplyField(fieldName []byte) bool {
+	for _, directive := range d {
+		if bytes.Equal(directive.Name, fieldName) && directive.IsAllowedApplyField() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func newBuildInDirectives() []*DirectiveDefinition {
