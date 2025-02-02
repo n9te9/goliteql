@@ -91,7 +91,6 @@ func BenchmarkValidator_Validate(b *testing.B) {
 			lexer := schema.NewLexer()
 			s := tt.schemaFunc(schema.NewParser(lexer))
 			s, _ = s.Merge()
-			s.Preload()
 			
 			queryLexer := query.NewLexer()
 			queryParser := query.NewParser(queryLexer)

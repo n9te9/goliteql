@@ -41,6 +41,10 @@ type TypeDefinition struct {
 	Extentions []*TypeDefinition
 }
 
+func (t *TypeDefinition) IsPremitive() bool {
+	return bytes.Equal(t.Name, []byte("String")) || bytes.Equal(t.Name, []byte("Int")) || bytes.Equal(t.Name, []byte("Float")) || bytes.Equal(t.Name, []byte("Boolean")) || bytes.Equal(t.Name, []byte("ID"))
+}
+
 func (t *TypeDefinition) GetFieldByName(name []byte) *FieldDefinition {
 	for _, field := range t.Fields {
 		if bytes.Equal(field.Name, name) {
@@ -70,24 +74,6 @@ func (f *FieldType) GetPremitiveType() *FieldType {
 	return f
 }
 
-type ArgumentDefinition struct {
-	Name []byte
-	Default []byte
-	Type *FieldType
-}
-
-type ArgumentDefinitions []*ArgumentDefinition
-
-func (a ArgumentDefinitions) RequiredArguments() map[*ArgumentDefinition]struct{} {
-	res := make(map[*ArgumentDefinition]struct{})
-	for _, arg := range a {
-		if !arg.Type.Nullable {
-			res[arg] = struct{}{}
-		}
-	}
-
-	return res
-}
 
 type OperationDefinition struct {
 	OperationType OperationType
@@ -508,6 +494,7 @@ func (s *Schema) Merge() (*Schema, error) {
 	newSchema.Definition = s.Definition
 	newSchema.tokens = s.tokens
 	newSchema.Indexes = s.Indexes
+	newSchema.Directives = s.Directives
 	
 	if err := s.mergeOperation(newSchema); err != nil {
 		return nil, err

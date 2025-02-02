@@ -925,6 +925,162 @@ func TestValidator_Validate(t *testing.T) {
 			}`),
 			want: nil,
 		},
+		{
+			name: "Validate query with @skip directive (true condition)",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					user: User
+				}
+
+				type User {
+					id: ID!
+					name: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name @skip(if: true)
+				}
+			}`),
+			want: nil,
+		},
+		{
+			name: "Validate query with @skip directive (false condition)",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					user: User
+				}
+
+				type User {
+					id: ID!
+					name: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name @skip(if: false)
+				}
+			}`),
+			want: nil,
+		},
+		{
+			name: "Validate query with @include directive (true condition)",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					user: User
+				}
+
+				type User {
+					id: ID!
+					name: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name @include(if: true)
+				}
+			}`),
+			want: nil,
+		},
+		{
+			name: "Validate query with @include directive (false condition)",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					user: User
+				}
+
+				type User {
+					id: ID!
+					name: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name @include(if: false)
+				}
+			}`),
+			want: nil,
+		},
+		{
+			name: "Validate query with @skip directive (invalid argument type)",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					user: User
+				}
+
+				type User {
+					id: ID!
+					name: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name @skip(if: "not a boolean")
+				}
+			}`),
+			want: errors.New(`error validating operations: error validating field user: error validating directive skip: error validating argument if: error validating value for argument if: expected boolean value, got "not a boolean"`),
+		},
+		{
+			name: "Validate query with @include directive (invalid argument type)",
+			schemaFunc: func(parser *schema.Parser) *schema.Schema {
+				input := []byte(`type Query {
+					user: User
+				}
+
+				type User {
+					id: ID!
+					name: String
+				}`)
+				s, err := parser.Parse(input)
+				if err != nil {
+					panic(err)
+				}
+
+				return s
+			},
+			query: []byte(`query {
+				user {
+					id
+					name @include(if: 123)
+				}
+			}`),
+			want: errors.New(`error validating operations: error validating field user: error validating directive include: error validating argument if: error validating value for argument if: expected boolean value, got 123`),
+		},
 	}
 
 	for _, tt := range tests {

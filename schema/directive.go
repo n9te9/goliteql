@@ -1,6 +1,11 @@
 package schema
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+
+	"github.com/lkeix/gg-parser/query"
+)
 
 
 type Location struct {
@@ -60,6 +65,27 @@ func (d *DirectiveDefinition) IsAllowedApplyField() bool {
 	return false
 }
 
+func (d *DirectiveDefinition) ValidateArguments(args []*query.DirectiveArgument) error {
+	for _, def := range d.Arguments {
+		required := !def.Type.Nullable
+		found := false
+		for _, arg := range args {
+			if bytes.Equal(def.Name, arg.Name) {
+				if err := def.ValidateValueType(arg.Value); err != nil {
+					return fmt.Errorf("error validating argument %s: %w", def.Name, err)
+				}
+
+				found = true
+			}
+		}
+
+		if required && !found {
+			return fmt.Errorf("missing required argument: %s", def.Name)
+		}
+	}
+
+	return nil
+}
 
 type DirectiveDefinitions []*DirectiveDefinition
 
@@ -81,6 +107,16 @@ func (d DirectiveDefinitions) IsAllowedApplyField(fieldName []byte) bool {
 	}
 
 	return false
+}
+
+func (d DirectiveDefinitions) Get(name []byte) *DirectiveDefinition {
+	for _, directive := range d {
+		if bytes.Equal(directive.Name, name) {
+			return directive
+		}
+	}
+
+	return nil
 }
 
 func NewBuildInDirectives() []*DirectiveDefinition {

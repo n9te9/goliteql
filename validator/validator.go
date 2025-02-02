@@ -39,14 +39,14 @@ func (v *Validator) validateOperations(doc *query.Document) error {
 	schemaQuery := v.Schema.GetQuery()
 	fragmentDefinitions := doc.FragmentDefinitions
 
-	if err := validateField(schemaQuery, queryOperation, fragmentDefinitions, v.Schema.Indexes); err != nil {
+	if err := validateField(schemaQuery, queryOperation, fragmentDefinitions, v.Schema); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validateField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation, fragmentDefinitions query.FragmentDefinitions, indexes *schema.Indexes) error {
+func validateField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation, fragmentDefinitions query.FragmentDefinitions, schema *schema.Schema) error {
 	if schemaOperation == nil {
 		return errors.New("schema does not have a query operation")
 	}
@@ -55,14 +55,14 @@ func validateField(schemaOperation *schema.OperationDefinition, queryOperation *
 		return errors.New("query does not have a query operation")
 	}
 
-	if err := validateRootField(schemaOperation, queryOperation, fragmentDefinitions, indexes); err != nil {
+	if err := validateRootField(schemaOperation, queryOperation, fragmentDefinitions, schema); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validateRootField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation, fragmentDefinitions query.FragmentDefinitions, indexes *schema.Indexes) error {
+func validateRootField(schemaOperation *schema.OperationDefinition, queryOperation *query.Operation, fragmentDefinitions query.FragmentDefinitions, schema *schema.Schema) error {
 	for _, sel := range queryOperation.Selections {
 		if field, ok := sel.(*query.Field); ok {
 			f := schemaOperation.GetFieldByName(field.Name)
@@ -75,15 +75,15 @@ func validateRootField(schemaOperation *schema.OperationDefinition, queryOperati
 			}
 
 			premitiveFieldType := f.Type.GetPremitiveType()
-			td := indexes.GetTypeDefinition(string(premitiveFieldType.Name))
-			ud := indexes.GetUnionDefinition(string(premitiveFieldType.Name))
-			id := indexes.GetInterfaceDefinition(string(premitiveFieldType.Name))
+			td := schema.Indexes.GetTypeDefinition(string(premitiveFieldType.Name))
+			ud := schema.Indexes.GetUnionDefinition(string(premitiveFieldType.Name))
+			id := schema.Indexes.GetInterfaceDefinition(string(premitiveFieldType.Name))
 			if td == nil && ud == nil && id == nil {
 				return nil
 			}
 
 			if td != nil {
-				if err := validateSubField(td, field, fragmentDefinitions, indexes); err != nil {
+				if err := validateSubField(td, field, fragmentDefinitions, schema); err != nil {
 					return fmt.Errorf("error validating field %s: %w", field.Name, err)
 				}
 			}
@@ -94,17 +94,17 @@ func validateRootField(schemaOperation *schema.OperationDefinition, queryOperati
 				}
 
 				for _, sd := range ud.Types {
-					t := indexes.GetTypeDefinition(string(sd))
-					if err := validateSubField(t, field, fragmentDefinitions, indexes); err != nil {
+					t :=  schema.Indexes.GetTypeDefinition(string(sd))
+					if err := validateSubField(t, field, fragmentDefinitions, schema); err != nil {
 						return fmt.Errorf("error validating field %s: %w", field.Name, err)
 					}
 				}
 			}
 
 			if id != nil {
-				implementedTypes := indexes.GetImplementedType(id)
+				implementedTypes := schema.Indexes.GetImplementedType(id)
 				for _, td := range implementedTypes {
-					if err := validateSubField(td, field, fragmentDefinitions, indexes); err != nil {
+					if err := validateSubField(td, field, fragmentDefinitions, schema); err != nil {
 						return fmt.Errorf("error validating field %s: %w", field.Name, err)
 					}
 				}
@@ -141,25 +141,36 @@ func validateFieldArguments(schemaArguments schema.ArgumentDefinitions, queryArg
 	return nil
 }
 
-func validateSubField(t schema.CompositeType, field query.Selection, fragmentDefinitions query.FragmentDefinitions, indexes *schema.Indexes) error {
+func validateSubField(t schema.CompositeType, field query.Selection, fragmentDefinitions query.FragmentDefinitions, schema *schema.Schema) error {
 	fieldValidator := func(f *query.Field) error {
 		schemaField := t.GetFieldByName(f.Name)
 		if schemaField == nil {
-			tp := t.(*schema.TypeDefinition)
-			for _, field := range tp.Fields {
-				fmt.Println(string(field.Name))
-			}
 			return fmt.Errorf("field %s is not defined on %s in schema", f.Name, t.TypeName())
+		}
+
+		for _, directive := range f.Directives {
+			targetDirective := schema.Directives.Get(directive.Name)
+			if targetDirective == nil {
+				return fmt.Errorf("directive %s is not defined in schema", directive.Name)
+			}
+
+			if !targetDirective.IsAllowedApplyField() {
+				return fmt.Errorf("directive %s is not allowed on field %s", directive.Name, f.Name)
+			}
+
+			if err := targetDirective.ValidateArguments(directive.Arguments); err != nil {
+				return fmt.Errorf("error validating directive %s: %w", directive.Name, err)
+			}
 		}
 
 		if schemaField.Type.IsList {
 			premitiveFieldType := schemaField.Type.GetPremitiveType()
-			t := indexes.GetTypeDefinition(string(premitiveFieldType.Name))
+			t := schema.Indexes.GetTypeDefinition(string(premitiveFieldType.Name))
 			if t == nil {
 				return nil
 			}
 
-			if err := validateSubField(t, f, fragmentDefinitions, indexes); err != nil {
+			if err := validateSubField(t, f, fragmentDefinitions, schema); err != nil {
 				return fmt.Errorf("error validating field %s: %w", f.Name, err)
 			}
 		}
@@ -173,9 +184,9 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 			return fmt.Errorf("fragment %s is not defined", f.Name)
 		}
 
-		td := indexes.GetTypeDefinition(string(fd.BasedTypeName))
-		id := indexes.GetInterfaceDefinition(string(fd.BasedTypeName))
-		ud := indexes.GetUnionDefinition(string(fd.BasedTypeName))
+		td := schema.Indexes.GetTypeDefinition(string(fd.BasedTypeName))
+		id := schema.Indexes.GetInterfaceDefinition(string(fd.BasedTypeName))
+		ud := schema.Indexes.GetUnionDefinition(string(fd.BasedTypeName))
 
 		if td == nil && id == nil && ud == nil {
 			return fmt.Errorf("type %s is not defined in schema", fd.BasedTypeName)
@@ -185,7 +196,7 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 			return fmt.Errorf("fragment %s is based on type %s, but field is of type %s", f.Name, fd.BasedTypeName, t.TypeName())
 		}
 
-		if err := validateSubField(t, fd, fragmentDefinitions, indexes); err != nil {
+		if err := validateSubField(t, fd, fragmentDefinitions, schema); err != nil {
 			return fmt.Errorf("error validating fragment %s: %w", f.Name, err)
 		}
 
@@ -193,28 +204,28 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 	}
 
 	inlineFragmentValidator := func(f *query.InlineFragment) error {
-		td := indexes.GetTypeDefinition(string(f.TypeCondition))
-		id := indexes.GetInterfaceDefinition(string(f.TypeCondition))
-		ud := indexes.GetUnionDefinition(string(f.TypeCondition))
+		td := schema.Indexes.GetTypeDefinition(string(f.TypeCondition))
+		id := schema.Indexes.GetInterfaceDefinition(string(f.TypeCondition))
+		ud := schema.Indexes.GetUnionDefinition(string(f.TypeCondition))
 
 		if td == nil && id == nil && ud == nil {
 			return fmt.Errorf("type %s is not defined in schema", f.TypeCondition)
 		}
 
 		if td != nil {
-			if err := validateSubField(td, f, fragmentDefinitions, indexes); err != nil {
+			if err := validateSubField(td, f, fragmentDefinitions, schema); err != nil {
 				return err
 			}
 		}
 
 		if id != nil {
-			if err := validateSubField(id, f, fragmentDefinitions, indexes); err != nil {
+			if err := validateSubField(id, f, fragmentDefinitions, schema); err != nil {
 				return err
 			}
 		}
 
 		if ud != nil {
-			if err := validateSubField(ud, f, fragmentDefinitions, indexes); err != nil {
+			if err := validateSubField(ud, f, fragmentDefinitions, schema); err != nil {
 				return err
 			}
 		}
