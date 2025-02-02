@@ -394,7 +394,7 @@ func (p *Parser) parseTypeDefinition(schema *Schema,tokens Tokens, cur int) (*Ty
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
 		case Field:
-			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur)
+			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur, false)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -426,7 +426,7 @@ func (p *Parser) parseInputDefinition(tokens Tokens, cur int) (*InputDefinition,
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
 		case Field:
-			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur)
+			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur, true)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -659,6 +659,7 @@ func (p *Parser) parseOperationField(tokens Tokens, cur int) (*FieldDefinition, 
 		Name:      tokens[cur].Value,
 		Arguments: make([]*ArgumentDefinition, 0),
 		Type:      nil,
+		Location: &Location{Name: []byte("FIELD_DEFINITION")},
 	}
 	cur++
 
@@ -861,7 +862,7 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDef
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
 		case Field:
-			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur)
+			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur, false)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -876,7 +877,7 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDef
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
-func (p *Parser) parseFieldDefinitions(tokens Tokens, cur int) ([]*FieldDefinition, int, error) {
+func (p *Parser) parseFieldDefinitions(tokens Tokens, cur int, isInputField bool) ([]*FieldDefinition, int, error) {
 	definitions := make([]*FieldDefinition, 0)
 
 	for cur < len(tokens) {
@@ -884,7 +885,7 @@ func (p *Parser) parseFieldDefinitions(tokens Tokens, cur int) ([]*FieldDefiniti
 		case CurlyOpen, ParenOpen:
 			cur++
 		case Field:
-			fieldDefinition, newCur, err := p.parseFieldDefinition(tokens, cur)
+			fieldDefinition, newCur, err := p.parseFieldDefinition(tokens, cur, isInputField)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -908,9 +909,18 @@ func (p *Parser) parseFieldDefinitions(tokens Tokens, cur int) ([]*FieldDefiniti
 	return nil, 0, fmt.Errorf("unexpected end of input")
 }
 
-func (p *Parser) parseFieldDefinition(tokens Tokens, cur int) (*FieldDefinition, int, error) {
+func (p *Parser) parseFieldDefinition(tokens Tokens, cur int, isInputField bool) (*FieldDefinition, int, error) {
+	location := &Location{
+		Name: []byte("FIELD_DEFINITION"),
+	}
+
+	if isInputField {
+		location.Name = []byte("INPUT_FIELD_DEFINITION")
+	}
+
 	definition := &FieldDefinition{
 		Name: tokens[cur].Value,
+		Location: location,
 	}
 
 	cur++

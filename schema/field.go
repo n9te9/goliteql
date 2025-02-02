@@ -6,12 +6,7 @@ type FieldDefinition struct {
 	Type *FieldType
 	Directives []*Directive
 	Default []byte
-}
-
-func (f *FieldDefinition) Location() *Location {
-	return &Location{
-		Name: []byte("FIELD_DEFINITION"),
-	}
+	Location *Location
 }
 
 type FieldDefinitions []*FieldDefinition

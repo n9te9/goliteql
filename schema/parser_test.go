@@ -30,6 +30,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 			},
 		},
 		{
@@ -45,6 +46,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("RootMutation"),
 					Subscription: []byte("RootSubscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 			},
 		},
 		{
@@ -58,6 +60,7 @@ func TestParser_Parse(t *testing.T) {
 					Query:    []byte("RootQuery"),
 					Mutation: []byte("RootMutation"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 			},
 		},
 		{
@@ -73,6 +76,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("User"),
@@ -85,6 +89,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 							{
 								Name: []byte("name"),
@@ -94,6 +99,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 							{
 								Name: []byte("age"),
@@ -103,6 +109,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -121,6 +128,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("User"),
@@ -138,6 +146,7 @@ func TestParser_Parse(t *testing.T) {
 									},
 								},
 								Directives: []*schema.Directive{},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 							{
 								Name: []byte("posts"),
@@ -152,6 +161,7 @@ func TestParser_Parse(t *testing.T) {
 									},
 								},
 								Directives: []*schema.Directive{},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -169,6 +179,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("Data"),
@@ -192,6 +203,7 @@ func TestParser_Parse(t *testing.T) {
 										},
 									},
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -211,6 +223,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("Example"),
@@ -230,6 +243,7 @@ func TestParser_Parse(t *testing.T) {
 										},
 									},
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -247,6 +261,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Unions: []*schema.UnionDefinition{
 					{
 						Name: []byte("SearchResult"),
@@ -270,6 +285,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Unions: []*schema.UnionDefinition{
 					{
 						Name: []byte("SearchResult"),
@@ -307,6 +323,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Inputs: []*schema.InputDefinition{
 					{
 						Name: []byte("Filter"),
@@ -319,6 +336,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 							{
 								Name: []byte("value"),
@@ -328,6 +346,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -345,6 +364,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Inputs: []*schema.InputDefinition{
 					{
 						Name: []byte("Filter"),
@@ -358,6 +378,7 @@ func TestParser_Parse(t *testing.T) {
 								},
 								Default: []byte(`"name"`),
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -376,6 +397,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Inputs: []*schema.InputDefinition{
 					{
 						Name: []byte("Filter"),
@@ -389,6 +411,7 @@ func TestParser_Parse(t *testing.T) {
 								},
 								Default: []byte(`"name"`),
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 							{
 								Name: []byte("value"),
@@ -399,6 +422,7 @@ func TestParser_Parse(t *testing.T) {
 								},
 								Default: []byte(`"John Doe"`),
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -416,6 +440,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -427,6 +452,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -445,6 +471,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Nested"),
@@ -464,6 +491,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -480,6 +508,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name:   []byte("Empty"),
@@ -514,6 +543,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -528,6 +558,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 							{
 								Name:      []byte("users"),
@@ -542,6 +573,7 @@ func TestParser_Parse(t *testing.T) {
 									},
 								},
 								Directives: []*schema.Directive{},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -559,6 +591,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -581,6 +614,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -599,6 +633,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -626,6 +661,7 @@ func TestParser_Parse(t *testing.T) {
 										Nullable: true,
 									},
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -633,7 +669,6 @@ func TestParser_Parse(t *testing.T) {
 				},
 			},
 		},
-		// TODO: support nested arguments with default values
 		{
 			name: "deep nested argument Query operation",
 			input: []byte(`type Query {
@@ -645,6 +680,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -674,6 +710,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -692,6 +729,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -722,6 +760,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -740,6 +779,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -770,6 +810,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -789,6 +830,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -802,6 +844,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -812,6 +855,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -830,6 +874,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -861,6 +906,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -880,6 +926,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -893,6 +940,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -907,6 +955,7 @@ func TestParser_Parse(t *testing.T) {
 										Nullable: true,
 									},
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -925,6 +974,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -955,6 +1005,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -973,6 +1024,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -1012,6 +1064,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -1041,6 +1094,7 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Directives: schema.NewBuildInDirectives(),
 			},
 		},
 		{
@@ -1058,6 +1112,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("User"),
@@ -1070,6 +1125,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 						Extentions: []*schema.TypeDefinition{
@@ -1084,6 +1140,7 @@ func TestParser_Parse(t *testing.T) {
 											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 									},
 								},
 							},
@@ -1108,6 +1165,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -1132,6 +1190,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 						Extentions: []*schema.OperationDefinition{
@@ -1167,6 +1226,7 @@ func TestParser_Parse(t *testing.T) {
 											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 									},
 									{
 										Name:      []byte("users"),
@@ -1181,6 +1241,7 @@ func TestParser_Parse(t *testing.T) {
 												IsList:   false,
 											},
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 								},
@@ -1206,6 +1267,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -1230,6 +1292,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 						Extentions: []*schema.OperationDefinition{
@@ -1264,6 +1327,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: false,
 											IsList:   false,
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 									{
@@ -1294,6 +1358,7 @@ func TestParser_Parse(t *testing.T) {
 											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 									},
 								},
 							},
@@ -1318,6 +1383,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -1332,6 +1398,7 @@ func TestParser_Parse(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 						Extentions: []*schema.OperationDefinition{
@@ -1358,6 +1425,7 @@ func TestParser_Parse(t *testing.T) {
 											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 									},
 									{
 										Name: []byte("userUpdated"),
@@ -1378,6 +1446,7 @@ func TestParser_Parse(t *testing.T) {
 											IsList:   false,
 										},
 										Directives: []*schema.Directive{},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 									},
 								},
 							},
@@ -1403,6 +1472,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Enums: []*schema.EnumDefinition{
 					{
 						Name: []byte("Role"),
@@ -1456,6 +1526,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Inputs: []*schema.InputDefinition{
 					{
 						Name: []byte("UserInput"),
@@ -1467,6 +1538,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 							{
 								Name: []byte("name"),
@@ -1475,6 +1547,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 						},
 						Extentions: []*schema.InputDefinition{
@@ -1488,6 +1561,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: true,
 										},
 										Directives: []*schema.Directive{},
+										Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 									},
 									{
 										Name: []byte("email"),
@@ -1496,6 +1570,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: true,
 										},
 										Directives: []*schema.Directive{},
+										Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 									},
 								},
 							},
@@ -1520,6 +1595,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -1530,6 +1606,7 @@ func TestParser_Parse(t *testing.T) {
 									Name:     []byte("ID"),
 									Nullable: false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -1543,6 +1620,7 @@ func TestParser_Parse(t *testing.T) {
 											Name:     []byte("String"),
 											Nullable: true,
 										},
+										Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 									{
@@ -1551,6 +1629,7 @@ func TestParser_Parse(t *testing.T) {
 											Name:     []byte("String"),
 											Nullable: true,
 										},
+										Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 								},
@@ -1571,6 +1650,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Unions: []*schema.UnionDefinition{
 					{
 						Name: []byte("SearchResult"),
@@ -1603,6 +1683,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("User"),
@@ -1618,6 +1699,7 @@ func TestParser_Parse(t *testing.T) {
 										},
 									},
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -1638,7 +1720,87 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
-				Directives: []*schema.DirectiveDefinition{
+				Directives: schema.DirectiveDefinitions{
+					{
+						Name: []byte("skip"),
+						Description: []byte("Directs the executor to skip this field or fragment when the `if` argument is true."),
+						Arguments: []*schema.ArgumentDefinition{
+							{
+								Name: []byte("if"),
+								Type: &schema.FieldType{Name: []byte("Boolean"), Nullable: false},
+							},
+						},
+						Repeatable: false,
+						Locations: []*schema.Location{
+							{
+								Name: []byte("FIELD"),
+							},
+							{
+								Name: []byte("FRAGMENT_SPREAD"),
+							},
+							{
+								Name: []byte("INLINE_FRAGMENT"),
+							},
+						},
+					},
+					{
+						Name: []byte("include"),
+						Description: []byte("Directs the executor to include this field or fragment only when the `if` argument is true."),
+						Arguments: []*schema.ArgumentDefinition{
+							{
+								Name: []byte("if"),
+								Type: &schema.FieldType{Name: []byte("Boolean"), Nullable: false},
+							},
+						},
+						Repeatable: false,
+						Locations: []*schema.Location{
+							{
+								Name: []byte("FIELD"),
+							},
+							{
+								Name: []byte("FRAGMENT_SPREAD"),
+							},
+							{
+								Name: []byte("INLINE_FRAGMENT"),
+							},
+						},
+					},
+					{
+						Name: []byte("deprecated"),
+						Description: []byte("Marks an element of a GraphQL schema as no longer supported."),
+						Arguments: []*schema.ArgumentDefinition{
+							{
+								Name: []byte("reason"),
+								Type: &schema.FieldType{Name: []byte("String"), Nullable: true},
+								Default: []byte("No longer supported"),
+							},
+						},
+						Repeatable: false,
+						Locations: []*schema.Location{
+							{
+								Name: []byte("FIELD_DEFINITION"),
+							},
+							{
+								Name: []byte("ENUM_VALUE"),
+							},
+						},
+					},
+					{
+						Name: []byte("specifiedBy"),
+						Description: []byte("Exposes a URL that specifies the behaviour of this scalar."),
+						Arguments: []*schema.ArgumentDefinition{
+							{
+								Name: []byte("url"),
+								Type: &schema.FieldType{Name: []byte("String"), Nullable: false},
+							},
+						},
+						Repeatable: false,
+						Locations: []*schema.Location{
+							{
+								Name: []byte("SCALAR"),
+							},
+						},
+					},
 					{
 						Name: []byte("length"),
 						Arguments: []*schema.ArgumentDefinition{
@@ -1658,6 +1820,7 @@ func TestParser_Parse(t *testing.T) {
 							{
 								Name: []byte("query"),
 								Type: &schema.FieldType{Name: []byte("String"), Nullable: true},
+								Location: &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 								Directives: []*schema.Directive{
 									{
 										Name: []byte("length"),
@@ -1684,6 +1847,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -1691,6 +1855,7 @@ func TestParser_Parse(t *testing.T) {
 							{
 								Name: []byte("user"),
 								Type: &schema.FieldType{Name: []byte("User"), Nullable: true},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{
 									{Name: []byte("deprecated")},
 									{
@@ -1702,28 +1867,6 @@ func TestParser_Parse(t *testing.T) {
 								},
 								Arguments: []*schema.ArgumentDefinition{},
 							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "Simple directive definition (no args, single location)",
-			input: []byte(`
-				directive @deprecated on FIELD_DEFINITION
-			`),
-			want: &schema.Schema{
-				Definition: &schema.SchemaDefinition{
-					Query:        []byte("Query"),
-					Mutation:     []byte("Mutation"),
-					Subscription: []byte("Subscription"),
-				},
-				Directives: []*schema.DirectiveDefinition{
-					{
-						Name: []byte("deprecated"),
-						Arguments: []*schema.ArgumentDefinition{},
-						Locations: []*schema.Location{
-							{Name: []byte("FIELD_DEFINITION")},
 						},
 					},
 				},
@@ -1743,8 +1886,9 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
-				Directives: []*schema.DirectiveDefinition{
-					{
+				Directives: func() schema.DirectiveDefinitions {
+					directives := schema.NewBuildInDirectives()
+					directives = append(directives, &schema.DirectiveDefinition{
 						Name:       []byte("auth"),
 						Repeatable: true,
 						Arguments: []*schema.ArgumentDefinition{
@@ -1770,8 +1914,9 @@ func TestParser_Parse(t *testing.T) {
 							{Name: []byte("FIELD_DEFINITION")},
 							{Name: []byte("OBJECT")},
 						},
-					},
-				},
+					})
+					return directives
+				}(),
 			},
 		},
 		{
@@ -1788,6 +1933,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Enums: []*schema.EnumDefinition{
 					{
 						Name: []byte("Direction"),
@@ -1835,6 +1981,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -1846,6 +1993,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -1873,6 +2021,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Unions: []*schema.UnionDefinition{
 					{
 						Name: []byte("Entity"),
@@ -1910,6 +2059,7 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Directives: schema.NewBuildInDirectives(),
 			},
 		},
 		{
@@ -1923,6 +2073,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -1934,6 +2085,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location:  &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -1967,6 +2119,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Enums: []*schema.EnumDefinition{
 					{
 						Name: []byte("Role"),
@@ -2000,6 +2153,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Scalars: []*schema.ScalarDefinition{
 					{
 						Name: []byte("DateTime"),
@@ -2017,6 +2171,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Scalars: []*schema.ScalarDefinition{
 					{
 						Name: []byte("URL"),
@@ -2043,6 +2198,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Scalars: []*schema.ScalarDefinition{
 					{
 						Name: []byte("JSON"),
@@ -2082,6 +2238,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -2093,6 +2250,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -2109,6 +2267,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2118,6 +2277,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -2132,6 +2292,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: false,
 											IsList:   false,
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 								},
@@ -2164,6 +2325,7 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -2175,6 +2337,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -2189,6 +2352,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2198,6 +2362,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -2214,6 +2379,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2223,6 +2389,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2232,6 +2399,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2241,6 +2409,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -2255,6 +2424,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: false,
 											IsList:   false,
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 								},
@@ -2269,6 +2439,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: true,
 											IsList:   false,
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 									{
@@ -2278,6 +2449,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: true,
 											IsList:   false,
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 								},
@@ -2305,6 +2477,7 @@ func TestParser_Parse(t *testing.T) {
 				}
 			`),
 			want: &schema.Schema{
+				Directives: schema.NewBuildInDirectives(),
 				Definition: &schema.SchemaDefinition{
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
@@ -2321,6 +2494,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -2335,6 +2509,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2344,6 +2519,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -2360,6 +2536,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2369,6 +2546,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2378,6 +2556,7 @@ func TestParser_Parse(t *testing.T) {
 									Nullable: true,
 									IsList:   false,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 							{
@@ -2386,6 +2565,7 @@ func TestParser_Parse(t *testing.T) {
 									Name:     []byte("String"),
 									Nullable: true,
 								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 								Directives: []*schema.Directive{},
 							},
 						},
@@ -2400,6 +2580,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: false,
 											IsList:   false,
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 								},
@@ -2414,6 +2595,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: true,
 											IsList:   false,
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 									{
@@ -2423,6 +2605,7 @@ func TestParser_Parse(t *testing.T) {
 											Nullable: true,
 											IsList:   false,
 										},
+										Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
 										Directives: []*schema.Directive{},
 									},
 								},
@@ -2444,7 +2627,6 @@ func TestParser_Parse(t *testing.T) {
 		schema.Schema{},
 		schema.TypeDefinition{},
 		schema.InputDefinition{},
-		schema.Indexes{},
 	}
 
 	for _, tt := range tests {
@@ -2465,7 +2647,7 @@ func TestParser_Parse(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(ignores...)); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(ignores...), cmpopts.IgnoreFields(schema.Schema{}, "Indexes")); diff != "" {
 				t.Errorf("Parse() mismatch (-got +want):\n%s", diff)
 			}
 		})

@@ -83,7 +83,7 @@ func (d DirectiveDefinitions) IsAllowedApplyField(fieldName []byte) bool {
 	return false
 }
 
-func newBuildInDirectives() []*DirectiveDefinition {
+func NewBuildInDirectives() []*DirectiveDefinition {
 	return []*DirectiveDefinition{
 		{
 			Name: []byte("skip"),

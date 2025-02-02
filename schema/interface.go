@@ -9,6 +9,12 @@ type InterfaceDefinition struct {
 	Directives []*Directive
 }
 
+func (i *InterfaceDefinition) Location () *Location {
+	return &Location{
+		Name: []byte("INTERFACE"),
+	}
+}
+
 func (i *InterfaceDefinition) GetFieldByName(name []byte) *FieldDefinition {
 	for _, field := range i.Fields {
 		if bytes.Equal(field.Name, name) {
