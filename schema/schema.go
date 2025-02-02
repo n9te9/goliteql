@@ -342,6 +342,91 @@ type Schema struct {
 	Indexes *Indexes
 }
 
+func newBuildInDirectives() []*DirectiveDefinition {
+	return []*DirectiveDefinition{
+		{
+			Name: []byte("skip"),
+			Description: []byte("Directs the executor to skip this field or fragment when the `if` argument is true."),
+			Arguments: []*ArgumentDefinition{
+				{
+					Name: []byte("if"),
+					Type: &FieldType{Name: []byte("Boolean"), Nullable: false},
+				},
+			},
+			Repeatable: false,
+			Locations: []*Location{
+				{
+					Name: []byte("FIELD"),
+				},
+				{
+					Name: []byte("FRAGMENT_SPREAD"),
+				},
+				{
+					Name: []byte("INLINE_FRAGMENT"),
+				},
+			},
+		},
+		{
+			Name: []byte("include"),
+			Description: []byte("Directs the executor to include this field or fragment only when the `if` argument is true."),
+			Arguments: []*ArgumentDefinition{
+				{
+					Name: []byte("if"),
+					Type: &FieldType{Name: []byte("Boolean"), Nullable: false},
+				},
+			},
+			Repeatable: false,
+			Locations: []*Location{
+				{
+					Name: []byte("FIELD"),
+				},
+				{
+					Name: []byte("FRAGMENT_SPREAD"),
+				},
+				{
+					Name: []byte("INLINE_FRAGMENT"),
+				},
+			},
+		},
+		{
+			Name: []byte("deprecated"),
+			Description: []byte("Marks an element of a GraphQL schema as no longer supported."),
+			Arguments: []*ArgumentDefinition{
+				{
+					Name: []byte("reason"),
+					Type: &FieldType{Name: []byte("String"), Nullable: true},
+					Default: []byte("No longer supported"),
+				},
+			},
+			Repeatable: false,
+			Locations: []*Location{
+				{
+					Name: []byte("FIELD_DEFINITION"),
+				},
+				{
+					Name: []byte("ENUM_VALUE"),
+				},
+			},
+		},
+		{
+			Name: []byte("specifiedBy"),
+			Description: []byte("Exposes a URL that specifies the behaviour of this scalar."),
+			Arguments: []*ArgumentDefinition{
+				{
+					Name: []byte("url"),
+					Type: &FieldType{Name: []byte("String"), Nullable: false},
+				},
+			},
+			Repeatable: false,
+			Locations: []*Location{
+				{
+					Name: []byte("SCALAR"),
+				},
+			},
+		},
+	}
+}
+
 func NewSchema(tokens Tokens) *Schema {
 	operationIndexes := make(map[OperationType]map[string]*OperationDefinition)
 
@@ -364,6 +449,7 @@ func NewSchema(tokens Tokens) *Schema {
 			InterfaceIndex: make(map[string]*InterfaceDefinition),
 			InputIndex: make(map[string]*InputDefinition),
 		},
+		Directives: newBuildInDirectives(),
 	}
 }
 
