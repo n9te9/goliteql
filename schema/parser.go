@@ -924,8 +924,19 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int, isInputField bool)
 	}
 
 	cur++
-	if tokens[cur].Type != Colon {
-		return nil, 0, fmt.Errorf("expected ':' but got %s", string(tokens[cur].Value))
+	if tokens[cur].Type == ParenOpen {
+		cur++
+		args, newCur, err := p.parseArguments(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		definition.Arguments = args
+		cur = newCur
+	}
+
+	if tokens[cur].Type != Colon{
+		return nil, 0, fmt.Errorf("expected ':' or '(' but got %s", string(tokens[cur].Value))
 	}
 
 	cur++
