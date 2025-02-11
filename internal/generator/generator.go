@@ -42,8 +42,6 @@ func NewGenerator(schemaDirectory, outputDirectory string) (*Generator, error) {
 		return nil, fmt.Errorf("error get gql file path: %w", err)
 	}
 
-	fmt.Println(gqlFilePaths)
-
 	fileContents := make([]byte, 0)
 
 	for _, path := range gqlFilePaths {
@@ -135,20 +133,56 @@ func (g *Generator) generateModelField(field schema.FieldDefinitions) *ast.Field
 	fields := make([]*ast.Field, 0)
 
 	for _, f := range field {
+		fieldType := GraphQLType(f.Type.Name)
+		var fieldTypeIdent *ast.Ident
+		if fieldType.IsPrimitive() {
+			fieldTypeIdent = ast.NewIdent(fieldType.golangType())
+		}
+
 		fields = append(fields, &ast.Field{
 			Names: []*ast.Ident{
 				{
 					Name: toUpperCase(string(f.Name)),
 				},
 			},
-			Type: &ast.Ident{
-				Name: toLowerCase(string(f.Type.Name)),
+			Type: fieldTypeIdent,
+			Tag: &ast.BasicLit{
+				Kind: token.STRING,
+				Value: fmt.Sprintf("`json:\"%s\"`", string(f.Name)),
 			},
 		})
 	}
 
 	return &ast.FieldList{
 		List: fields,
+	}
+}
+
+type GraphQLType string
+
+func (g GraphQLType) IsPrimitive() bool {
+	switch g {
+	case "Int", "Float", "String", "Boolean", "ID":
+		return true
+	default:
+		return false
+	}
+}
+
+func (g GraphQLType) golangType() string {
+	switch g {
+	case "Int":
+		return "int"
+	case "Float":
+		return "float64"
+	case "String":
+		return "string"
+	case "Boolean":
+		return "bool"
+	case "ID":
+		return "string"
+	default:
+		return string(g)
 	}
 }
 
