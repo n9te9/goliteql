@@ -2,6 +2,9 @@ package generator
 
 import (
 	"fmt"
+	"go/ast"
+	"go/format"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +15,10 @@ import (
 
 type Generator struct {
 	Schema *schema.Schema
+	queryAST *ast.File
+	mutationAST *ast.File
+	subscriptionAST *ast.File
+	modelAST *ast.File
 }
 
 var gqlFilePattern = regexp.MustCompile(`.*[\.gql | \.graphql]`)
@@ -67,8 +74,16 @@ func NewGenerator(schemaDirectory, outputDirectory string) (*Generator, error) {
 		return nil, fmt.Errorf("error merging schema: %w", err)
 	}
 
+
+
 	g := &Generator{
 		Schema: s,
+		queryAST: &ast.File{},
+		mutationAST: &ast.File{},
+		subscriptionAST: &ast.File{},
+		modelAST: &ast.File{
+			Name: ast.NewIdent("generated_model"),
+		},
 	}
 
 	return g, nil
@@ -84,6 +99,20 @@ func (g *Generator) Generate() error {
 
 func (g *Generator) generateModel() error {
 	for _, input := range g.Schema.Inputs {
+		g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
+			Tok: token.TYPE,
+			Specs: []ast.Spec{
+				&ast.TypeSpec{
+					Name: &ast.Ident{
+						Name: string(input.Name),
+					},
+					Type: &ast.StructType{
+						Fields: g.generateModelField(input.Fields),
+					},
+				},
+			},
+		})
+
 		fmt.Println(string(input.Name))
 	}
 
@@ -91,5 +120,42 @@ func (g *Generator) generateModel() error {
 		fmt.Println(string(t.Name))
 	}
 
+	// output to file
+	// f, err := os.Create("model.go")
+	// if err != nil {
+	// 	return fmt.Errorf("error creating file: %w", err)
+	// }
+
+	format.Node(os.Stdout, token.NewFileSet(), g.modelAST)
+
 	return nil
+}
+
+func (g *Generator) generateModelField(field schema.FieldDefinitions) *ast.FieldList {
+	fields := make([]*ast.Field, 0)
+
+	for _, f := range field {
+		fields = append(fields, &ast.Field{
+			Names: []*ast.Ident{
+				{
+					Name: toUpperCase(string(f.Name)),
+				},
+			},
+			Type: &ast.Ident{
+				Name: toLowerCase(string(f.Type.Name)),
+			},
+		})
+	}
+
+	return &ast.FieldList{
+		List: fields,
+	}
+}
+
+func toUpperCase(s string) string {
+	return string(s[0]-32) + s[1:]
+}
+
+func toLowerCase(s string) string {
+	return string(s[0]+32) + s[1:]
 }
