@@ -80,7 +80,7 @@ func NewGenerator(schemaDirectory, outputDirectory string) (*Generator, error) {
 		mutationAST: &ast.File{},
 		subscriptionAST: &ast.File{},
 		modelAST: &ast.File{
-			Name: ast.NewIdent("generated_model"),
+			Name: ast.NewIdent("generated"),
 		},
 	}
 
@@ -110,12 +110,22 @@ func (g *Generator) generateModel() error {
 				},
 			},
 		})
-
-		fmt.Println(string(input.Name))
 	}
 
 	for _, t := range g.Schema.Types {
-		fmt.Println(string(t.Name))
+		g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
+			Tok: token.TYPE,
+			Specs: []ast.Spec{
+				&ast.TypeSpec{
+					Name: &ast.Ident{
+						Name: string(t.Name),
+					},
+					Type: &ast.StructType{
+						Fields: g.generateModelField(t.Fields),
+					},
+				},
+			},
+		})
 	}
 
 	// output to file
@@ -130,13 +140,15 @@ func (g *Generator) generateModel() error {
 }
 
 func (g *Generator) generateModelField(field schema.FieldDefinitions) *ast.FieldList {
-	fields := make([]*ast.Field, 0)
+	fields := make([]*ast.Field, 0, len(field))
 
 	for _, f := range field {
 		fieldType := GraphQLType(f.Type.Name)
 		var fieldTypeIdent *ast.Ident
 		if fieldType.IsPrimitive() {
-			fieldTypeIdent = ast.NewIdent(fieldType.golangType())
+			fieldTypeIdent = g.golangType(f.Type, fieldType)
+		} else {
+			fieldTypeIdent = g.golangType(f.Type, fieldType)
 		}
 
 		fields = append(fields, &ast.Field{
@@ -156,6 +168,22 @@ func (g *Generator) generateModelField(field schema.FieldDefinitions) *ast.Field
 	return &ast.FieldList{
 		List: fields,
 	}
+}
+
+func (g *Generator) golangType(fieldType *schema.FieldType, graphQLType GraphQLType) *ast.Ident {
+	if fieldType.IsList {
+		return ast.NewIdent("[]" + g.golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name)).Name)
+	}
+
+	if graphQLType.IsPrimitive() {
+		if fieldType.Nullable {
+			return ast.NewIdent("*" + graphQLType.golangType())
+		}
+
+		return ast.NewIdent(graphQLType.golangType())
+	}
+
+	return ast.NewIdent("*" + graphQLType.golangType())
 }
 
 type GraphQLType string
