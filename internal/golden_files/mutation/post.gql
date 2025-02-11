@@ -1,0 +1,8 @@
+input NewPost {
+  title: String!
+  content: String!
+}
+
+type Mutation {
+  createPost(data: NewPost!): Post!
+}
