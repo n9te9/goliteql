@@ -183,7 +183,11 @@ func (g *Generator) golangType(fieldType *schema.FieldType, graphQLType GraphQLT
 		return ast.NewIdent(graphQLType.golangType())
 	}
 
-	return ast.NewIdent("*" + graphQLType.golangType())
+	if fieldType.Nullable {
+		return ast.NewIdent("*" + graphQLType.golangType())
+	}
+
+	return ast.NewIdent(graphQLType.golangType())
 }
 
 type GraphQLType string

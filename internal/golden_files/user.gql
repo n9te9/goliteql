@@ -3,5 +3,5 @@ type User {
   name: String!
   email: String!
   age: Int
-  posts: [Post!]!
+  posts: [Post]!
 }
