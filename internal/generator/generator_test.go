@@ -15,14 +15,16 @@ func TestGenerator_Generate(t *testing.T) {
 	tests := []struct {
 		name string
 		schemaDirectory string
-		output *bytes.Buffer
+		modelOutput *bytes.Buffer
+		resolverOutput *bytes.Buffer
 		expected error
 		expectGoFilePath string
 	}{
 		{
 			name: "Generate code",
 			schemaDirectory:  "../golden_files/model_test",
-			output: bytes.NewBuffer(nil),
+			modelOutput: bytes.NewBuffer(nil),
+			resolverOutput: bytes.NewBuffer(nil),
 			expected: nil,
 			expectGoFilePath: "../golden_files/model_test/model.go",
 		},
@@ -31,7 +33,7 @@ func TestGenerator_Generate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fmt.Println(filepath.Abs(tt.schemaDirectory))
-			generator, err := generator.NewGenerator(tt.schemaDirectory, tt.output)
+			generator, err := generator.NewGenerator(tt.schemaDirectory, tt.modelOutput, tt.resolverOutput)
 			if err != nil {
 				t.Fatalf("error creating generator: %v", err)
 			}
@@ -46,8 +48,8 @@ func TestGenerator_Generate(t *testing.T) {
 				t.Fatalf("error reading file: %v", err)
 			}
 
-			if cmp.Diff(expectedContent, tt.output.Bytes()) != "" {
-				t.Fatalf("expected \n%s, got \n%s", expectedContent, tt.output.Bytes())
+			if cmp.Diff(expectedContent, tt.modelOutput.Bytes()) != "" {
+				t.Fatalf("expected \n%s, got \n%s", expectedContent, tt.modelOutput.Bytes())
 			}
 		})
 	}

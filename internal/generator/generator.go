@@ -20,12 +20,13 @@ type Generator struct {
 	subscriptionAST *ast.File
 	modelAST *ast.File
 
-	output io.Writer
+	modelOutput io.Writer
+	resolverOutput io.Writer
 }
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
 
-func NewGenerator(schemaDirectory string, output io.Writer) (*Generator, error) {
+func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer) (*Generator, error) {
 	gqlFilePaths := make([]string, 0)
 
 	err := filepath.Walk(schemaDirectory, func(path string, info os.FileInfo, err error) error {
@@ -84,7 +85,7 @@ func NewGenerator(schemaDirectory string, output io.Writer) (*Generator, error) 
 		modelAST: &ast.File{
 			Name: ast.NewIdent("generated"),
 		},
-		output: output,
+		modelOutput: modelOutput,
 	}
 
 	return g, nil
@@ -108,7 +109,7 @@ func (g *Generator) generateModel() error {
 						Name: string(input.Name),
 					},
 					Type: &ast.StructType{
-						Fields: g.generateModelField(input.Fields),
+						Fields: generateModelField(input.Fields),
 					},
 				},
 			},
@@ -124,58 +125,21 @@ func (g *Generator) generateModel() error {
 						Name: string(t.Name),
 					},
 					Type: &ast.StructType{
-						Fields: g.generateModelField(t.Fields),
+						Fields: generateModelField(t.Fields),
 					},
 				},
 			},
 		})
 	}
 
-	// output to file
-	// f, err := os.Create("model.go")
-	// if err != nil {
-	// 	return fmt.Errorf("error creating file: %w", err)
-	// }
-
-	format.Node(g.output, token.NewFileSet(), g.modelAST)
+	format.Node(g.modelOutput, token.NewFileSet(), g.modelAST)
 
 	return nil
 }
 
-func (g *Generator) generateModelField(field schema.FieldDefinitions) *ast.FieldList {
-	fields := make([]*ast.Field, 0, len(field))
-
-	for _, f := range field {
-		fieldType := GraphQLType(f.Type.Name)
-		var fieldTypeIdent *ast.Ident
-		if fieldType.IsPrimitive() {
-			fieldTypeIdent = g.golangType(f.Type, fieldType)
-		} else {
-			fieldTypeIdent = g.golangType(f.Type, fieldType)
-		}
-
-		fields = append(fields, &ast.Field{
-			Names: []*ast.Ident{
-				{
-					Name: toUpperCase(string(f.Name)),
-				},
-			},
-			Type: fieldTypeIdent,
-			Tag: &ast.BasicLit{
-				Kind: token.STRING,
-				Value: fmt.Sprintf("`json:\"%s\"`", string(f.Name)),
-			},
-		})
-	}
-
-	return &ast.FieldList{
-		List: fields,
-	}
-}
-
-func (g *Generator) golangType(fieldType *schema.FieldType, graphQLType GraphQLType) *ast.Ident {
+func golangType(fieldType *schema.FieldType, graphQLType GraphQLType) *ast.Ident {
 	if fieldType.IsList {
-		return ast.NewIdent("[]" + g.golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name)).Name)
+		return ast.NewIdent("[]" + golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name)).Name)
 	}
 
 	if graphQLType.IsPrimitive() {
