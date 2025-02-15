@@ -20,13 +20,12 @@ type Generator struct {
 	subscriptionAST *ast.File
 	modelAST *ast.File
 
-	modelOutput io.Writer
-	resolverOutput io.Writer
+	output io.Writer
 }
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
 
-func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer) (*Generator, error) {
+func NewGenerator(schemaDirectory string, modelOutput io.Writer) (*Generator, error) {
 	gqlFilePaths := make([]string, 0)
 
 	err := filepath.Walk(schemaDirectory, func(path string, info os.FileInfo, err error) error {
@@ -85,7 +84,7 @@ func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer)
 		modelAST: &ast.File{
 			Name: ast.NewIdent("generated"),
 		},
-		modelOutput: modelOutput,
+		output: modelOutput,
 	}
 
 	return g, nil
@@ -132,7 +131,7 @@ func (g *Generator) generateModel() error {
 		})
 	}
 
-	format.Node(g.modelOutput, token.NewFileSet(), g.modelAST)
+	format.Node(g.output, token.NewFileSet(), g.modelAST)
 
 	return nil
 }

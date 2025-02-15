@@ -8,9 +8,9 @@ import (
 )
 
 func main() {
-	schemaDirectory := "./internal/golden_files"
+	schemaDirectory := "./internal/golden_files/operation_test"
 
-	g, err := generator.NewGenerator(schemaDirectory, os.Stdout, os.Stdout)
+	g, err := generator.NewGenerator(schemaDirectory, os.Stdout)
 	if err != nil {
 		log.Fatalf("error creating generator: %v", err)
 	}
