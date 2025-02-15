@@ -20,12 +20,13 @@ type Generator struct {
 	subscriptionAST *ast.File
 	modelAST *ast.File
 
-	output io.Writer
+	modelOutput io.Writer
+	resolverOutput io.Writer
 }
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
 
-func NewGenerator(schemaDirectory string, modelOutput io.Writer) (*Generator, error) {
+func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer) (*Generator, error) {
 	gqlFilePaths := make([]string, 0)
 
 	err := filepath.Walk(schemaDirectory, func(path string, info os.FileInfo, err error) error {
@@ -74,8 +75,6 @@ func NewGenerator(schemaDirectory string, modelOutput io.Writer) (*Generator, er
 		return nil, fmt.Errorf("error merging schema: %w", err)
 	}
 
-
-
 	g := &Generator{
 		Schema: s,
 		queryAST: &ast.File{},
@@ -84,7 +83,8 @@ func NewGenerator(schemaDirectory string, modelOutput io.Writer) (*Generator, er
 		modelAST: &ast.File{
 			Name: ast.NewIdent("generated"),
 		},
-		output: modelOutput,
+		modelOutput: modelOutput,
+		resolverOutput: resolverOutput,
 	}
 
 	return g, nil
@@ -92,6 +92,11 @@ func NewGenerator(schemaDirectory string, modelOutput io.Writer) (*Generator, er
 
 func (g *Generator) Generate() error {
 	if err := g.generateModel(); err != nil {
+		panic(err)
+	}
+
+	// generate resolver code
+	if err := g.generateResolver(); err != nil {
 		panic(err)
 	}
 
@@ -131,7 +136,22 @@ func (g *Generator) generateModel() error {
 		})
 	}
 
-	format.Node(g.output, token.NewFileSet(), g.modelAST)
+	format.Node(g.modelOutput, token.NewFileSet(), g.modelAST)
+
+	return nil
+}
+
+func (g *Generator) generateResolver() error {
+	resolverAST := &ast.File{
+		Name: ast.NewIdent("resolver"),
+		Decls: []ast.Decl{
+			generateResolverInterface(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
+		},
+	}
+
+	if err := format.Node(g.resolverOutput, token.NewFileSet(), resolverAST); err != nil {
+		return fmt.Errorf("error formatting resolver: %w", err)
+	}
 
 	return nil
 }

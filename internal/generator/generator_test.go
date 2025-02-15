@@ -41,7 +41,7 @@ func TestGenerator_Generate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fmt.Println(filepath.Abs(tt.schemaDirectory))
-			generator, err := generator.NewGenerator(tt.schemaDirectory, tt.modelOutput)
+			generator, err := generator.NewGenerator(tt.schemaDirectory, tt.modelOutput, tt.resolverOutput)
 			if err != nil {
 				t.Fatalf("error creating generator: %v", err)
 			}
