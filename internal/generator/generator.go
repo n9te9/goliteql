@@ -19,11 +19,13 @@ type Generator struct {
 	mutationAST *ast.File
 	subscriptionAST *ast.File
 	modelAST *ast.File
+
+	output io.Writer
 }
 
-var gqlFilePattern = regexp.MustCompile(`.*[\.gql | \.graphql]`)
+var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
 
-func NewGenerator(schemaDirectory, outputDirectory string) (*Generator, error) {
+func NewGenerator(schemaDirectory string, output io.Writer) (*Generator, error) {
 	gqlFilePaths := make([]string, 0)
 
 	err := filepath.Walk(schemaDirectory, func(path string, info os.FileInfo, err error) error {
@@ -82,6 +84,7 @@ func NewGenerator(schemaDirectory, outputDirectory string) (*Generator, error) {
 		modelAST: &ast.File{
 			Name: ast.NewIdent("generated"),
 		},
+		output: output,
 	}
 
 	return g, nil
@@ -134,7 +137,7 @@ func (g *Generator) generateModel() error {
 	// 	return fmt.Errorf("error creating file: %w", err)
 	// }
 
-	format.Node(os.Stdout, token.NewFileSet(), g.modelAST)
+	format.Node(g.output, token.NewFileSet(), g.modelAST)
 
 	return nil
 }
@@ -220,8 +223,4 @@ func (g GraphQLType) golangType() string {
 
 func toUpperCase(s string) string {
 	return string(s[0]-32) + s[1:]
-}
-
-func toLowerCase(s string) string {
-	return string(s[0]+32) + s[1:]
 }

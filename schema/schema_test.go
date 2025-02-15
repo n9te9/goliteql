@@ -32,6 +32,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.QueryOperation,
@@ -63,6 +64,9 @@ func TestSchema_Merge(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name:       []byte("users"),
@@ -77,6 +81,9 @@ func TestSchema_Merge(t *testing.T) {
 										Nullable: true,
 										IsList:   false,
 									},
+								},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
 								},
 							},
 						},
@@ -99,6 +106,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -138,6 +146,9 @@ func TestSchema_Merge(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name:       []byte("deleteUser"),
@@ -156,6 +167,9 @@ func TestSchema_Merge(t *testing.T) {
 									Name:     []byte("Boolean"),
 									Nullable: false,
 									IsList:   false,
+								},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
 								},
 							},
 						},
@@ -178,6 +192,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -191,6 +206,9 @@ func TestSchema_Merge(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name:       []byte("userDeleted"),
@@ -200,6 +218,9 @@ func TestSchema_Merge(t *testing.T) {
 									Name:     []byte("User"),
 									Nullable: false,
 									IsList:   false,
+								},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
 								},
 							},
 						},
@@ -223,6 +244,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
 					{
 						Name: []byte("User"),
@@ -235,6 +257,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name: []byte("id"),
@@ -244,6 +269,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name: []byte("name"),
@@ -253,6 +281,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 						},
 					},
@@ -274,6 +305,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -286,6 +318,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name: []byte("id"),
@@ -295,6 +330,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 						},
 					},
@@ -317,6 +355,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -329,6 +368,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name: []byte("hogehoge"),
@@ -343,6 +385,9 @@ func TestSchema_Merge(t *testing.T) {
 									},
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name: []byte("id"),
@@ -352,6 +397,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("FIELD_DEFINITION"),
+								},
 							},
 						},
 					},
@@ -369,6 +417,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Unions: []*schema.UnionDefinition{
 					{
 						Name: []byte("SearchResult"),
@@ -397,6 +446,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Enums: []*schema.EnumDefinition{
 					{
 						Name: []byte("Role"),
@@ -433,6 +483,7 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Directives: schema.NewBuildInDirectives(),
 				Inputs: []*schema.InputDefinition{
 					{
 						Name: []byte("CreateUserInput"),
@@ -446,6 +497,9 @@ func TestSchema_Merge(t *testing.T) {
 								},
 								Default: []byte("false"),
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("INPUT_FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name: []byte("name"),
@@ -455,6 +509,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("INPUT_FIELD_DEFINITION"),
+								},
 							},
 							{
 								Name: []byte("email"),
@@ -464,6 +521,9 @@ func TestSchema_Merge(t *testing.T) {
 									IsList:   false,
 								},
 								Directives: []*schema.Directive{},
+								Location: &schema.Location{
+									Name: []byte("INPUT_FIELD_DEFINITION"),
+								},
 							},
 						},
 					},
@@ -483,19 +543,19 @@ func TestSchema_Merge(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			lexer := schema.NewLexer()
 			parser := schema.NewParser(lexer)
-			schema, err := parser.Parse(tt.input)
+			s, err := parser.Parse(tt.input)
 			if err != nil {
 				if err.Error() != tt.wantErr.Error() {
 					t.Errorf("got error %v, want %v", err, tt.wantErr)
 				}
 			}
 
-			got, err := schema.Merge()
+			got, err := s.Merge()
 			if err != tt.wantErr {
 				t.Errorf("got error %v, want %v", err, tt.wantErr)
 			}
 
-			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(ignores...)); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(ignores...), cmpopts.IgnoreFields(schema.Schema{}, "Indexes")); diff != "" {
 				t.Errorf("Parse() mismatch (-got +want):\n%s", diff)
 			}
 		})

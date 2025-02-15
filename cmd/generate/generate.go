@@ -2,15 +2,15 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/lkeix/gg-parser/internal/generator"
 )
 
 func main() {
 	schemaDirectory := "./internal/golden_files"
-	outputDirectory := "./outputs"
 
-	g, err := generator.NewGenerator(schemaDirectory, outputDirectory)
+	g, err := generator.NewGenerator(schemaDirectory, os.Stdout)
 	if err != nil {
 		log.Fatalf("error creating generator: %v", err)
 	}
