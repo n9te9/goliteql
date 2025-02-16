@@ -19,6 +19,9 @@ type Generator struct {
 	mutationAST *ast.File
 	subscriptionAST *ast.File
 	modelAST *ast.File
+	resolverAST *ast.File
+	modelPackagePath string
+	resolverPackagePath string
 
 	modelOutput io.Writer
 	resolverOutput io.Writer
@@ -26,7 +29,7 @@ type Generator struct {
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
 
-func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer) (*Generator, error) {
+func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer, modelPackagePath, resolverPackagePath string) (*Generator, error) {
 	gqlFilePaths := make([]string, 0)
 
 	err := filepath.Walk(schemaDirectory, func(path string, info os.FileInfo, err error) error {
@@ -81,10 +84,15 @@ func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer)
 		mutationAST: &ast.File{},
 		subscriptionAST: &ast.File{},
 		modelAST: &ast.File{
-			Name: ast.NewIdent("generated"),
+			Name: ast.NewIdent(filepath.Base(modelPackagePath)),
+		},
+		resolverAST: &ast.File{
+			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
 		},
 		modelOutput: modelOutput,
+		modelPackagePath: modelPackagePath,
 		resolverOutput: resolverOutput,
+		resolverPackagePath: resolverPackagePath,
 	}
 
 	return g, nil
@@ -142,23 +150,37 @@ func (g *Generator) generateModel() error {
 }
 
 func (g *Generator) generateResolver() error {
-	resolverAST := &ast.File{
-		Name: ast.NewIdent("resolver"),
-		Decls: []ast.Decl{
-			generateResolverInterface(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
-		},
+	if isUsedDefinedType(g.Schema.GetQuery()) || isUsedDefinedType(g.Schema.GetMutation()) || isUsedDefinedType(g.Schema.GetSubscription()) {
+		// generate import statement
+		g.resolverAST.Decls = append(g.resolverAST.Decls, &ast.GenDecl{
+			Tok: token.IMPORT,
+			Specs: []ast.Spec{
+				&ast.ImportSpec{
+					Name: ast.NewIdent(filepath.Base(g.modelPackagePath)),
+					Path: &ast.BasicLit{
+						Kind: token.STRING,
+						Value: fmt.Sprintf(`"%s"`, g.modelPackagePath),
+					},
+				},
+			},
+		})
 	}
 
-	if err := format.Node(g.resolverOutput, token.NewFileSet(), resolverAST); err != nil {
+	g.resolverAST.Decls = append(g.resolverAST.Decls, 
+		generateResolverStruct(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
+		generateInterfaceField(g.Schema.GetQuery(), g.modelPackagePath),
+		generateInterfaceField(g.Schema.GetMutation(), g.modelPackagePath))
+
+	if err := format.Node(g.resolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)
 	}
 
 	return nil
 }
 
-func golangType(fieldType *schema.FieldType, graphQLType GraphQLType) *ast.Ident {
+func golangType(fieldType *schema.FieldType, graphQLType GraphQLType, modelPackagePath string) *ast.Ident {
 	if fieldType.IsList {
-		return ast.NewIdent("[]" + golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name)).Name)
+		return ast.NewIdent("[]" + golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name), modelPackagePath).Name)
 	}
 
 	if graphQLType.IsPrimitive() {
@@ -169,11 +191,12 @@ func golangType(fieldType *schema.FieldType, graphQLType GraphQLType) *ast.Ident
 		return ast.NewIdent(graphQLType.golangType())
 	}
 
+	modelPackagePrefix := filepath.Base(modelPackagePath)
 	if fieldType.Nullable {
-		return ast.NewIdent("*" + graphQLType.golangType())
+		return ast.NewIdent("*" + modelPackagePrefix + "." + graphQLType.golangType())
 	}
 
-	return ast.NewIdent(graphQLType.golangType())
+	return ast.NewIdent(modelPackagePrefix + "." + graphQLType.golangType())
 }
 
 type GraphQLType string

@@ -8,15 +8,15 @@ import (
 
 type OperationType string
 
-func (o OperationType) isQuery() bool {
+func (o OperationType) IsQuery() bool {
 	return o == QueryOperation
 }
 
-func (o OperationType) isMutation() bool {
+func (o OperationType) IsMutation() bool {
 	return o == MutationOperation
 }
 
-func (o OperationType) isSubscription() bool {
+func (o OperationType) IsSubscription() bool {
 	return o == SubscriptionOperation
 }
 
@@ -525,7 +525,7 @@ func (s *Schema) Merge() (*Schema, error) {
 
 func (s *Schema) GetQuery() *OperationDefinition {
 	for _, op := range s.Operations {
-		if op.OperationType.isQuery() {
+		if op.OperationType.IsQuery() {
 			return op
 		}
 	}
@@ -535,7 +535,7 @@ func (s *Schema) GetQuery() *OperationDefinition {
 
 func (s *Schema) GetMutation() *OperationDefinition {
 	for _, op := range s.Operations {
-		if op.OperationType.isMutation() {
+		if op.OperationType.IsMutation() {
 			return op
 		}
 	}
@@ -545,7 +545,7 @@ func (s *Schema) GetMutation() *OperationDefinition {
 
 func (s *Schema) GetSubscription() *OperationDefinition {
 	for _, op := range s.Operations {
-		if op.OperationType.isSubscription() {
+		if op.OperationType.IsSubscription() {
 			return op
 		}
 	}

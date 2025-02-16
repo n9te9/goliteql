@@ -16,9 +16,9 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 		fieldType := GraphQLType(f.Type.Name)
 		var fieldTypeIdent *ast.Ident
 		if fieldType.IsPrimitive() {
-			fieldTypeIdent = golangType(f.Type, fieldType)
+			fieldTypeIdent = golangType(f.Type, fieldType, "")
 		} else {
-			fieldTypeIdent = golangType(f.Type, fieldType)
+			fieldTypeIdent = golangType(f.Type, fieldType, "")
 		}
 
 		fields = append(fields, &ast.Field{

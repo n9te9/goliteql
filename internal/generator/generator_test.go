@@ -16,7 +16,9 @@ func TestGenerator_Generate(t *testing.T) {
 		name string
 		schemaDirectory string
 		modelOutput *bytes.Buffer
+		modelPackagePath string
 		resolverOutput *bytes.Buffer
+		resolverPackagePath string
 		expected error
 		expectGoFilePath string
 	}{
@@ -24,7 +26,9 @@ func TestGenerator_Generate(t *testing.T) {
 			name: "Generate Model code",
 			schemaDirectory:  "../golden_files/model_test",
 			modelOutput: bytes.NewBuffer(nil),
+			modelPackagePath: "github.com/lkeix/gg-parser/internal/generated/model",
 			resolverOutput: bytes.NewBuffer(nil),
+			resolverPackagePath: "github.com/lkeix/gg-parser/internal/generated/resolver",
 			expected: nil,
 			expectGoFilePath: "../golden_files/model_test/model.go",
 		},
@@ -32,7 +36,9 @@ func TestGenerator_Generate(t *testing.T) {
 			name: "Generate Input code",
 			schemaDirectory:  "../golden_files/operation_test",
 			modelOutput: bytes.NewBuffer(nil),
+			modelPackagePath: "github.com/lkeix/gg-parser/internal/generated/model",
 			resolverOutput: bytes.NewBuffer(nil),
+			resolverPackagePath: "github.com/lkeix/gg-parser/internal/generated/resolver",
 			expected: nil,
 			expectGoFilePath: "../golden_files/operation_test/model.go",
 		},
@@ -41,7 +47,7 @@ func TestGenerator_Generate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fmt.Println(filepath.Abs(tt.schemaDirectory))
-			generator, err := generator.NewGenerator(tt.schemaDirectory, tt.modelOutput, tt.resolverOutput)
+			generator, err := generator.NewGenerator(tt.schemaDirectory, tt.modelOutput, tt.resolverOutput, tt.modelPackagePath, tt.resolverPackagePath)
 			if err != nil {
 				t.Fatalf("error creating generator: %v", err)
 			}
