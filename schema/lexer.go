@@ -20,6 +20,7 @@ const (
 	Input     Type = "INPUT"
 	Interface Type = "INTERFACE"
 	Union     Type = "UNION"
+	Comment Type = "COMMENT"
 
 	Value Type = "VALUE"
 
@@ -165,6 +166,7 @@ func newDirectiveArgumentTokens(input []byte, cur, col, line int) (Tokens, int) 
 
 	return tokens, cur
 }
+
 
 func newDirectiveDeclearationArgumentTokens(input []byte, cur, col, line int) (Tokens, int) {
 	tokens := make(Tokens, 0)
@@ -530,6 +532,15 @@ func (t Tokens) isImplementation() bool {
 	return lastToken.Type == Implements || lastToken.Type == And
 }
 
+func newComment(input []byte, cur, col, line int) (*Token, int) {
+	start := cur
+	for cur < len(input) && input[cur] != '\n' {
+		cur++
+	}
+
+	return &Token{Type: Comment, Value: input[start:cur], Column: col, Line: line}, cur
+}
+
 type Lexer struct{}
 
 func NewLexer() *Lexer {
@@ -554,6 +565,26 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 			line++
 			col = 1
 			continue
+		}
+
+		if input[cur] == '#' {
+			comment, newCur := newComment(input, cur, col, line)
+			tokens = append(tokens, comment)
+			col = 1
+			cur = newCur
+			continue
+		}
+
+		if input[cur] == '"' {
+			if len(input) > cur + 2 {
+				if input[cur + 1] == '"' && input[cur + 2] == '"' {
+					comment, newCur := newComment(input, cur, col, line)
+					tokens = append(tokens, comment)
+					col = 1
+					cur = newCur
+					continue
+				}
+			}
 		}
 
 		if tokens.isEnum() {

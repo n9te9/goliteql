@@ -2620,6 +2620,50 @@ func TestParser_Parse(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "Parse comment out",
+			input: []byte(`type User {
+				# ID
+				id: ID!
+				"""hoge"""
+				hoge: String
+			}
+			`),
+			want: &schema.Schema{
+				Directives: schema.NewBuildInDirectives(),
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+				},
+				Types: []*schema.TypeDefinition{
+					{
+						Name: []byte("User"),
+						Fields: []*schema.FieldDefinition{
+							{
+								Name: []byte("id"),
+								Type: &schema.FieldType{
+									Name:     []byte("ID"),
+									Nullable: false,
+									IsList:   false,
+								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("hoge"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
+								},
+								Location: &schema.Location{Name: []byte("FIELD_DEFINITION")},
+								Directives: []*schema.Directive{},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 

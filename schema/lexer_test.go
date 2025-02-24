@@ -1496,6 +1496,32 @@ func TestLexer_Lex(t *testing.T) {
 				{Type: schema.EOF,         Value: nil,                 Line:15, Column:4},
 			},
 		},
+		{
+			name: "Parse for comment out",
+			input: []byte(`type User {
+				# ID
+				id: ID!
+				"""hoge"""
+				hoge: String
+			}
+			`),
+			expected: []*schema.Token{
+				{Type: schema.ReservedType,Value: []byte("type"),     Line:1, Column:1},
+				{Type: schema.Identifier, Value: []byte("User"),      Line:1, Column:6},
+				{Type: schema.CurlyOpen,  Value: []byte("{"),         Line:1, Column:11},
+				{Type: schema.Comment,    Value: []byte("# ID"),      Line:2, Column:5},
+				{Type: schema.Field,      Value: []byte("id"),        Line:3, Column:5},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:3, Column:7},
+				{Type: schema.Identifier, Value: []byte("ID"),        Line:3, Column:9},
+				{Type: schema.Exclamation,Value: []byte("!"),         Line:3, Column:11},
+				{Type: schema.Comment,    Value: []byte(`"""hoge"""`),Line:4, Column:5},
+				{Type: schema.Field,      Value: []byte("hoge"),      Line:5, Column:5},
+				{Type: schema.Colon,      Value: []byte(":"),         Line:5, Column:9},
+				{Type: schema.Identifier, Value: []byte("String"),    Line:5, Column:11},
+				{Type: schema.CurlyClose, Value: []byte("}"),         Line:6, Column:4},
+				{Type: schema.EOF,        Value: nil,                 Line:7, Column:4},
+			},
+		},
 	}
 
 	for _, tt := range tests {

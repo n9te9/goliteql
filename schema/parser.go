@@ -393,6 +393,9 @@ func (p *Parser) parseTypeDefinition(schema *Schema,tokens Tokens, cur int) (*Ty
 	cur++
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
+		case Comment:
+			cur++
+			continue
 		case Field:
 			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur, false)
 			if err != nil {
@@ -547,6 +550,9 @@ func (p *Parser) parseOperationDefinition(tokens Tokens, cur int) (*OperationDef
 
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
+		case Comment:
+			cur++
+			continue
 		case Field:
 			fieldDefinitions, newCur, err := p.parseOperationFields(tokens, cur)
 			if err != nil {
@@ -861,6 +867,9 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDef
 	cur++
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
+		case Comment:
+			cur++
+			continue
 		case Field:
 			fieldDefinitions, newCur, err := p.parseFieldDefinitions(tokens, cur, false)
 			if err != nil {
@@ -884,6 +893,9 @@ func (p *Parser) parseFieldDefinitions(tokens Tokens, cur int, isInputField bool
 		switch tokens[cur].Type {
 		case CurlyOpen, ParenOpen:
 			cur++
+		case Comment:
+			cur++
+			continue
 		case Field:
 			fieldDefinition, newCur, err := p.parseFieldDefinition(tokens, cur, isInputField)
 			if err != nil {
