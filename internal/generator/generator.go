@@ -168,6 +168,7 @@ func (g *Generator) generateResolver() error {
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, 
 		generateResolverStruct(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
+		generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
 		generateInterfaceField(g.Schema.GetQuery(), g.modelPackagePath),
 		generateInterfaceField(g.Schema.GetMutation(), g.modelPackagePath))
 
