@@ -126,6 +126,8 @@ func (g *Generator) generateModel() error {
 				},
 			},
 		})
+
+		g.modelAST.Decls = append(g.modelAST.Decls, generateInputModelUnmarshalJSON(input))
 	}
 
 	for _, t := range g.Schema.Types {
@@ -142,6 +144,8 @@ func (g *Generator) generateModel() error {
 				},
 			},
 		})
+
+		g.modelAST.Decls = append(g.modelAST.Decls, generateTypeModelUnmarshalJSON(t))
 	}
 
 	format.Node(g.modelOutput, token.NewFileSet(), g.modelAST)

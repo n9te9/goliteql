@@ -1,6 +1,7 @@
 input NewPost {
   title: String!
   content: String!
+  description: String
 }
 
 type Mutation {
