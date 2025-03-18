@@ -8,6 +8,25 @@ import (
 	"github.com/lkeix/gg-parser/schema"
 )
 
+func generateModelImport() *ast.GenDecl {
+	return &ast.GenDecl{
+		Tok: token.IMPORT,
+		Specs: []ast.Spec{
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind: token.STRING,
+					Value: `"encoding/json"`,
+				},
+			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind: token.STRING,
+					Value: `"fmt"`,
+				},
+			},
+		},
+	}
+}
 
 func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 	fields := make([]*ast.Field, 0, len(field))
@@ -199,16 +218,23 @@ func generateInputModelUnmarshalJSON(t *schema.InputDefinition) *ast.FuncDecl {
 
 func generateUnmarshalJSONBody(fields schema.FieldDefinitions) []ast.Stmt {
 	return []ast.Stmt{
-		&ast.AssignStmt{
-			Lhs: []ast.Expr{
-				ast.NewIdent("mapper"),
-			},
-			Rhs: []ast.Expr{
-				&ast.StructType{
-					Fields: generateModelMapperField(fields),
+		&ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok: token.VAR,
+				Specs: []ast.Spec{
+					&ast.ValueSpec{
+						Names: []*ast.Ident{
+							{
+								Name: "mapper",
+							},
+						},
+						Type: &ast.StructType{
+							Fields: generateModelMapperField(fields),
+							Incomplete: true,
+						},
+					},
 				},
 			},
-			Tok: token.DEFINE,
 		},
 		&ast.IfStmt{
 			Init: &ast.AssignStmt{

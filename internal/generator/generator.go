@@ -112,6 +112,8 @@ func (g *Generator) Generate() error {
 }
 
 func (g *Generator) generateModel() error {
+	g.modelAST.Decls = append(g.modelAST.Decls, generateModelImport())
+
 	for _, input := range g.Schema.Inputs {
 		g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
 			Tok: token.TYPE,
@@ -155,26 +157,48 @@ func (g *Generator) generateModel() error {
 
 func (g *Generator) generateResolver() error {
 	if isUsedDefinedType(g.Schema.GetQuery()) || isUsedDefinedType(g.Schema.GetMutation()) || isUsedDefinedType(g.Schema.GetSubscription()) {
+		importSpecs := []ast.Spec{
+			&ast.ImportSpec{
+				Name: ast.NewIdent(filepath.Base(g.modelPackagePath)),
+				Path: &ast.BasicLit{
+					Kind: token.STRING,
+					Value: fmt.Sprintf(`"%s"`, g.modelPackagePath),
+				},
+			},
+		}
+		importSpecs = append(importSpecs, generateModelImport().Specs...)
+
 		// generate import statement
 		g.resolverAST.Decls = append(g.resolverAST.Decls, &ast.GenDecl{
 			Tok: token.IMPORT,
-			Specs: []ast.Spec{
-				&ast.ImportSpec{
-					Name: ast.NewIdent(filepath.Base(g.modelPackagePath)),
-					Path: &ast.BasicLit{
-						Kind: token.STRING,
-						Value: fmt.Sprintf(`"%s"`, g.modelPackagePath),
-					},
-				},
-			},
+			Specs: importSpecs,
 		})
 	}
 
+	fields := make(schema.FieldDefinitions, 0)
+
+	if q := g.Schema.GetQuery(); q != nil {
+		fields = append(fields, q.Fields...)
+	}
+
+	if m := g.Schema.GetMutation(); m != nil {
+		fields = append(fields, m.Fields...)
+	}
+
+	if s := g.Schema.GetSubscription(); s != nil {
+		fields = append(fields, s.Fields...)
+	}
+
+	g.resolverAST.Decls = append(g.resolverAST.Decls, 
+		generateInterfaceField(g.Schema.GetQuery(), g.modelPackagePath),
+		generateInterfaceField(g.Schema.GetMutation(), g.modelPackagePath),
+		generateResolverImplementationStruct(),
+	)
+
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(fields)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, 
 		generateResolverStruct(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
-		generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
-		generateInterfaceField(g.Schema.GetQuery(), g.modelPackagePath),
-		generateInterfaceField(g.Schema.GetMutation(), g.modelPackagePath))
+		generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
 	if err := format.Node(g.resolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)

@@ -9,8 +9,10 @@ import (
 
 func main() {
 	schemaDirectory := "./internal/golden_files/operation_test"
+	modelOutputFile, _ := os.Create("./internal/model.go")
+	resolverOutputFile, _ := os.Create("./internal/resolver.go")
 
-	g, err := generator.NewGenerator(schemaDirectory, os.Stdout, os.Stdout, "github.com/lkeix/gg-parser/internal/generated/model", "github.com/lkeix/gg-parser/internal/generated/resolver")
+	g, err := generator.NewGenerator(schemaDirectory, modelOutputFile, resolverOutputFile, "github.com/lkeix/gg-parser/internal/generated/model", "github.com/lkeix/gg-parser/internal/generated/resolver")
 	if err != nil {
 		log.Fatalf("error creating generator: %v", err)
 	}

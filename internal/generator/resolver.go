@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 
 	"github.com/lkeix/gg-parser/schema"
 )
@@ -51,6 +52,26 @@ func newSubscriptionName(subscription *schema.OperationDefinition) string {
 	}
 
 	return subscriptionName + "Resolver"
+}
+
+func generateResolverImport() *ast.GenDecl {
+	return &ast.GenDecl{
+		Tok: token.IMPORT,
+		Specs: []ast.Spec{
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"net/http"`,
+				},
+			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"strings"`,
+				},
+			},
+		},
+	}
 }
 
 func generateResolverStruct(query, mutation, subscription *schema.OperationDefinition) *ast.GenDecl {
@@ -237,7 +258,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 							Args: []ast.Expr{
 								ast.NewIdent("w"),
 								&ast.BasicLit{Kind: token.STRING, Value: "\"Invalid JSON\""},
-								ast.NewIdent("http.StatusBadRequest"),
+								ast.NewIdent("http.UnprocessableEntity"),
 							},
 						}},
 						&ast.ReturnStmt{},
@@ -303,7 +324,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 				Args: []ast.Expr{
 					ast.NewIdent("w"),
 					&ast.BasicLit{Kind: token.STRING, Value: "\"Unknown operation\""},
-					ast.NewIdent("http.StatusBadRequest"),
+					ast.NewIdent("http.UnprocessableEntity"),
 				},
 			}},
 		},
@@ -486,4 +507,85 @@ func isUsedDefinedType(operation *schema.OperationDefinition) bool {
 	}	
 
 	return false
+}
+
+func generateResolverImplementationStruct() *ast.GenDecl {
+	return &ast.GenDecl{
+		Tok: token.TYPE,
+		Specs: []ast.Spec{
+			&ast.TypeSpec{
+				Name: &ast.Ident{
+					Name: "resolver",
+				},
+				Type: &ast.StructType{
+					Fields: &ast.FieldList{
+						List: []*ast.Field{},
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateResolverImplementation(fields schema.FieldDefinitions) []ast.Decl {
+	decls := make([]ast.Decl, 0, len(fields))
+
+	recv := func(t *schema.FieldType) string {
+		if t.IsList {
+			return fmt.Sprintf("[]%s", t.ListType.Name)
+		}
+
+		graphQLType := GraphQLType(t.Name)
+		return graphQLType.golangType()
+	}
+
+	for _, f := range fields {
+		argsStr := make([]string, 0, len(f.Arguments))
+		for _, arg := range f.Arguments {
+			s := recv(arg.Type)
+			argsStr = append(argsStr, s)
+		}
+
+		returnsStr := recv(f.Type)
+
+		decls = append(decls, &ast.FuncDecl{
+			Doc: &ast.CommentGroup{
+				List: []*ast.Comment{
+					{
+						Text: fmt.Sprintf("// Read request body for %s", strings.Join(argsStr, ", ")),
+					},
+					{
+						Text: fmt.Sprintf("// Write response body for %s", returnsStr),
+					},
+				},
+			},
+			Name: ast.NewIdent(toUpperCase(string(f.Name))),
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							{
+								Name: "r",
+							},
+						},
+						Type: &ast.StarExpr{
+							X: &ast.Ident{
+								Name: "resolver",
+							},
+						},
+					},
+				},
+			},
+			Type: &ast.FuncType{
+				Params: generateServeHTTPArgs(),
+				Results: &ast.FieldList{},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+				},
+			},
+		})
+	}
+
+	return decls
 }
