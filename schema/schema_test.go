@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/lkeix/gg-parser/schema"
+	"github.com/lkeix/gg-executor/schema"
 )
 
 func TestSchema_Merge(t *testing.T) {
@@ -452,15 +452,15 @@ func TestSchema_Merge(t *testing.T) {
 						Name: []byte("Role"),
 						Values: []*schema.EnumElement{
 							{
-								Name: []byte("ADMIN"),
+								Name:  []byte("ADMIN"),
 								Value: []byte("ADMIN"),
 							},
 							{
-								Name: []byte("USER"),
+								Name:  []byte("USER"),
 								Value: []byte("USER"),
 							},
 							{
-								Name: []byte("EDITOR"),
+								Name:  []byte("EDITOR"),
 								Value: []byte("EDITOR"),
 							},
 						},
@@ -495,7 +495,7 @@ func TestSchema_Merge(t *testing.T) {
 									Nullable: false,
 									IsList:   false,
 								},
-								Default: []byte("false"),
+								Default:    []byte("false"),
 								Directives: []*schema.Directive{},
 								Location: &schema.Location{
 									Name: []byte("INPUT_FIELD_DEFINITION"),

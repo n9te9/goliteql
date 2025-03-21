@@ -5,9 +5,9 @@ import (
 
 	"errors"
 
-	"github.com/lkeix/gg-parser/query"
-	"github.com/lkeix/gg-parser/schema"
-	"github.com/lkeix/gg-parser/validator"
+	"github.com/lkeix/gg-executor/query"
+	"github.com/lkeix/gg-executor/schema"
+	"github.com/lkeix/gg-executor/validator"
 )
 
 func TestValidator_Validate(t *testing.T) {
@@ -454,7 +454,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -493,7 +493,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -523,7 +523,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -564,7 +564,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -588,7 +588,7 @@ func TestValidator_Validate(t *testing.T) {
 				}
 			}`),
 			want: nil,
-		},{
+		}, {
 			name: "Validate query with invalid nested inline fragment type",
 			schemaFunc: func(parser *schema.Parser) *schema.Schema {
 				input := []byte(`type Query {
@@ -617,7 +617,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -660,7 +660,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -701,7 +701,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -737,7 +737,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -774,7 +774,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -817,7 +817,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -849,7 +849,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -883,7 +883,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {
@@ -913,7 +913,7 @@ func TestValidator_Validate(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
-		
+
 				return s
 			},
 			query: []byte(`query {

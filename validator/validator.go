@@ -5,18 +5,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/lkeix/gg-parser/query"
-	"github.com/lkeix/gg-parser/schema"
+	"github.com/lkeix/gg-executor/query"
+	"github.com/lkeix/gg-executor/schema"
 )
 
 type Validator struct {
-	Schema *schema.Schema
+	Schema      *schema.Schema
 	queryParser *query.Parser
 }
 
 func NewValidator(schema *schema.Schema, queryParser *query.Parser) *Validator {
 	return &Validator{
-		Schema: schema,
+		Schema:      schema,
 		queryParser: queryParser,
 	}
 }
@@ -94,7 +94,7 @@ func validateRootField(schemaOperation *schema.OperationDefinition, queryOperati
 				}
 
 				for _, sd := range ud.Types {
-					t :=  schema.Indexes.GetTypeDefinition(string(sd))
+					t := schema.Indexes.GetTypeDefinition(string(sd))
 					if err := validateSubField(t, field, fragmentDefinitions, schema); err != nil {
 						return fmt.Errorf("error validating field %s: %w", field.Name, err)
 					}
@@ -174,7 +174,7 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 				return fmt.Errorf("error validating field %s: %w", f.Name, err)
 			}
 		}
-		
+
 		return nil
 	}
 
@@ -233,20 +233,20 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 		return nil
 	}
 
-	for _, sel := range field.GetSelections()	{
+	for _, sel := range field.GetSelections() {
 		switch f := sel.(type) {
-			case *query.Field:
-				if err := fieldValidator(f); err != nil {
-					return err
-				}
-			case *query.FragmentSpread:
-				if err := fragmentValidator(f); err != nil {
-					return err
-				}
-			case *query.InlineFragment:
-				if err := inlineFragmentValidator(f); err != nil {
-					return err
-				}
+		case *query.Field:
+			if err := fieldValidator(f); err != nil {
+				return err
+			}
+		case *query.FragmentSpread:
+			if err := fragmentValidator(f); err != nil {
+				return err
+			}
+		case *query.InlineFragment:
+			if err := inlineFragmentValidator(f); err != nil {
+				return err
+			}
 		}
 	}
 

@@ -4,31 +4,30 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/lkeix/gg-parser/query"
+	"github.com/lkeix/gg-executor/query"
 )
-
 
 type Location struct {
 	Name []byte
 }
 
 type Directive struct {
-	Name []byte
+	Name      []byte
 	Arguments []*DirectiveArgument
 	Locations []*Location
 }
 
 type DirectiveArgument struct {
-	Name []byte
+	Name  []byte
 	Value []byte
 }
 
 type DirectiveDefinition struct {
-	Name []byte
+	Name        []byte
 	Description []byte
-	Arguments []*ArgumentDefinition
-	Repeatable bool
-	Locations []*Location
+	Arguments   []*ArgumentDefinition
+	Repeatable  bool
+	Locations   []*Location
 }
 
 func (d *DirectiveDefinition) IsAllowedApplySchema() bool {
@@ -122,7 +121,7 @@ func (d DirectiveDefinitions) Get(name []byte) *DirectiveDefinition {
 func NewBuildInDirectives() []*DirectiveDefinition {
 	return []*DirectiveDefinition{
 		{
-			Name: []byte("skip"),
+			Name:        []byte("skip"),
 			Description: []byte("Directs the executor to skip this field or fragment when the `if` argument is true."),
 			Arguments: []*ArgumentDefinition{
 				{
@@ -144,7 +143,7 @@ func NewBuildInDirectives() []*DirectiveDefinition {
 			},
 		},
 		{
-			Name: []byte("include"),
+			Name:        []byte("include"),
 			Description: []byte("Directs the executor to include this field or fragment only when the `if` argument is true."),
 			Arguments: []*ArgumentDefinition{
 				{
@@ -166,12 +165,12 @@ func NewBuildInDirectives() []*DirectiveDefinition {
 			},
 		},
 		{
-			Name: []byte("deprecated"),
+			Name:        []byte("deprecated"),
 			Description: []byte("Marks an element of a GraphQL schema as no longer supported."),
 			Arguments: []*ArgumentDefinition{
 				{
-					Name: []byte("reason"),
-					Type: &FieldType{Name: []byte("String"), Nullable: true},
+					Name:    []byte("reason"),
+					Type:    &FieldType{Name: []byte("String"), Nullable: true},
 					Default: []byte("No longer supported"),
 				},
 			},
@@ -186,7 +185,7 @@ func NewBuildInDirectives() []*DirectiveDefinition {
 			},
 		},
 		{
-			Name: []byte("specifiedBy"),
+			Name:        []byte("specifiedBy"),
 			Description: []byte("Exposes a URL that specifies the behaviour of this scalar."),
 			Arguments: []*ArgumentDefinition{
 				{

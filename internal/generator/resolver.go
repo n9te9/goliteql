@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/lkeix/gg-parser/schema"
+	"github.com/lkeix/gg-executor/schema"
 )
 
 func newQueryIdent(query *schema.OperationDefinition) *ast.Ident {
@@ -70,6 +70,12 @@ func generateResolverImport() *ast.GenDecl {
 					Value: `"strings"`,
 				},
 			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"encoding/json"`,
+				},
+			},
 		},
 	}
 }
@@ -99,7 +105,7 @@ func generateResolverStruct(query, mutation, subscription *schema.OperationDefin
 	}
 
 	return &ast.GenDecl{
-		Tok:   token.TYPE,
+		Tok: token.TYPE,
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
 				Name: &ast.Ident{
@@ -127,7 +133,7 @@ func generateResolverServeHTTP(query, mutation, subscription *schema.OperationDe
 			},
 		},
 		Type: &ast.FuncType{
-			Params: generateServeHTTPArgs(),
+			Params:  generateServeHTTPArgs(),
 			Results: &ast.FieldList{},
 		},
 		Doc: &ast.CommentGroup{
@@ -246,6 +252,21 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 				},
 			}},
 			&ast.IfStmt{
+				Init: &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.BasicLit{
+							Value: "err",
+							Kind:  token.ASSIGN,
+						},
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("json"),
+							Sel: ast.NewIdent("NewDecoder(req.Body).Decode(&request)"),
+						},
+					},
+				},
 				Cond: &ast.BinaryExpr{
 					X:  ast.NewIdent("err"),
 					Op: token.NEQ,
@@ -258,20 +279,23 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 							Args: []ast.Expr{
 								ast.NewIdent("w"),
 								&ast.BasicLit{Kind: token.STRING, Value: "\"Invalid JSON\""},
-								ast.NewIdent("http.UnprocessableEntity"),
+								ast.NewIdent("http.StatusUnprocessableEntity"),
 							},
 						}},
 						&ast.ReturnStmt{},
 					},
 				},
 			},
-			
+
 			&ast.AssignStmt{
 				Lhs: []ast.Expr{ast.NewIdent("operationType")},
 				Tok: token.DEFINE,
 				Rhs: []ast.Expr{
 					&ast.CallExpr{
 						Fun: ast.NewIdent("detectOperationType"),
+						Args: []ast.Expr{
+							ast.NewIdent("request.Query"),
+						},
 					},
 				},
 			},
@@ -291,7 +315,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								},
 							},
 						},
-						
+
 						&ast.CaseClause{
 							List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"mutation\""}},
 							Body: []ast.Stmt{
@@ -303,7 +327,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								},
 							},
 						},
-						
+
 						&ast.CaseClause{
 							List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"subscription\""}},
 							Body: []ast.Stmt{
@@ -318,13 +342,13 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					},
 				},
 			},
-			
+
 			&ast.ExprStmt{X: &ast.CallExpr{
 				Fun: ast.NewIdent("http.Error"),
 				Args: []ast.Expr{
 					ast.NewIdent("w"),
 					&ast.BasicLit{Kind: token.STRING, Value: "\"Unknown operation\""},
-					ast.NewIdent("http.UnprocessableEntity"),
+					ast.NewIdent("http.StatusUnprocessableEntity"),
 				},
 			}},
 		},
@@ -342,7 +366,7 @@ func generateServeHTTPArgs() *ast.FieldList {
 				},
 				Type: &ast.StarExpr{
 					X: &ast.SelectorExpr{
-						X: ast.NewIdent("http"),
+						X:   ast.NewIdent("http"),
 						Sel: ast.NewIdent("Request"),
 					},
 				},
@@ -355,7 +379,7 @@ func generateServeHTTPArgs() *ast.FieldList {
 				},
 				Type: &ast.ParenExpr{
 					X: &ast.SelectorExpr{
-						X: ast.NewIdent("http"),
+						X:   ast.NewIdent("http"),
 						Sel: ast.NewIdent("ResponseWriter"),
 					},
 				},
@@ -454,7 +478,7 @@ func generateInterfaceField(operation *schema.OperationDefinition, modelPackageP
 					},
 				},
 				Type: &ast.FuncType{
-					Params: generateServeHTTPArgs(),
+					Params:  generateServeHTTPArgs(),
 					Results: &ast.FieldList{},
 				},
 			})
@@ -504,7 +528,7 @@ func isUsedDefinedType(operation *schema.OperationDefinition) bool {
 				}
 			}
 		}
-	}	
+	}
 
 	return false
 }
@@ -577,12 +601,11 @@ func generateResolverImplementation(fields schema.FieldDefinitions) []ast.Decl {
 				},
 			},
 			Type: &ast.FuncType{
-				Params: generateServeHTTPArgs(),
+				Params:  generateServeHTTPArgs(),
 				Results: &ast.FieldList{},
 			},
 			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-				},
+				List: []ast.Stmt{},
 			},
 		})
 	}

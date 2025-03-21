@@ -10,20 +10,20 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/lkeix/gg-parser/schema"
+	"github.com/lkeix/gg-executor/schema"
 )
 
 type Generator struct {
-	Schema *schema.Schema
-	queryAST *ast.File
-	mutationAST *ast.File
-	subscriptionAST *ast.File
-	modelAST *ast.File
-	resolverAST *ast.File
-	modelPackagePath string
+	Schema              *schema.Schema
+	queryAST            *ast.File
+	mutationAST         *ast.File
+	subscriptionAST     *ast.File
+	modelAST            *ast.File
+	resolverAST         *ast.File
+	modelPackagePath    string
 	resolverPackagePath string
 
-	modelOutput io.Writer
+	modelOutput    io.Writer
 	resolverOutput io.Writer
 }
 
@@ -79,9 +79,9 @@ func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer,
 	}
 
 	g := &Generator{
-		Schema: s,
-		queryAST: &ast.File{},
-		mutationAST: &ast.File{},
+		Schema:          s,
+		queryAST:        &ast.File{},
+		mutationAST:     &ast.File{},
 		subscriptionAST: &ast.File{},
 		modelAST: &ast.File{
 			Name: ast.NewIdent(filepath.Base(modelPackagePath)),
@@ -89,9 +89,9 @@ func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer,
 		resolverAST: &ast.File{
 			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
 		},
-		modelOutput: modelOutput,
-		modelPackagePath: modelPackagePath,
-		resolverOutput: resolverOutput,
+		modelOutput:         modelOutput,
+		modelPackagePath:    modelPackagePath,
+		resolverOutput:      resolverOutput,
 		resolverPackagePath: resolverPackagePath,
 	}
 
@@ -159,18 +159,26 @@ func (g *Generator) generateResolver() error {
 	if isUsedDefinedType(g.Schema.GetQuery()) || isUsedDefinedType(g.Schema.GetMutation()) || isUsedDefinedType(g.Schema.GetSubscription()) {
 		importSpecs := []ast.Spec{
 			&ast.ImportSpec{
-				Name: ast.NewIdent(filepath.Base(g.modelPackagePath)),
+				Doc: &ast.CommentGroup{
+					List: []*ast.Comment{
+						{
+							Text: `// remove _, when use model package`,
+						},
+					},
+				},
+				Name: ast.NewIdent("_"),
 				Path: &ast.BasicLit{
-					Kind: token.STRING,
+					Kind:  token.STRING,
 					Value: fmt.Sprintf(`"%s"`, g.modelPackagePath),
 				},
 			},
 		}
-		importSpecs = append(importSpecs, generateModelImport().Specs...)
+
+		importSpecs = append(importSpecs, generateResolverImport().Specs...)
 
 		// generate import statement
 		g.resolverAST.Decls = append(g.resolverAST.Decls, &ast.GenDecl{
-			Tok: token.IMPORT,
+			Tok:   token.IMPORT,
 			Specs: importSpecs,
 		})
 	}
@@ -189,14 +197,14 @@ func (g *Generator) generateResolver() error {
 		fields = append(fields, s.Fields...)
 	}
 
-	g.resolverAST.Decls = append(g.resolverAST.Decls, 
+	g.resolverAST.Decls = append(g.resolverAST.Decls,
 		generateInterfaceField(g.Schema.GetQuery(), g.modelPackagePath),
 		generateInterfaceField(g.Schema.GetMutation(), g.modelPackagePath),
 		generateResolverImplementationStruct(),
 	)
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(fields)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, 
+	g.resolverAST.Decls = append(g.resolverAST.Decls,
 		generateResolverStruct(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
 		generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 

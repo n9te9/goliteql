@@ -1,4 +1,4 @@
-module github.com/lkeix/gg-parser
+module github.com/lkeix/gg-executor
 
 go 1.23.2
 

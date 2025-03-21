@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/lkeix/gg-parser/schema"
+	"github.com/lkeix/gg-executor/schema"
 )
 
 func generateModelImport() *ast.GenDecl {
@@ -14,13 +14,13 @@ func generateModelImport() *ast.GenDecl {
 		Specs: []ast.Spec{
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{
-					Kind: token.STRING,
+					Kind:  token.STRING,
 					Value: `"encoding/json"`,
 				},
 			},
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{
-					Kind: token.STRING,
+					Kind:  token.STRING,
 					Value: `"fmt"`,
 				},
 			},
@@ -48,7 +48,7 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 			},
 			Type: fieldTypeIdent,
 			Tag: &ast.BasicLit{
-				Kind: token.STRING,
+				Kind:  token.STRING,
 				Value: fmt.Sprintf("`json:\"%s\"`", string(f.Name)),
 			},
 		})
@@ -103,9 +103,7 @@ func generateTypeModelUnmarshalJSON(t *schema.TypeDefinition) *ast.FuncDecl {
 				},
 			},
 		},
-		Body: &ast.BlockStmt{
-
-		},
+		Body: &ast.BlockStmt{},
 	}
 }
 
@@ -155,7 +153,7 @@ func generateModelMapperField(field schema.FieldDefinitions) *ast.FieldList {
 			},
 			Type: fieldTypeIdent,
 			Tag: &ast.BasicLit{
-				Kind: token.STRING,
+				Kind:  token.STRING,
 				Value: fmt.Sprintf("`json:\"%s\"`", string(f.Name)),
 			},
 		})
@@ -229,7 +227,7 @@ func generateUnmarshalJSONBody(fields schema.FieldDefinitions) []ast.Stmt {
 							},
 						},
 						Type: &ast.StructType{
-							Fields: generateModelMapperField(fields),
+							Fields:     generateModelMapperField(fields),
 							Incomplete: true,
 						},
 					},
@@ -260,9 +258,9 @@ func generateUnmarshalJSONBody(fields schema.FieldDefinitions) []ast.Stmt {
 				Tok: token.DEFINE,
 			},
 			Cond: &ast.BinaryExpr{
-				X: ast.NewIdent("err"),
+				X:  ast.NewIdent("err"),
 				Op: token.NEQ,
-				Y: ast.NewIdent("nil"),
+				Y:  ast.NewIdent("nil"),
 			},
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{
@@ -286,11 +284,11 @@ func generateMappingSchemaValidation(t *schema.InputDefinition) []ast.Stmt {
 				stmts = append(stmts, &ast.IfStmt{
 					Cond: &ast.BinaryExpr{
 						X: &ast.SelectorExpr{
-							X: ast.NewIdent("mapper"),
+							X:   ast.NewIdent("mapper"),
 							Sel: ast.NewIdent(toUpperCase(string(f.Name))),
 						},
 						Op: token.EQL,
-						Y: ast.NewIdent("nil"),
+						Y:  ast.NewIdent("nil"),
 					},
 					Body: &ast.BlockStmt{
 						List: []ast.Stmt{
@@ -305,7 +303,7 @@ func generateMappingSchemaValidation(t *schema.InputDefinition) []ast.Stmt {
 										},
 										Args: []ast.Expr{
 											&ast.BasicLit{
-												Kind: token.STRING,
+												Kind:  token.STRING,
 												Value: fmt.Sprintf("`%s is required`", string(f.Name)),
 											},
 										},

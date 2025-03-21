@@ -8,39 +8,39 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/lkeix/gg-parser/internal/generator"
+	"github.com/lkeix/gg-executor/internal/generator"
 )
 
 func TestGenerator_Generate(t *testing.T) {
 	tests := []struct {
-		name string
-		schemaDirectory string
-		modelOutput *bytes.Buffer
-		modelPackagePath string
-		resolverOutput *bytes.Buffer
+		name                string
+		schemaDirectory     string
+		modelOutput         *bytes.Buffer
+		modelPackagePath    string
+		resolverOutput      *bytes.Buffer
 		resolverPackagePath string
-		expected error
-		expectGoFilePath string
+		expected            error
+		expectGoFilePath    string
 	}{
 		{
-			name: "Generate Model code",
-			schemaDirectory:  "../golden_files/model_test",
-			modelOutput: bytes.NewBuffer(nil),
-			modelPackagePath: "github.com/lkeix/gg-parser/internal/generated/model",
-			resolverOutput: bytes.NewBuffer(nil),
-			resolverPackagePath: "github.com/lkeix/gg-parser/internal/generated/resolver",
-			expected: nil,
-			expectGoFilePath: "../golden_files/model_test/model.go",
+			name:                "Generate Model code",
+			schemaDirectory:     "../golden_files/model_test",
+			modelOutput:         bytes.NewBuffer(nil),
+			modelPackagePath:    "github.com/lkeix/gg-executor/internal/generated/model",
+			resolverOutput:      bytes.NewBuffer(nil),
+			resolverPackagePath: "github.com/lkeix/gg-executor/internal/generated/resolver",
+			expected:            nil,
+			expectGoFilePath:    "../golden_files/model_test/model.go",
 		},
 		{
-			name: "Generate Input code",
-			schemaDirectory:  "../golden_files/operation_test",
-			modelOutput: bytes.NewBuffer(nil),
-			modelPackagePath: "github.com/lkeix/gg-parser/internal/generated/model",
-			resolverOutput: bytes.NewBuffer(nil),
-			resolverPackagePath: "github.com/lkeix/gg-parser/internal/generated/resolver",
-			expected: nil,
-			expectGoFilePath: "../golden_files/operation_test/model.go",
+			name:                "Generate Input code",
+			schemaDirectory:     "../golden_files/operation_test",
+			modelOutput:         bytes.NewBuffer(nil),
+			modelPackagePath:    "github.com/lkeix/gg-executor/internal/generated/model",
+			resolverOutput:      bytes.NewBuffer(nil),
+			resolverPackagePath: "github.com/lkeix/gg-executor/internal/generated/resolver",
+			expected:            nil,
+			expectGoFilePath:    "../golden_files/operation_test/model.go",
 		},
 	}
 

@@ -4,15 +4,22 @@ import (
 	"log"
 	"os"
 
-	"github.com/lkeix/gg-parser/internal/generator"
+	"github.com/lkeix/gg-executor/internal/generator"
 )
 
 func main() {
 	schemaDirectory := "./internal/golden_files/operation_test"
-	modelOutputFile, _ := os.Create("./internal/model.go")
-	resolverOutputFile, _ := os.Create("./internal/resolver.go")
+	modelOutputFile, err := os.Create("./internal/generated/model/model.go")
+	if err != nil {
+		panic(err)
+	}
 
-	g, err := generator.NewGenerator(schemaDirectory, modelOutputFile, resolverOutputFile, "github.com/lkeix/gg-parser/internal/generated/model", "github.com/lkeix/gg-parser/internal/generated/resolver")
+	resolverOutputFile, err := os.Create("./internal/generated/resolver/resolver.go")
+	if err != nil {
+		panic(err)
+	}
+
+	g, err := generator.NewGenerator(schemaDirectory, modelOutputFile, resolverOutputFile, "github.com/lkeix/gg-executor/internal/generated/model", "github.com/lkeix/gg-executor/internal/generated/resolver")
 	if err != nil {
 		log.Fatalf("error creating generator: %v", err)
 	}

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/lkeix/gg-parser/query"
+	"github.com/lkeix/gg-executor/query"
 )
 
 func TestQueryParse(t *testing.T) {
@@ -279,7 +279,7 @@ func TestQueryParse(t *testing.T) {
 					},
 				},
 			},
-		}, 
+		},
 		{
 			name: "Parse nested query selection",
 			input: []byte(`query MyQuery {
@@ -673,7 +673,7 @@ func TestQueryParse(t *testing.T) {
 					},
 				},
 			},
-		},{
+		}, {
 			name: "Parse query operation with directive having complex arguments",
 			input: []byte(`query MyQuery @settings(config: { theme: "dark", features: ["a", "b"] }) {
 				field

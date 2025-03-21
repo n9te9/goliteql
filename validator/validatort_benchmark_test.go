@@ -3,9 +3,9 @@ package validator_test
 import (
 	"testing"
 
-	"github.com/lkeix/gg-parser/query"
-	"github.com/lkeix/gg-parser/schema"
-	"github.com/lkeix/gg-parser/validator"
+	"github.com/lkeix/gg-executor/query"
+	"github.com/lkeix/gg-executor/schema"
+	"github.com/lkeix/gg-executor/validator"
 )
 
 func BenchmarkValidator_Validate(b *testing.B) {
@@ -91,7 +91,7 @@ func BenchmarkValidator_Validate(b *testing.B) {
 			lexer := schema.NewLexer()
 			s := tt.schemaFunc(schema.NewParser(lexer))
 			s, _ = s.Merge()
-			
+
 			queryLexer := query.NewLexer()
 			queryParser := query.NewParser(queryLexer)
 

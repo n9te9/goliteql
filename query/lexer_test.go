@@ -6,15 +6,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/lkeix/gg-parser/query"
+	"github.com/lkeix/gg-executor/query"
 )
 
 func TestQueryLex(t *testing.T) {
-	tests := []struct{
-		name string
-		input []byte
+	tests := []struct {
+		name     string
+		input    []byte
 		expected query.Tokens
-		wantErr error
+		wantErr  error
 	}{
 		{
 			name: "Lex simple graphql query",
@@ -48,45 +48,45 @@ func TestQueryLex(t *testing.T) {
 		}
 	}`),
 			expected: query.Tokens{
-				{Type: query.Query,      Value: []byte("query"),   Line: 1, Column: 1},
-				{Type: query.Name,       Value: []byte("GetUser"), Line: 1, Column: 7},
-	
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.Name, Value: []byte("GetUser"), Line: 1, Column: 7},
+
 				// 引数定義開始
-				{Type: query.ParenOpen,  Value: []byte("("),       Line: 1, Column: 14},
+				{Type: query.ParenOpen, Value: []byte("("), Line: 1, Column: 14},
 				// $id: ID!
-				{Type: query.Dollar, 	  Value: []byte("$"),       Line: 1, Column: 15},
-				{Type: query.Name,   Value: []byte("id"),      Line: 1, Column: 16},
-				{Type: query.Colon,      Value: []byte(":"),       Line: 1, Column: 18},
-				{Type: query.Name,       Value: []byte("ID"),      Line: 1, Column: 20},
-				{Type: query.Exclamation,       Value: []byte("!"),       Line: 1, Column: 22},
-				{Type: query.Comma,      Value: []byte(","),       Line: 1, Column: 23},
+				{Type: query.Dollar, Value: []byte("$"), Line: 1, Column: 15},
+				{Type: query.Name, Value: []byte("id"), Line: 1, Column: 16},
+				{Type: query.Colon, Value: []byte(":"), Line: 1, Column: 18},
+				{Type: query.Name, Value: []byte("ID"), Line: 1, Column: 20},
+				{Type: query.Exclamation, Value: []byte("!"), Line: 1, Column: 22},
+				{Type: query.Comma, Value: []byte(","), Line: 1, Column: 23},
 				// $type: String
-				{Type: query.Dollar, 	  Value: []byte("$"),       Line: 1, Column: 25},
-				{Type: query.Name,   Value: []byte("type"),    Line: 1, Column: 26},
-				{Type: query.Colon,      Value: []byte(":"),       Line: 1, Column: 30},
-				{Type: query.Name,       Value: []byte("String"),  Line: 1, Column: 32},
-				{Type: query.ParenClose, Value: []byte(")"),       Line: 1, Column: 38},
-	
+				{Type: query.Dollar, Value: []byte("$"), Line: 1, Column: 25},
+				{Type: query.Name, Value: []byte("type"), Line: 1, Column: 26},
+				{Type: query.Colon, Value: []byte(":"), Line: 1, Column: 30},
+				{Type: query.Name, Value: []byte("String"), Line: 1, Column: 32},
+				{Type: query.ParenClose, Value: []byte(")"), Line: 1, Column: 38},
+
 				// 本体
-				{Type: query.CurlyOpen,  Value: []byte("{"),       Line: 1, Column: 40},
-				{Type: query.Name,       Value: []byte("user"),    Line: 2, Column: 3},
-				{Type: query.ParenOpen,  Value: []byte("("),       Line: 2, Column: 7},
-				{Type: query.Name,       Value: []byte("id"),      Line: 2, Column: 8},
-				{Type: query.Colon,      Value: []byte(":"),       Line: 2, Column: 10},
-				{Type: query.Dollar,     Value: []byte("$"),       Line: 2, Column: 12},
-				{Type: query.Name,       Value: []byte("id"),      Line: 2, Column: 13},
-				{Type: query.Comma,      Value: []byte(","),       Line: 2, Column: 15},
-				{Type: query.Name,       Value: []byte("type"),    Line: 2, Column: 17},
-				{Type: query.Colon,      Value: []byte(":"),       Line: 2, Column: 21},
-				{Type: query.Dollar,     Value: []byte("$"),       Line: 2, Column: 23},
-				{Type: query.Name,       Value: []byte("type"),    Line: 2, Column: 24},
-				{Type: query.ParenClose, Value: []byte(")"),       Line: 2, Column: 28},
-				{Type: query.CurlyOpen,  Value: []byte("{"),       Line: 2, Column: 30},
-	
-				{Type: query.Name,       Value: []byte("name"),    Line: 3, Column: 4},
-				{Type: query.CurlyClose, Value: []byte("}"),       Line: 4, Column: 3},
-				{Type: query.CurlyClose, Value: []byte("}"),       Line: 5, Column: 2},
-				{Type: query.EOF,        Value: nil,               Line: 5, Column: 3},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 40},
+				{Type: query.Name, Value: []byte("user"), Line: 2, Column: 3},
+				{Type: query.ParenOpen, Value: []byte("("), Line: 2, Column: 7},
+				{Type: query.Name, Value: []byte("id"), Line: 2, Column: 8},
+				{Type: query.Colon, Value: []byte(":"), Line: 2, Column: 10},
+				{Type: query.Dollar, Value: []byte("$"), Line: 2, Column: 12},
+				{Type: query.Name, Value: []byte("id"), Line: 2, Column: 13},
+				{Type: query.Comma, Value: []byte(","), Line: 2, Column: 15},
+				{Type: query.Name, Value: []byte("type"), Line: 2, Column: 17},
+				{Type: query.Colon, Value: []byte(":"), Line: 2, Column: 21},
+				{Type: query.Dollar, Value: []byte("$"), Line: 2, Column: 23},
+				{Type: query.Name, Value: []byte("type"), Line: 2, Column: 24},
+				{Type: query.ParenClose, Value: []byte(")"), Line: 2, Column: 28},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 2, Column: 30},
+
+				{Type: query.Name, Value: []byte("name"), Line: 3, Column: 4},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 4, Column: 3},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 5, Column: 2},
+				{Type: query.EOF, Value: nil, Line: 5, Column: 3},
 			},
 		},
 		{
@@ -102,32 +102,32 @@ func TestQueryLex(t *testing.T) {
 		}
 	}`),
 			expected: query.Tokens{
-				{Type: query.Query,       Value: []byte("query"),   Line: 1, Column: 1},
-				{Type: query.Name,        Value: []byte("MixedTypes"), Line: 1, Column: 7},
-				{Type: query.CurlyOpen,   Value: []byte("{"),       Line: 1, Column: 18},
-	
-				{Type: query.Name,        Value: []byte("user"),    Line: 2, Column: 3},
-				{Type: query.CurlyOpen,   Value: []byte("{"),       Line: 2, Column: 8},
-	
+				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
+				{Type: query.Name, Value: []byte("MixedTypes"), Line: 1, Column: 7},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 1, Column: 18},
+
+				{Type: query.Name, Value: []byte("user"), Line: 2, Column: 3},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 2, Column: 8},
+
 				// ... on Admin
-				{Type: query.Spread,      Value: []byte("..."),     Line: 3, Column: 4},
-				{Type: query.On,          Value: []byte("on"),      Line: 3, Column: 8},
-				{Type: query.Name,        Value: []byte("Admin"),   Line: 3, Column: 11},
-				{Type: query.CurlyOpen,   Value: []byte("{"),       Line: 3, Column: 17},
-				{Type: query.Name,        Value: []byte("adminField"), Line: 4, Column: 5},
-				{Type: query.CurlyClose,  Value: []byte("}"),       Line: 5, Column: 4},
-	
+				{Type: query.Spread, Value: []byte("..."), Line: 3, Column: 4},
+				{Type: query.On, Value: []byte("on"), Line: 3, Column: 8},
+				{Type: query.Name, Value: []byte("Admin"), Line: 3, Column: 11},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 3, Column: 17},
+				{Type: query.Name, Value: []byte("adminField"), Line: 4, Column: 5},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 5, Column: 4},
+
 				// ... on Member
-				{Type: query.Spread,      Value: []byte("..."),     Line: 6, Column: 4},
-				{Type: query.On,          Value: []byte("on"),      Line: 6, Column: 8},
-				{Type: query.Name,        Value: []byte("Member"),  Line: 6, Column: 11},
-				{Type: query.CurlyOpen,   Value: []byte("{"),       Line: 6, Column: 18},
-				{Type: query.Name,        Value: []byte("memberField"), Line: 7, Column: 5},
-				{Type: query.CurlyClose,  Value: []byte("}"),       Line: 8, Column: 4},
-	
-				{Type: query.CurlyClose,  Value: []byte("}"),       Line: 9, Column: 3},
-				{Type: query.CurlyClose,  Value: []byte("}"),       Line: 10, Column: 2},
-				{Type: query.EOF,         Value: nil,               Line: 10, Column: 3},
+				{Type: query.Spread, Value: []byte("..."), Line: 6, Column: 4},
+				{Type: query.On, Value: []byte("on"), Line: 6, Column: 8},
+				{Type: query.Name, Value: []byte("Member"), Line: 6, Column: 11},
+				{Type: query.CurlyOpen, Value: []byte("{"), Line: 6, Column: 18},
+				{Type: query.Name, Value: []byte("memberField"), Line: 7, Column: 5},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 8, Column: 4},
+
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 9, Column: 3},
+				{Type: query.CurlyClose, Value: []byte("}"), Line: 10, Column: 2},
+				{Type: query.EOF, Value: nil, Line: 10, Column: 3},
 			},
 		},
 		{
@@ -205,7 +205,7 @@ func TestQueryLex(t *testing.T) {
 				{Type: query.CurlyClose, Value: []byte("}"), Line: 6, Column: 4},
 				{Type: query.EOF, Value: nil, Line: 6, Column: 5},
 			},
-		},{
+		}, {
 			name: "Mutation simple example",
 			input: []byte(`mutation CreateUser {
 				createUser(name: "Alice", email: "alice@example.com") {
@@ -367,7 +367,7 @@ func TestQueryLex(t *testing.T) {
 				{Type: query.CurlyClose, Value: []byte("}"), Line: 11, Column: 2},
 				{Type: query.EOF, Value: nil, Line: 11, Column: 3},
 			},
-		},{
+		}, {
 			name: "Mutation with default variable values",
 			input: []byte(`mutation UpdateSettings($settings: SettingsInput = { theme: "dark", notifications: true }) {
 				updateSettings(settings: $settings) {
@@ -506,7 +506,7 @@ func TestQueryLex(t *testing.T) {
 				{Type: query.CurlyClose, Value: []byte("}"), Line: 3, Column: 1},
 				{Type: query.EOF, Value: nil, Line: 3, Column: 2},
 			},
-		},{
+		}, {
 			name: "Nested structure with block strings",
 			input: []byte(`query NestedBlock {
 				user {
@@ -530,14 +530,14 @@ func TestQueryLex(t *testing.T) {
 				{Type: query.CurlyClose, Value: []byte("}"), Line: 7, Column: 2},
 				{Type: query.EOF, Value: nil, Line: 7, Column: 3},
 			},
-		},{
+		}, {
 			name: "Unterminated string literal",
 			input: []byte(`query {
 					user(name: "Alice)
 			}`),
 			wantErr: errors.New("unterminated string at line 2, column 32"),
-		},{
-			name: "Single directive with complex arguments",
+		}, {
+			name:  "Single directive with complex arguments",
 			input: []byte(`query { user { name @include(if: true, reason: "test") } }`),
 			expected: query.Tokens{
 				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
@@ -562,7 +562,7 @@ func TestQueryLex(t *testing.T) {
 			},
 		},
 		{
-			name: "Nested list arguments",
+			name:  "Nested list arguments",
 			input: []byte(`query { data(matrix: [[1, 2], [3, 4]]) }`),
 			expected: query.Tokens{
 				{Type: query.Query, Value: []byte("query"), Line: 1, Column: 1},
@@ -625,9 +625,9 @@ func TestQueryLex(t *testing.T) {
 	}
 
 	ignores := cmpopts.IgnoreFields(query.Token{}, "Column")
-	
+
 	for _, tt := range tests {
-		t.Run(tt.name, func (t *testing.T)  {
+		t.Run(tt.name, func(t *testing.T) {
 			lexer := query.NewLexer()
 			got, err := lexer.Lex(tt.input)
 			if tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
