@@ -2,3 +2,10 @@ type Query {
   post(id: ID!): Post
   posts(query: String): [Post!]!
 }
+
+type Post {
+  id: ID!
+  title: String!
+  content: String!
+  description: String
+}

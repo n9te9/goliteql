@@ -80,7 +80,7 @@ func generateResolverImport() *ast.GenDecl {
 	}
 }
 
-func generateResolverStruct(query, mutation, subscription *schema.OperationDefinition) *ast.GenDecl {
+func generateResolverInterface(query, mutation, subscription *schema.OperationDefinition) *ast.GenDecl {
 	generateField := func(query, mutation, subscription *schema.OperationDefinition) []*ast.Field {
 		fields := make([]*ast.Field, 0, 3)
 		if query != nil {
@@ -111,8 +111,8 @@ func generateResolverStruct(query, mutation, subscription *schema.OperationDefin
 				Name: &ast.Ident{
 					Name: "Resolver",
 				},
-				Type: &ast.StructType{
-					Fields: &ast.FieldList{
+				Type: &ast.InterfaceType{
+					Methods: &ast.FieldList{
 						List: generateField(query, mutation, subscription),
 					},
 				},
@@ -128,7 +128,7 @@ func generateResolverServeHTTP(query, mutation, subscription *schema.OperationDe
 			List: []*ast.Field{
 				{
 					Names: []*ast.Ident{ast.NewIdent("r")},
-					Type:  &ast.StarExpr{X: ast.NewIdent("Resolver")},
+					Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
 				},
 			},
 		},
@@ -164,12 +164,12 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 				Body: []ast.Stmt{
 					&ast.ExprStmt{X: &ast.CallExpr{
 						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("r." + newQueryName(query)),
+							X:   ast.NewIdent("r"),
 							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 						},
 						Args: []ast.Expr{
-							ast.NewIdent("req"),
 							ast.NewIdent("w"),
+							ast.NewIdent("req"),
 						},
 					}},
 					&ast.ReturnStmt{},
@@ -186,12 +186,12 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 				Body: []ast.Stmt{
 					&ast.ExprStmt{X: &ast.CallExpr{
 						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("r." + newMutationName(mutation)),
+							X:   ast.NewIdent("r"),
 							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 						},
 						Args: []ast.Expr{
-							ast.NewIdent("req"),
 							ast.NewIdent("w"),
+							ast.NewIdent("req"),
 						},
 					}},
 					&ast.ReturnStmt{},
@@ -208,12 +208,12 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 				Body: []ast.Stmt{
 					&ast.ExprStmt{X: &ast.CallExpr{
 						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("r." + newSubscriptionName(subscription)),
+							X:   ast.NewIdent("r"),
 							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 						},
 						Args: []ast.Expr{
-							ast.NewIdent("req"),
 							ast.NewIdent("w"),
+							ast.NewIdent("req"),
 						},
 					}},
 					&ast.ReturnStmt{},
@@ -361,19 +361,6 @@ func generateServeHTTPArgs() *ast.FieldList {
 			{
 				Names: []*ast.Ident{
 					{
-						Name: "req",
-					},
-				},
-				Type: &ast.StarExpr{
-					X: &ast.SelectorExpr{
-						X:   ast.NewIdent("http"),
-						Sel: ast.NewIdent("Request"),
-					},
-				},
-			},
-			{
-				Names: []*ast.Ident{
-					{
 						Name: "w",
 					},
 				},
@@ -381,6 +368,19 @@ func generateServeHTTPArgs() *ast.FieldList {
 					X: &ast.SelectorExpr{
 						X:   ast.NewIdent("http"),
 						Sel: ast.NewIdent("ResponseWriter"),
+					},
+				},
+			},
+			{
+				Names: []*ast.Ident{
+					{
+						Name: "req",
+					},
+				},
+				Type: &ast.StarExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("http"),
+						Sel: ast.NewIdent("Request"),
 					},
 				},
 			},
@@ -533,17 +533,66 @@ func isUsedDefinedType(operation *schema.OperationDefinition) bool {
 	return false
 }
 
-func generateResolverImplementationStruct() *ast.GenDecl {
-	return &ast.GenDecl{
-		Tok: token.TYPE,
-		Specs: []ast.Spec{
-			&ast.TypeSpec{
-				Name: &ast.Ident{
-					Name: "resolver",
+func generateResolverImplementationStruct() []ast.Decl {
+	return []ast.Decl{
+		&ast.GenDecl{
+			Tok: token.TYPE,
+			Specs: []ast.Spec{
+				&ast.TypeSpec{
+					Name: &ast.Ident{
+						Name: "resolver",
+					},
+					Type: &ast.StructType{
+						Fields: &ast.FieldList{
+							List: []*ast.Field{},
+						},
+					},
 				},
-				Type: &ast.StructType{
-					Fields: &ast.FieldList{
-						List: []*ast.Field{},
+			},
+		},
+		&ast.GenDecl{
+			Tok: token.VAR,
+			Specs: []ast.Spec{
+				&ast.ValueSpec{
+					Names: []*ast.Ident{
+						{
+							Name: "_",
+						},
+					},
+					Type: ast.NewIdent("Resolver"),
+					Values: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X: &ast.Ident{
+								Name: "resolver{}",
+							},
+						},
+					},
+				},
+			},
+		},
+		&ast.FuncDecl{
+			Name: ast.NewIdent("NewResolver"),
+			Type: &ast.FuncType{
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: &ast.StarExpr{
+								X: ast.NewIdent("resolver"),
+							},
+						},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X: ast.NewIdent("resolver{}"),
+							},
+						},
 					},
 				},
 			},

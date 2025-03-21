@@ -147,7 +147,7 @@ func (g *Generator) generateModel() error {
 			},
 		})
 
-		g.modelAST.Decls = append(g.modelAST.Decls, generateTypeModelUnmarshalJSON(t))
+		g.modelAST.Decls = append(g.modelAST.Decls, generateTypeModelMarshalJSON(t))
 	}
 
 	format.Node(g.modelOutput, token.NewFileSet(), g.modelAST)
@@ -200,12 +200,13 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls,
 		generateInterfaceField(g.Schema.GetQuery(), g.modelPackagePath),
 		generateInterfaceField(g.Schema.GetMutation(), g.modelPackagePath),
-		generateResolverImplementationStruct(),
 	)
+
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementationStruct()...)
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(fields)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls,
-		generateResolverStruct(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
+		generateResolverInterface(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
 		generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
 	if err := format.Node(g.resolverOutput, token.NewFileSet(), g.resolverAST); err != nil {

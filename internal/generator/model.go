@@ -59,9 +59,55 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 	}
 }
 
-func generateTypeModelUnmarshalJSON(t *schema.TypeDefinition) *ast.FuncDecl {
+func generateTypeModelMarshalJSON(t *schema.TypeDefinition) *ast.FuncDecl {
+	mapperStruct := &ast.DeclStmt{
+		Decl: &ast.GenDecl{
+			Tok: token.VAR,
+			Specs: []ast.Spec{
+				&ast.ValueSpec{
+					Names: []*ast.Ident{
+						{
+							Name: "mapper",
+						},
+					},
+					Type: &ast.StructType{
+						Fields:     generateModelMapperField(t.Fields),
+						Incomplete: true,
+					},
+				},
+			},
+		},
+	}
+
+	mappingSchemaValidation := generateMappingSchemaValidation(t)
+
+	stmts := []ast.Stmt{
+		mapperStruct,
+	}
+	stmts = append(stmts, mappingSchemaValidation...)
+
+	stmts = append(stmts, &ast.ReturnStmt{
+		Results: []ast.Expr{
+			&ast.CallExpr{
+				Args: []ast.Expr{
+					&ast.Ident{
+						Name: "t",
+					},
+				},
+				Fun: &ast.SelectorExpr{
+					X: &ast.Ident{
+						Name: "json",
+					},
+					Sel: &ast.Ident{
+						Name: "Marshal",
+					},
+				},
+			},
+		},
+	})
+
 	return &ast.FuncDecl{
-		Name: ast.NewIdent("UnmarshalJSON"),
+		Name: ast.NewIdent("MarshalJSON"),
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
 				{
@@ -79,22 +125,14 @@ func generateTypeModelUnmarshalJSON(t *schema.TypeDefinition) *ast.FuncDecl {
 			},
 		},
 		Type: &ast.FuncType{
-			Params: &ast.FieldList{
+			Params: &ast.FieldList{},
+			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Names: []*ast.Ident{
-							{
-								Name: "data",
-							},
-						},
 						Type: &ast.Ident{
 							Name: "[]byte",
 						},
 					},
-				},
-			},
-			Results: &ast.FieldList{
-				List: []*ast.Field{
 					{
 						Type: &ast.Ident{
 							Name: "error",
@@ -103,9 +141,12 @@ func generateTypeModelUnmarshalJSON(t *schema.TypeDefinition) *ast.FuncDecl {
 				},
 			},
 		},
-		Body: &ast.BlockStmt{},
+		Body: &ast.BlockStmt{
+			List: stmts,
+		},
 	}
 }
+
 
 func generateModelMapperField(field schema.FieldDefinitions) *ast.FieldList {
 	fields := make([]*ast.Field, 0, len(field))
@@ -209,7 +250,11 @@ func generateInputModelUnmarshalJSON(t *schema.InputDefinition) *ast.FuncDecl {
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: append(append([]ast.Stmt{}, generateUnmarshalJSONBody(t.Fields)...), generateMappingSchemaValidation(t)...),
+			List: append(append(append([]ast.Stmt{}, generateUnmarshalJSONBody(t.Fields)...), generateMappingSchemaValidation(t)...), &ast.ReturnStmt{
+				Results: []ast.Expr{
+					ast.NewIdent("nil"),
+				},
+			}),
 		},
 	}
 }
@@ -275,8 +320,8 @@ func generateUnmarshalJSONBody(fields schema.FieldDefinitions) []ast.Stmt {
 	}
 }
 
-func generateMappingSchemaValidation(t *schema.InputDefinition) []ast.Stmt {
-	generateIfStmts := func(fields schema.FieldDefinitions) []ast.Stmt {
+func generateMappingSchemaValidation[T *schema.InputDefinition | *schema.TypeDefinition](t T) []ast.Stmt {
+	generateInputIfStmts := func(fields schema.FieldDefinitions) []ast.Stmt {
 		stmts := make([]ast.Stmt, 0, len(fields))
 
 		for _, f := range fields {
@@ -319,5 +364,57 @@ func generateMappingSchemaValidation(t *schema.InputDefinition) []ast.Stmt {
 		return stmts
 	}
 
-	return generateIfStmts(t.Fields)
+	generateTypeIfStmts := func(fields schema.FieldDefinitions) []ast.Stmt {
+		stmts := make([]ast.Stmt, 0, len(fields))
+
+		for _, f := range fields {
+			if !f.Type.Nullable {
+				stmts = append(stmts, &ast.IfStmt{
+					Cond: &ast.BinaryExpr{
+						X: &ast.SelectorExpr{
+							X:   ast.NewIdent("mapper"),
+							Sel: ast.NewIdent(toUpperCase(string(f.Name))),
+						},
+						Op: token.EQL,
+						Y:  ast.NewIdent("nil"),
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.ReturnStmt{
+								Results: []ast.Expr{
+									ast.NewIdent("nil"),
+									&ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X: &ast.Ident{
+												Name: "fmt",
+											},
+											Sel: ast.NewIdent("Errorf"),
+										},
+										Args: []ast.Expr{
+											&ast.BasicLit{
+												Kind:  token.STRING,
+												Value: fmt.Sprintf("`%s is required`", string(f.Name)),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+			}
+		}
+
+		return stmts
+	}
+
+	var definition any = t
+	switch d := definition.(type) {
+	case *schema.InputDefinition:
+		return generateInputIfStmts(d.Fields)
+	case *schema.TypeDefinition:
+		return generateTypeIfStmts(d.Fields)
+	}
+
+	return []ast.Stmt{}
 }
