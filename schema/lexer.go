@@ -523,6 +523,49 @@ func (t Tokens) isScalarDeclearation() bool {
 	return false
 }
 
+func (t Tokens) isTopLevel() bool {
+	stack := make([]Type, 0)
+	for _, token := range t {
+		if token.Type == CurlyOpen {
+			stack = append(stack, CurlyOpen)
+		}
+
+		if token.Type == CurlyClose && stack[len(stack)-1] == CurlyOpen {
+			if stack[len(stack)-1] != CurlyOpen{
+				return false
+			}
+
+			stack = stack[:len(stack)-1]
+		}
+
+		if token.Type == ParenOpen {
+			stack = append(stack, ParenOpen)
+		}
+
+		if token.Type == ParenClose && stack[len(stack)-1] == ParenOpen {
+			if stack[len(stack)-1] != ParenOpen{
+				return false
+			}
+
+			stack = stack[:len(stack)-1]
+		}
+
+		if token.Type == BracketOpen {
+			stack = append(stack, BracketOpen)
+		}
+
+		if token.Type == BracketClose && stack[len(stack)-1] == BracketOpen {
+			if stack[len(stack)-1] != BracketOpen{
+				return false
+			}
+
+			stack = stack[:len(stack)-1]
+		}
+	}
+
+	return len(stack) == 0
+}
+
 func (t Tokens) isImplementation() bool {
 	if len(t) == 0 {
 		return false
@@ -649,7 +692,7 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 
 		if unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
 			keyword := keyword(input[cur:end])
-			if t, ok := keywords[keyword]; ok {
+			if t, ok := keywords[keyword]; ok && tokens.isTopLevel() {
 				token, cur = newKeywordToken(input, t, cur, col, line)
 				tokens = append(tokens, token)
 				col += len(token.Value)

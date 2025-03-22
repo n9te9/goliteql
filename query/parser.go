@@ -381,7 +381,6 @@ func (p *Parser) parseInlineFragment(tokens Tokens, cur int) (*InlineFragment, i
 
 func (p *Parser) parseFragmentSpread(tokens Tokens, cur int) (*FragmentSpread, int, error) {
 	if tokens[cur].Type != Name {
-		fmt.Println(tokens[cur].Type)
 		return nil, cur, fmt.Errorf("expected fragment name but got %s", tokens[cur].Value)
 	}
 
@@ -584,6 +583,10 @@ func (p *Parser) parseFieldArguments(tokens Tokens, cur int) ([]*Argument, int, 
 }
 
 func (p *Parser) parseFieldArgument(tokens Tokens, cur int) (*Argument, int, error) {
+	if tokens[cur].Type == Dollar {
+		cur++
+	}
+
 	if tokens[cur].Type != Name {
 		return nil, cur, fmt.Errorf("expected argument name")
 	}

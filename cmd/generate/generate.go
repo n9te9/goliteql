@@ -9,17 +9,17 @@ import (
 
 func main() {
 	schemaDirectory := "./internal/golden_files/operation_test"
-	modelOutputFile, err := os.Create("./internal/generated/model/model.go")
+	modelOutputFile, err := os.Create("./internal/generated/operation_test/model/models.go")
 	if err != nil {
 		panic(err)
 	}
 
-	resolverOutputFile, err := os.Create("./internal/generated/resolver/resolver.go")
+	resolverOutputFile, err := os.Create("./internal/generated/operation_test/resolver/resolver.go")
 	if err != nil {
 		panic(err)
 	}
 
-	g, err := generator.NewGenerator(schemaDirectory, modelOutputFile, resolverOutputFile, "github.com/lkeix/gg-executor/internal/generated/model", "github.com/lkeix/gg-executor/internal/generated/resolver")
+	g, err := generator.NewGenerator(schemaDirectory, modelOutputFile, resolverOutputFile, "github.com/lkeix/gg-executor/internal/generated/operation_test/model", "github.com/lkeix/gg-executor/internal/generated/operation_test/resolver")
 	if err != nil {
 		log.Fatalf("error creating generator: %v", err)
 	}

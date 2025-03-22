@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strings"
 
 	"github.com/lkeix/gg-executor/schema"
 )
@@ -146,34 +145,114 @@ func generateResolverServeHTTP(query, mutation, subscription *schema.OperationDe
 				},
 			},
 		},
-		Body: &ast.BlockStmt{
-			List: []ast.Stmt{
-				generateServeHTTPBody(query, mutation, subscription),
-			},
-		},
+		Body: generateServeHTTPBody(query, mutation, subscription),
 	}
 }
 
 func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefinition) *ast.BlockStmt {
 	querySwitchCases := []ast.Stmt{}
 
-	if query != nil {
-		for _, field := range query.Fields {
-			querySwitchCases = append(querySwitchCases, &ast.CaseClause{
-				List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("\"%s\"", field.Name)}},
-				Body: []ast.Stmt{
-					&ast.ExprStmt{X: &ast.CallExpr{
+	// req.Body = io.NopCloser(strings.NewReader(string(request.Variables)))
+	generateBodyForArgument := func(operationMethodName, fieldName string) []ast.Stmt {
+		return []ast.Stmt{
+			&ast.AssignStmt{
+				Tok: token.DEFINE,
+				Lhs: []ast.Expr{
+					ast.NewIdent("args"),
+				},
+				Rhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("utils"),
+						Sel: ast.NewIdent(fmt.Sprintf("ExtractSelectorArgs(parsedQuery.Operations.%s(), %s)", operationMethodName, fieldName)),
+					},
+				},
+			},
+			&ast.AssignStmt{
+				Tok: token.DEFINE,
+				Lhs: []ast.Expr{
+					ast.NewIdent("body"),
+					ast.NewIdent("err"),
+				},
+				Rhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("utils"),
+						Sel: ast.NewIdent("ConvRequestBodyFromVariables(request.Variables, args)"),
+					},
+				},
+			},
+			&ast.IfStmt{
+				Cond: &ast.BinaryExpr{
+					X:  ast.NewIdent("err"),
+					Op: token.NEQ,
+					Y:  ast.NewIdent("nil"),
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.ExprStmt{X: &ast.CallExpr{
+							Fun: ast.NewIdent("http.Error"),
+							Args: []ast.Expr{
+								ast.NewIdent("w"),
+								&ast.BasicLit{Kind: token.STRING, Value: "\"Unknown arguments\""},
+								ast.NewIdent("http.StatusUnprocessableEntity"),
+							},
+						}},
+						&ast.ReturnStmt{},
+					},
+				},
+			},
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{ast.NewIdent("req.Body")},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
 						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("r"),
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+							X:   ast.NewIdent("io"),
+							Sel: ast.NewIdent("NopCloser"),
 						},
 						Args: []ast.Expr{
-							ast.NewIdent("w"),
-							ast.NewIdent("req"),
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("strings"),
+									Sel: ast.NewIdent("NewReader"),
+								},
+								Args: []ast.Expr{
+									&ast.CallExpr{
+										Fun: ast.NewIdent("string"),
+										Args: []ast.Expr{
+											ast.NewIdent("body"),
+										},
+									},
+								},
+							},
 						},
-					}},
-					&ast.ReturnStmt{},
+					},
 				},
+			},
+		}
+	}
+
+	if query != nil {
+		for _, field := range query.Fields {
+			fieldName := fmt.Sprintf("\"%s\"", field.Name)
+			bodyForArguments := generateBodyForArgument("GetQuery", fieldName)
+			bodyStmt := make([]ast.Stmt, 0)
+			bodyStmt = append(bodyStmt, bodyForArguments...)
+			bodyStmt = append(bodyStmt,
+				&ast.ExprStmt{X: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("w"),
+						ast.NewIdent("req"),
+					},
+				}},
+				&ast.ReturnStmt{})
+
+			querySwitchCases = append(querySwitchCases, &ast.CaseClause{
+				List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: fieldName}},
+				Body: bodyStmt,
 			})
 		}
 	}
@@ -181,21 +260,26 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 	mutationSwitchCases := []ast.Stmt{}
 	if mutation != nil {
 		for _, field := range mutation.Fields {
+			fieldName := fmt.Sprintf("\"%s\"", field.Name)
+			bodyForArguments := generateBodyForArgument("GetMutation", fieldName)
+			bodyStmt := make([]ast.Stmt, 0)
+			bodyStmt = append(bodyStmt, bodyForArguments...)
+			bodyStmt = append(bodyStmt,
+				&ast.ExprStmt{X: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("w"),
+						ast.NewIdent("req"),
+					},
+				}},
+				&ast.ReturnStmt{})
+
 			mutationSwitchCases = append(mutationSwitchCases, &ast.CaseClause{
 				List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("\"%s\"", field.Name)}},
-				Body: []ast.Stmt{
-					&ast.ExprStmt{X: &ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("r"),
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-						},
-						Args: []ast.Expr{
-							ast.NewIdent("w"),
-							ast.NewIdent("req"),
-						},
-					}},
-					&ast.ReturnStmt{},
-				},
+				Body: bodyStmt,
 			})
 		}
 	}
@@ -203,21 +287,26 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 	subscriptionSwitchCases := []ast.Stmt{}
 	if subscription != nil {
 		for _, field := range subscription.Fields {
+			fieldName := fmt.Sprintf("\"%s\"", field.Name)
+			bodyForArguments := generateBodyForArgument("GetSubscription", fieldName)
+			bodyStmt := make([]ast.Stmt, 0)
+			bodyStmt = append(bodyStmt, bodyForArguments...)
+			bodyStmt = append(bodyStmt,
+				&ast.ExprStmt{X: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("w"),
+						ast.NewIdent("req"),
+					},
+				}},
+				&ast.ReturnStmt{})
+
 			subscriptionSwitchCases = append(subscriptionSwitchCases, &ast.CaseClause{
 				List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("\"%s\"", field.Name)}},
-				Body: []ast.Stmt{
-					&ast.ExprStmt{X: &ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("r"),
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-						},
-						Args: []ast.Expr{
-							ast.NewIdent("w"),
-							ast.NewIdent("req"),
-						},
-					}},
-					&ast.ReturnStmt{},
-				},
+				Body: bodyStmt,
 			})
 		}
 	}
@@ -234,6 +323,8 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					},
 				},
 			},
+
+			&ast.ExprStmt{X: &ast.BasicLit{}},
 			&ast.DeclStmt{Decl: &ast.GenDecl{
 				Tok: token.VAR,
 				Specs: []ast.Spec{
@@ -251,6 +342,8 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					},
 				},
 			}},
+
+			&ast.ExprStmt{X: &ast.BasicLit{}},
 			&ast.IfStmt{
 				Init: &ast.AssignStmt{
 					Lhs: []ast.Expr{
@@ -287,33 +380,12 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 				},
 			},
 
-			// req.Body = io.NopCloser(strings.NewReader(string(request.Variables)))
-			&ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent("req.Body")},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("io"),
-							Sel: ast.NewIdent("NopCloser"),
-						},
-						Args: []ast.Expr{
-							&ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   ast.NewIdent("strings"),
-									Sel: ast.NewIdent("NewReader"),
-								},
-								Args: []ast.Expr{
-									&ast.CallExpr{
-										Fun: ast.NewIdent("string"),
-										Args: []ast.Expr{
-											ast.NewIdent("request.Variables"),
-										},
-									},
-								},
-							},
-						},
-					},
+			&ast.ExprStmt{X: &ast.BasicLit{}},
+
+			&ast.ExprStmt{
+				X: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `// replacing req.Body is in order to use variables instinctly in each resolvers from model package`,
 				},
 			},
 
@@ -365,6 +437,8 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					},
 				},
 			},
+
+			&ast.ExprStmt{X: &ast.BasicLit{}},
 
 			&ast.SwitchStmt{
 				Tag: ast.NewIdent("operationType"),
@@ -444,6 +518,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					},
 				},
 			},
+			&ast.ExprStmt{X: &ast.BasicLit{}},
 
 			&ast.ExprStmt{X: &ast.CallExpr{
 				Fun: ast.NewIdent("http.Error"),
@@ -568,7 +643,7 @@ func generatePrefixCheck(operation string) *ast.IfStmt {
 	}
 }
 
-func generateInterfaceField(operation *schema.OperationDefinition, modelPackagePath string) *ast.GenDecl {
+func generateInterfaceField(operation *schema.OperationDefinition) *ast.GenDecl {
 	generateField := func(field schema.FieldDefinitions) *ast.FieldList {
 		fields := make([]*ast.Field, 0, len(field))
 
@@ -747,7 +822,7 @@ func generateResolverImplementation(fields schema.FieldDefinitions) []ast.Decl {
 			Doc: &ast.CommentGroup{
 				List: []*ast.Comment{
 					{
-						Text: fmt.Sprintf("// Read request body for %s", strings.Join(argsStr, ", ")),
+						Text: fmt.Sprintf("// Read request body for %sArgs", toUpperCase(string(f.Name))),
 					},
 					{
 						Text: fmt.Sprintf("// Write response body for %s", returnsStr),

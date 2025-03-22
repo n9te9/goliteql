@@ -99,12 +99,12 @@ func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer,
 }
 
 func (g *Generator) Generate() error {
-	if err := g.generateModel(); err != nil {
+	// generate resolver code
+	if err := g.generateResolver(); err != nil {
 		panic(err)
 	}
 
-	// generate resolver code
-	if err := g.generateResolver(); err != nil {
+	if err := g.generateModel(); err != nil {
 		panic(err)
 	}
 
@@ -146,8 +146,18 @@ func (g *Generator) generateModel() error {
 				},
 			},
 		})
+	}
 
-		g.modelAST.Decls = append(g.modelAST.Decls, generateTypeModelMarshalJSON(t))
+	if op := g.Schema.GetQuery(); op != nil {
+		g.modelAST.Decls = append(g.modelAST.Decls, generateSelectionSetInput(op.Fields)...)
+	}
+
+	if op := g.Schema.GetMutation(); op != nil {
+		g.modelAST.Decls = append(g.modelAST.Decls, generateSelectionSetInput(op.Fields)...)
+	}
+
+	if op := g.Schema.GetSubscription(); op != nil {
+		g.modelAST.Decls = append(g.modelAST.Decls, generateSelectionSetInput(op.Fields)...)
 	}
 
 	format.Node(g.modelOutput, token.NewFileSet(), g.modelAST)
@@ -215,10 +225,13 @@ func (g *Generator) generateResolver() error {
 		fields = append(fields, s.Fields...)
 	}
 
-	g.resolverAST.Decls = append(g.resolverAST.Decls,
-		generateInterfaceField(g.Schema.GetQuery(), g.modelPackagePath),
-		generateInterfaceField(g.Schema.GetMutation(), g.modelPackagePath),
-	)
+	if g.Schema.GetQuery() != nil {
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateInterfaceField(g.Schema.GetQuery()))
+	}
+
+	if g.Schema.GetMutation() != nil {
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateInterfaceField(g.Schema.GetMutation()))
+	}
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementationStruct()...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(fields)...)
@@ -235,7 +248,7 @@ func (g *Generator) generateResolver() error {
 
 func golangType(fieldType *schema.FieldType, graphQLType GraphQLType, modelPackagePath string) *ast.Ident {
 	if fieldType.IsList {
-		return ast.NewIdent("[]" + golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name), modelPackagePath).Name)
+		return ast.NewIdent(golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name), modelPackagePath).Name)
 	}
 
 	if graphQLType.IsPrimitive() {

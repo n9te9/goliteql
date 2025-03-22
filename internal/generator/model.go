@@ -28,17 +28,60 @@ func generateModelImport() *ast.GenDecl {
 	}
 }
 
+func generateSelectionSetInput(fields schema.FieldDefinitions) []ast.Decl {
+	decls := make([]ast.Decl, 0, len(fields))
+
+	generateTypeSpec := func(args schema.ArgumentDefinitions, operationName string) []ast.Spec {
+		var ret []ast.Spec
+		var list []*ast.Field
+
+		for i, arg := range args {
+			expr := generateExpr(arg.Type)
+			list = append(list, &ast.Field{
+				Names: []*ast.Ident{
+					ast.NewIdent(toUpperCase(string(arg.Name))),
+				},
+				Tag: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf("`json:\"arg%d\"`", i),
+				},
+				Type: expr,
+			})
+		}
+
+		ret = append(ret, &ast.TypeSpec{
+			Name: ast.NewIdent(toUpperCase(operationName) + "Args"),
+			Type: &ast.StructType{
+				Fields: &ast.FieldList{
+					List: list,
+				},
+			},
+		})
+
+		return ret
+	}
+
+	for _, f := range fields {
+		if len(f.Arguments) == 0 {
+			continue
+		}
+
+		decl := &ast.GenDecl{
+			Tok:   token.TYPE,
+			Specs: generateTypeSpec(f.Arguments, string(f.Name)),
+		}
+
+		decls = append(decls, decl)
+	}
+
+	return decls
+}
+
 func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 	fields := make([]*ast.Field, 0, len(field))
 
 	for _, f := range field {
-		fieldType := GraphQLType(f.Type.Name)
-		var fieldTypeIdent *ast.Ident
-		if fieldType.IsPrimitive() {
-			fieldTypeIdent = golangType(f.Type, fieldType, "")
-		} else {
-			fieldTypeIdent = golangType(f.Type, fieldType, "")
-		}
+		fieldTypeExpr := generateExpr(f.Type)
 
 		fields = append(fields, &ast.Field{
 			Names: []*ast.Ident{
@@ -46,7 +89,7 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 					Name: toUpperCase(string(f.Name)),
 				},
 			},
-			Type: fieldTypeIdent,
+			Type: fieldTypeExpr,
 			Tag: &ast.BasicLit{
 				Kind:  token.STRING,
 				Value: fmt.Sprintf("`json:\"%s\"`", string(f.Name)),
@@ -59,132 +102,71 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 	}
 }
 
-func generateTypeModelMarshalJSON(t *schema.TypeDefinition) *ast.FuncDecl {
-	mapperStruct := &ast.DeclStmt{
-		Decl: &ast.GenDecl{
-			Tok: token.VAR,
-			Specs: []ast.Spec{
-				&ast.ValueSpec{
-					Names: []*ast.Ident{
-						{
-							Name: "mapper",
-						},
-					},
-					Type: &ast.StructType{
-						Fields:     generateModelMapperField(t.Fields),
-						Incomplete: true,
-					},
-				},
-			},
-		},
-	}
-
-	mappingSchemaValidation := generateMappingSchemaValidation(t)
-
-	stmts := []ast.Stmt{
-		mapperStruct,
-	}
-	stmts = append(stmts, mappingSchemaValidation...)
-
-	stmts = append(stmts, &ast.ReturnStmt{
-		Results: []ast.Expr{
-			&ast.CallExpr{
-				Args: []ast.Expr{
-					&ast.Ident{
-						Name: "t",
-					},
-				},
-				Fun: &ast.SelectorExpr{
-					X: &ast.Ident{
-						Name: "json",
-					},
-					Sel: &ast.Ident{
-						Name: "Marshal",
-					},
-				},
-			},
-		},
-	})
-
-	return &ast.FuncDecl{
-		Name: ast.NewIdent("MarshalJSON"),
-		Recv: &ast.FieldList{
-			List: []*ast.Field{
-				{
-					Names: []*ast.Ident{
-						{
-							Name: "t",
-						},
-					},
-					Type: &ast.StarExpr{
-						X: &ast.Ident{
-							Name: string(t.Name),
-						},
-					},
-				},
-			},
-		},
-		Type: &ast.FuncType{
-			Params: &ast.FieldList{},
-			Results: &ast.FieldList{
-				List: []*ast.Field{
-					{
-						Type: &ast.Ident{
-							Name: "[]byte",
-						},
-					},
-					{
-						Type: &ast.Ident{
-							Name: "error",
-						},
-					},
-				},
-			},
-		},
-		Body: &ast.BlockStmt{
-			List: stmts,
-		},
-	}
-}
-
-
-func generateModelMapperField(field schema.FieldDefinitions) *ast.FieldList {
-	fields := make([]*ast.Field, 0, len(field))
-
-	starExpr := func(fieldType *schema.FieldType, graphQLType GraphQLType, modelPackagePath string) *ast.StarExpr {
-		if fieldType.IsList {
+func generateExpr(fieldType *schema.FieldType) ast.Expr {
+	graphQLType := GraphQLType(fieldType.Name)
+	if fieldType.Nullable {
+		if graphQLType.IsPrimitive() {
 			return &ast.StarExpr{
 				X: &ast.Ident{
-					Name: "[]" + golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name), modelPackagePath).Name,
+					Name: graphQLType.golangType(),
 				},
 			}
-		}
-
-		if graphQLType.IsPrimitive() {
-			if fieldType.Nullable {
+		} else {
+			if fieldType.IsList {
 				return &ast.StarExpr{
-					X: &ast.Ident{
-						Name: graphQLType.golangType(),
+					X: &ast.ArrayType{
+						Elt: generateExpr(fieldType.ListType),
 					},
 				}
 			}
-		}
 
+			return &ast.StarExpr{
+				X: ast.NewIdent(graphQLType.golangType()),
+			}
+		}
+	} else {
+		if graphQLType.IsPrimitive() {
+			return &ast.Ident{
+				Name: graphQLType.golangType(),
+			}
+		} else {
+			if fieldType.IsList {
+				return &ast.ArrayType{
+					Elt: generateExpr(fieldType.ListType),
+				}
+			}
+
+			return ast.NewIdent(graphQLType.golangType())
+		}
+	}
+}
+
+func generateExprForMapper(fieldType *schema.FieldType) ast.Expr {
+	graphQLType := GraphQLType(fieldType.Name)
+	if graphQLType.IsPrimitive() {
 		return &ast.StarExpr{
 			X: &ast.Ident{
 				Name: graphQLType.golangType(),
 			},
 		}
+	} else {
+		if fieldType.IsList {
+			return &ast.ArrayType{
+				Elt: generateExpr(fieldType.ListType),
+			}
+		}
+
+		return &ast.StarExpr{
+			X: ast.NewIdent(graphQLType.golangType()),
+		}
 	}
+}
+
+func generateModelMapperField(field schema.FieldDefinitions) *ast.FieldList {
+	fields := make([]*ast.Field, 0, len(field))
 
 	for _, f := range field {
-		fieldType := GraphQLType(f.Type.Name)
-		var fieldTypeIdent *ast.StarExpr
-		if fieldType.IsPrimitive() {
-			fieldTypeIdent = starExpr(f.Type, fieldType, "")
-		} else {
-			fieldTypeIdent = starExpr(f.Type, fieldType, "")
-		}
+		fieldTypeIdent := generateExprForMapper(f.Type)
 
 		fields = append(fields, &ast.Field{
 			Names: []*ast.Ident{
@@ -265,6 +247,8 @@ func generateInputModelUnmarshalJSON(t *schema.InputDefinition) *ast.FuncDecl {
 }
 
 func generateUnmarshalJSONBody(fields schema.FieldDefinitions) []ast.Stmt {
+	modelMapperType := generateModelMapperField(fields)
+
 	return []ast.Stmt{
 		&ast.DeclStmt{
 			Decl: &ast.GenDecl{
@@ -277,19 +261,7 @@ func generateUnmarshalJSONBody(fields schema.FieldDefinitions) []ast.Stmt {
 							},
 						},
 						Type: &ast.StructType{
-							Fields: &ast.FieldList{
-								List: []*ast.Field{
-									{
-										Names: []*ast.Ident{
-											ast.NewIdent("Data"),
-										},
-										Type: &ast.StructType{
-											Fields: generateModelMapperField(fields),
-										},
-									},
-								},
-							},
-							Incomplete: true,
+							Fields: modelMapperType,
 						},
 					},
 				},
@@ -342,15 +314,19 @@ func generateMapping(fields schema.FieldDefinitions) []ast.Stmt {
 	for _, f := range fields {
 		var field ast.Expr
 		field = &ast.SelectorExpr{
-			X: &ast.SelectorExpr{
-				X:   ast.NewIdent("mapper"),
-				Sel: ast.NewIdent("Data"),
-			},
+			X:   ast.NewIdent("mapper"),
 			Sel: ast.NewIdent(toUpperCase(string(f.Name))),
 		}
 		if !f.Type.Nullable {
 			field = &ast.StarExpr{
 				X: field,
+			}
+		}
+
+		if f.Type.Nullable && f.Type.IsList {
+			field = &ast.UnaryExpr{
+				Op: token.AND,
+				X:  field,
 			}
 		}
 
@@ -374,6 +350,15 @@ func generateMapping(fields schema.FieldDefinitions) []ast.Stmt {
 }
 
 func generateMappingSchemaValidation[T *schema.InputDefinition | *schema.TypeDefinition](t T) []ast.Stmt {
+	var schemaDefinition any = t
+	var selectorX ast.Expr
+	switch schemaDefinition.(type) {
+	case *schema.InputDefinition:
+		selectorX = ast.NewIdent("mapper")
+	case *schema.TypeDefinition:
+		selectorX = ast.NewIdent("t")
+	}
+
 	generateInputIfStmts := func(fields schema.FieldDefinitions) []ast.Stmt {
 		stmts := make([]ast.Stmt, 0, len(fields))
 
@@ -382,8 +367,8 @@ func generateMappingSchemaValidation[T *schema.InputDefinition | *schema.TypeDef
 				stmts = append(stmts, &ast.IfStmt{
 					Cond: &ast.BinaryExpr{
 						X: &ast.SelectorExpr{
-							X:   ast.NewIdent("mapper"),
-							Sel: ast.NewIdent("Data." + toUpperCase(string(f.Name))),
+							X:   selectorX,
+							Sel: ast.NewIdent(toUpperCase(string(f.Name))),
 						},
 						Op: token.EQL,
 						Y:  ast.NewIdent("nil"),
@@ -425,7 +410,7 @@ func generateMappingSchemaValidation[T *schema.InputDefinition | *schema.TypeDef
 				stmts = append(stmts, &ast.IfStmt{
 					Cond: &ast.BinaryExpr{
 						X: &ast.SelectorExpr{
-							X:   ast.NewIdent("mapper"),
+							X:   selectorX,
 							Sel: ast.NewIdent(toUpperCase(string(f.Name))),
 						},
 						Op: token.EQL,
