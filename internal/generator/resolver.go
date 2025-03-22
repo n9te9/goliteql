@@ -544,7 +544,19 @@ func generateResolverImplementationStruct() []ast.Decl {
 					},
 					Type: &ast.StructType{
 						Fields: &ast.FieldList{
-							List: []*ast.Field{},
+							List: []*ast.Field{
+								{
+									Names: []*ast.Ident{
+										ast.NewIdent("parser"),
+									},
+									Type: &ast.StarExpr{
+										X: &ast.SelectorExpr{
+											X:   ast.NewIdent("query"),
+											Sel: ast.NewIdent("Parser"),
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -588,9 +600,17 @@ func generateResolverImplementationStruct() []ast.Decl {
 				List: []ast.Stmt{
 					&ast.ReturnStmt{
 						Results: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: ast.NewIdent("resolver{}"),
+							&ast.CompositeLit{
+								Type: ast.NewIdent("&resolver"),
+								Elts: []ast.Expr{
+									&ast.KeyValueExpr{
+										Key: ast.NewIdent("parser"),
+										Value: &ast.SelectorExpr{
+											Sel: ast.NewIdent("NewParserWithLexer()"),
+											X:   ast.NewIdent("query"),
+										},
+									},
+								},
 							},
 						},
 					},

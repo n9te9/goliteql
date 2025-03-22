@@ -8,35 +8,35 @@ import (
 type OperationType string
 
 const (
-	QueryOperation       OperationType = "query"
-	MutationOperation    OperationType = "mutation"
+	QueryOperation        OperationType = "query"
+	MutationOperation     OperationType = "mutation"
 	SubscriptionOperation OperationType = "subscription"
 )
 
 type FieldType struct {
-	Name []byte
+	Name     []byte
 	Nullable bool
-	IsList bool
+	IsList   bool
 	ListType *FieldType
 }
 
 type Variable struct {
-	Name []byte
-	Type *FieldType
+	Name         []byte
+	Type         *FieldType
 	DefaultValue []byte
 }
 
 type Directive struct {
-	Name []byte
+	Name      []byte
 	Arguments []*DirectiveArgument
 }
 
 type Operation struct {
 	OperationType OperationType
-	Name string
-	Variables []*Variable
-	Selections []Selection
-	Directives []*Directive
+	Name          string
+	Variables     []*Variable
+	Selections    []Selection
+	Directives    []*Directive
 }
 
 type Operations []*Operation
@@ -77,20 +77,20 @@ type Selection interface {
 }
 
 type Argument struct {
-	Name []byte
-	Type *FieldType
+	Name         []byte
+	Type         *FieldType
 	DefaultValue []byte
 }
 
 type DirectiveArgument struct {
-	Name []byte
-	Value []byte
+	Name       []byte
+	Value      []byte
 	IsVariable bool
 }
 
 type Field struct {
-	Name []byte
-	Arguments []*Argument
+	Name       []byte
+	Arguments  []*Argument
 	Selections []Selection
 	Directives []*Directive
 }
@@ -102,7 +102,7 @@ func (f *Field) GetSelections() []Selection {
 }
 
 type FragmentSpread struct {
-	Name []byte
+	Name       []byte
 	Directives []*Directive
 }
 
@@ -114,8 +114,8 @@ func (f *FragmentSpread) GetSelections() []Selection {
 
 type InlineFragment struct {
 	TypeCondition []byte
-	Selections []Selection
-	Directives []*Directive
+	Selections    []Selection
+	Directives    []*Directive
 }
 
 func (f *InlineFragment) isSelection() {}
@@ -125,10 +125,10 @@ func (f *InlineFragment) GetSelections() []Selection {
 }
 
 type Document struct {
-	tokens []*Token
-	Operations Operations
+	tokens              []*Token
+	Operations          Operations
 	FragmentDefinitions FragmentDefinitions
-	Name []byte
+	Name                []byte
 }
 
 type FragmentDefinitions []*FragmentDefinition
@@ -144,9 +144,9 @@ func (f FragmentDefinitions) GetFragment(name []byte) *FragmentDefinition {
 }
 
 type FragmentDefinition struct {
-	Name []byte
+	Name          []byte
 	BasedTypeName []byte
-	Selections []Selection
+	Selections    []Selection
 }
 
 func (f *FragmentDefinition) isSelection() {}
@@ -165,6 +165,12 @@ func NewParser(lexer *Lexer) *Parser {
 	}
 }
 
+func NewParserWithLexer() *Parser {
+	return &Parser{
+		Lexer: NewLexer(),
+	}
+}
+
 func (p *Parser) Parse(input []byte) (*Document, error) {
 	tokens, err := p.Lexer.Lex(input)
 	if err != nil {
@@ -173,7 +179,7 @@ func (p *Parser) Parse(input []byte) (*Document, error) {
 
 	cur := 0
 	doc := &Document{
-		tokens: tokens,
+		tokens:     tokens,
 		Operations: make([]*Operation, 0),
 	}
 	for cur < len(tokens) {
@@ -243,16 +249,16 @@ func (p *Parser) parseFragmentDefinition(tokens Tokens, cur int) (*FragmentDefin
 	cur++
 
 	return &FragmentDefinition{
-		Name: fragmentName,
+		Name:          fragmentName,
 		BasedTypeName: typeName,
-		Selections: selections,
+		Selections:    selections,
 	}, cur, nil
 }
 
 func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error) {
 	operationType := OperationType(tokens[cur].Value)
 	cur++
-	
+
 	operationName := ""
 	if tokens[cur].Type == Name {
 		operationName = string(tokens[cur].Value)
@@ -261,7 +267,7 @@ func (p *Parser) parseOperation(tokens Tokens, cur int) (*Operation, int, error)
 
 	op := &Operation{
 		OperationType: operationType,
-		Name: operationName,
+		Name:          operationName,
 	}
 
 	if tokens[cur].Type == ParenOpen {
@@ -368,8 +374,8 @@ func (p *Parser) parseInlineFragment(tokens Tokens, cur int) (*InlineFragment, i
 
 	return &InlineFragment{
 		TypeCondition: v,
-		Selections: selections,
-		Directives: directives,
+		Selections:    selections,
+		Directives:    directives,
 	}, cur + 1, nil
 }
 
@@ -394,7 +400,7 @@ func (p *Parser) parseFragmentSpread(tokens Tokens, cur int) (*FragmentSpread, i
 	}
 
 	return &FragmentSpread{
-		Name: v,
+		Name:       v,
 		Directives: directives,
 	}, cur, nil
 }
@@ -419,7 +425,7 @@ func (p *Parser) parseDirective(tokens Tokens, cur int) (*Directive, int, error)
 
 	return &Directive{
 		Arguments: arguments,
-		Name: v,
+		Name:      v,
 	}, cur, nil
 }
 
@@ -468,16 +474,16 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		}
 
 		return &DirectiveArgument{
-			Name: name,
-			Value: tokens[cur].Value,
+			Name:       name,
+			Value:      tokens[cur].Value,
 			IsVariable: isVariable,
 		}, cur, nil
 	}
 
 	if tokens[cur].Type == Value || tokens[cur].Type == Name {
 		return &DirectiveArgument{
-			Name: name,
-			Value: tokens[cur].Value,
+			Name:       name,
+			Value:      tokens[cur].Value,
 			IsVariable: isVariable,
 		}, cur + 1, nil
 	}
@@ -489,8 +495,8 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		}
 
 		return &DirectiveArgument{
-			Name: name,
-			Value: newValue,
+			Name:       name,
+			Value:      newValue,
 			IsVariable: isVariable,
 		}, newCur, nil
 	}
@@ -502,12 +508,11 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		}
 
 		return &DirectiveArgument{
-			Name: name,
-			Value: newValue,
+			Name:       name,
+			Value:      newValue,
 			IsVariable: isVariable,
 		}, newCur, nil
 	}
-
 
 	return nil, cur, fmt.Errorf("unexpected token")
 }
@@ -615,7 +620,7 @@ func (p *Parser) parseFieldArgument(tokens Tokens, cur int) (*Argument, int, err
 
 	return argument, cur, nil
 }
- 
+
 func (p *Parser) parseOperationVariables(tokens Tokens, cur int) ([]*Variable, int, error) {
 	variables := make([]*Variable, 0)
 	cur++
@@ -667,14 +672,14 @@ func (p *Parser) parseOperationVariable(tokens Tokens, cur int) (*Variable, int,
 		return nil, newCur, err
 	}
 	cur = newCur
-	
+
 	var defaultValue []byte
 	if tokens[cur].Type == Equal {
 		cur++
 		if tokens[cur].Type != Value &&
-		 tokens[cur].Type != CurlyOpen &&
-		 tokens[cur].Type != BracketOpen &&
-		 tokens[cur].Type != Name {
+			tokens[cur].Type != CurlyOpen &&
+			tokens[cur].Type != BracketOpen &&
+			tokens[cur].Type != Name {
 			return nil, cur, fmt.Errorf("expected default value but got %s(%s)", tokens[cur].Value, tokens[cur].Type)
 		}
 
@@ -685,8 +690,8 @@ func (p *Parser) parseOperationVariable(tokens Tokens, cur int) (*Variable, int,
 	}
 
 	return &Variable{
-		Name: variableName,
-		Type: variableType,
+		Name:         variableName,
+		Type:         variableType,
 		DefaultValue: defaultValue,
 	}, cur, nil
 }
@@ -697,7 +702,7 @@ func (p *Parser) parseFieldType(tokens Tokens, cur, nestedRank int) (*FieldType,
 	}
 
 	if tokens[cur].Type == BracketOpen {
-		newFieldType, newCur, err := p.parseFieldType(tokens, cur + 1, nestedRank + 1)
+		newFieldType, newCur, err := p.parseFieldType(tokens, cur+1, nestedRank+1)
 		if err != nil {
 			return nil, cur, err
 		}
@@ -717,7 +722,7 @@ func (p *Parser) parseFieldType(tokens Tokens, cur, nestedRank int) (*FieldType,
 	}
 
 	if tokens[cur].Type != Name {
-		return nil, cur, fmt.Errorf("expected type name but got %s", tokens[cur].Value)	
+		return nil, cur, fmt.Errorf("expected type name but got %s", tokens[cur].Value)
 	}
 
 	fieldType.Name = tokens[cur].Value
@@ -732,10 +737,10 @@ func (p *Parser) parseFieldType(tokens Tokens, cur, nestedRank int) (*FieldType,
 }
 
 func (p *Parser) parseDefaultValue(tokens Tokens, cur int) ([]byte, int, error) {
-	if tokens[cur].Type != Value && 
-	tokens[cur].Type != CurlyOpen && 
-	tokens[cur].Type != BracketOpen &&
-	tokens[cur].Type != Name {
+	if tokens[cur].Type != Value &&
+		tokens[cur].Type != CurlyOpen &&
+		tokens[cur].Type != BracketOpen &&
+		tokens[cur].Type != Name {
 		return nil, cur, fmt.Errorf("expected value")
 	}
 

@@ -172,6 +172,12 @@ func (g *Generator) generateResolver() error {
 					Value: fmt.Sprintf(`"%s"`, g.modelPackagePath),
 				},
 			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"github.com/lkeix/gg-executor/query"`,
+				},
+			},
 		}
 
 		importSpecs = append(importSpecs, generateResolverImport().Specs...)
