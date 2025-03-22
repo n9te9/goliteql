@@ -178,6 +178,12 @@ func (g *Generator) generateResolver() error {
 					Value: `"github.com/lkeix/gg-executor/query"`,
 				},
 			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"github.com/lkeix/gg-executor/query/utils"`,
+				},
+			},
 		}
 
 		importSpecs = append(importSpecs, generateResolverImport().Specs...)

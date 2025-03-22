@@ -300,6 +300,42 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 				},
 			},
 
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent("parsedQuery"),
+					ast.NewIdent("err"),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("r.parser"),
+						Sel: ast.NewIdent("Parse([]byte(request.Query))"),
+					},
+				},
+			},
+
+			&ast.IfStmt{
+				Cond: &ast.BinaryExpr{
+					X:  ast.NewIdent("err"),
+					Op: token.NEQ,
+					Y:  ast.NewIdent("nil"),
+				},
+
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.ExprStmt{X: &ast.CallExpr{
+							Fun: ast.NewIdent("http.Error"),
+							Args: []ast.Expr{
+								ast.NewIdent("w"),
+								&ast.BasicLit{Kind: token.STRING, Value: "\"failed to parse query\""},
+								ast.NewIdent("http.StatusInternalServerError"),
+							},
+						}},
+						&ast.ReturnStmt{},
+					},
+				},
+			},
+
 			&ast.SwitchStmt{
 				Tag: ast.NewIdent("operationType"),
 				Body: &ast.BlockStmt{
@@ -307,8 +343,20 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 						&ast.CaseClause{
 							List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"query\""}},
 							Body: []ast.Stmt{
+								&ast.AssignStmt{
+									Tok: token.DEFINE,
+									Lhs: []ast.Expr{
+										ast.NewIdent("operationName"),
+									},
+									Rhs: []ast.Expr{
+										&ast.SelectorExpr{
+											X:   ast.NewIdent("utils"),
+											Sel: ast.NewIdent("ExtractSelectorName(parsedQuery.Operations.GetQuery(), request.OperationName)"),
+										},
+									},
+								},
 								&ast.SwitchStmt{
-									Tag: ast.NewIdent("request.OperationName"),
+									Tag: ast.NewIdent("operationName"),
 									Body: &ast.BlockStmt{
 										List: querySwitchCases,
 									},
@@ -319,8 +367,20 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 						&ast.CaseClause{
 							List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"mutation\""}},
 							Body: []ast.Stmt{
+								&ast.AssignStmt{
+									Tok: token.DEFINE,
+									Lhs: []ast.Expr{
+										ast.NewIdent("operationName"),
+									},
+									Rhs: []ast.Expr{
+										&ast.SelectorExpr{
+											X:   ast.NewIdent("utils"),
+											Sel: ast.NewIdent("ExtractSelectorName(parsedQuery.Operations.GetMutation(), request.OperationName)"),
+										},
+									},
+								},
 								&ast.SwitchStmt{
-									Tag: ast.NewIdent("request.OperationName"),
+									Tag: ast.NewIdent("operationName"),
 									Body: &ast.BlockStmt{
 										List: mutationSwitchCases,
 									},
@@ -331,8 +391,20 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 						&ast.CaseClause{
 							List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"subscription\""}},
 							Body: []ast.Stmt{
+								&ast.AssignStmt{
+									Tok: token.DEFINE,
+									Lhs: []ast.Expr{
+										ast.NewIdent("operationName"),
+									},
+									Rhs: []ast.Expr{
+										&ast.SelectorExpr{
+											X:   ast.NewIdent("utils"),
+											Sel: ast.NewIdent("ExtractSelectorName(parsedQuery.Operations.GetSubscription(), request.OperationName)"),
+										},
+									},
+								},
 								&ast.SwitchStmt{
-									Tag: ast.NewIdent("request.OperationName"),
+									Tag: ast.NewIdent("operationName"),
 									Body: &ast.BlockStmt{
 										List: subscriptionSwitchCases,
 									},
