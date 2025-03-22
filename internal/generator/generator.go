@@ -159,6 +159,12 @@ func (g *Generator) generateResolver() error {
 	if isUsedDefinedType(g.Schema.GetQuery()) || isUsedDefinedType(g.Schema.GetMutation()) || isUsedDefinedType(g.Schema.GetSubscription()) {
 		importSpecs := []ast.Spec{
 			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"io"`,
+				},
+			},
+			&ast.ImportSpec{
 				Doc: &ast.CommentGroup{
 					List: []*ast.Comment{
 						{
@@ -215,7 +221,6 @@ func (g *Generator) generateResolver() error {
 	)
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementationStruct()...)
-
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(fields)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls,
 		generateResolverInterface(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),

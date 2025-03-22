@@ -287,6 +287,36 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 				},
 			},
 
+			// req.Body = io.NopCloser(strings.NewReader(string(request.Variables)))
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{ast.NewIdent("req.Body")},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("io"),
+							Sel: ast.NewIdent("NopCloser"),
+						},
+						Args: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("strings"),
+									Sel: ast.NewIdent("NewReader"),
+								},
+								Args: []ast.Expr{
+									&ast.CallExpr{
+										Fun: ast.NewIdent("string"),
+										Args: []ast.Expr{
+											ast.NewIdent("request.Variables"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+
 			&ast.AssignStmt{
 				Lhs: []ast.Expr{ast.NewIdent("operationType")},
 				Tok: token.DEFINE,

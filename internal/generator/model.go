@@ -206,6 +206,11 @@ func generateModelMapperField(field schema.FieldDefinitions) *ast.FieldList {
 }
 
 func generateInputModelUnmarshalJSON(t *schema.InputDefinition) *ast.FuncDecl {
+	var stmts []ast.Stmt
+	stmts = append(stmts, generateUnmarshalJSONBody(t.Fields)...)
+	stmts = append(stmts, generateMappingSchemaValidation(t)...)
+	stmts = append(stmts, generateMapping(t.Fields)...)
+
 	return &ast.FuncDecl{
 		Name: ast.NewIdent("UnmarshalJSON"),
 		Recv: &ast.FieldList{
@@ -250,7 +255,7 @@ func generateInputModelUnmarshalJSON(t *schema.InputDefinition) *ast.FuncDecl {
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: append(append(append([]ast.Stmt{}, generateUnmarshalJSONBody(t.Fields)...), generateMappingSchemaValidation(t)...), &ast.ReturnStmt{
+			List: append(stmts, &ast.ReturnStmt{
 				Results: []ast.Expr{
 					ast.NewIdent("nil"),
 				},
@@ -272,7 +277,18 @@ func generateUnmarshalJSONBody(fields schema.FieldDefinitions) []ast.Stmt {
 							},
 						},
 						Type: &ast.StructType{
-							Fields:     generateModelMapperField(fields),
+							Fields: &ast.FieldList{
+								List: []*ast.Field{
+									{
+										Names: []*ast.Ident{
+											ast.NewIdent("Data"),
+										},
+										Type: &ast.StructType{
+											Fields: generateModelMapperField(fields),
+										},
+									},
+								},
+							},
 							Incomplete: true,
 						},
 					},
@@ -320,6 +336,43 @@ func generateUnmarshalJSONBody(fields schema.FieldDefinitions) []ast.Stmt {
 	}
 }
 
+func generateMapping(fields schema.FieldDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(fields))
+
+	for _, f := range fields {
+		var field ast.Expr
+		field = &ast.SelectorExpr{
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("mapper"),
+				Sel: ast.NewIdent("Data"),
+			},
+			Sel: ast.NewIdent(toUpperCase(string(f.Name))),
+		}
+		if !f.Type.Nullable {
+			field = &ast.StarExpr{
+				X: field,
+			}
+		}
+
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X: &ast.Ident{
+						Name: "t",
+					},
+					Sel: ast.NewIdent(toUpperCase(string(f.Name))),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				field,
+			},
+		})
+	}
+
+	return stmts
+}
+
 func generateMappingSchemaValidation[T *schema.InputDefinition | *schema.TypeDefinition](t T) []ast.Stmt {
 	generateInputIfStmts := func(fields schema.FieldDefinitions) []ast.Stmt {
 		stmts := make([]ast.Stmt, 0, len(fields))
@@ -330,7 +383,7 @@ func generateMappingSchemaValidation[T *schema.InputDefinition | *schema.TypeDef
 					Cond: &ast.BinaryExpr{
 						X: &ast.SelectorExpr{
 							X:   ast.NewIdent("mapper"),
-							Sel: ast.NewIdent(toUpperCase(string(f.Name))),
+							Sel: ast.NewIdent("Data." + toUpperCase(string(f.Name))),
 						},
 						Op: token.EQL,
 						Y:  ast.NewIdent("nil"),
