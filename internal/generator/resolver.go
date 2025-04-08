@@ -174,7 +174,7 @@ func generateQueryExecutor(query *schema.OperationDefinition) *ast.FuncDecl {
 				},
 			},
 		},
-		Body: generateExecutorBody(query),
+		Body: generateExecutorBody(query, "query"),
 	}
 }
 
@@ -203,7 +203,7 @@ func generateMutationExecutor(mutation *schema.OperationDefinition) *ast.FuncDec
 				},
 			},
 		},
-		Body: generateExecutorBody(mutation),
+		Body: generateExecutorBody(mutation, "mutation"),
 	}
 }
 
@@ -232,11 +232,11 @@ func generateSubscriptionExecutor(subscription *schema.OperationDefinition) *ast
 				},
 			},
 		},
-		Body: generateExecutorBody(subscription),
+		Body: generateExecutorBody(subscription, "subscription"),
 	}
 }
 
-func generateExecutorBody(op *schema.OperationDefinition) *ast.BlockStmt {
+func generateExecutorBody(op *schema.OperationDefinition, operationType string) *ast.BlockStmt {
 	body := []ast.Stmt{}
 
 	if op == nil {
@@ -245,11 +245,27 @@ func generateExecutorBody(op *schema.OperationDefinition) *ast.BlockStmt {
 		}
 	}
 
+	var methodName, executorName string
+	if operationType == "query" {
+		methodName = "GetQuery"
+		executorName = "queryExecutor"
+	}
+
+	if operationType == "mutation" {
+		methodName = "GetMutation"
+		executorName = "mutationExecutor"
+	}
+
+	if operationType == "subscription" {
+		methodName = "GetSubscription"
+		executorName = "subscriptionExecutor"
+	}
+
 	bodyStmt := make([]ast.Stmt, 0)
 	for _, field := range op.Fields {
 		caseBody := make([]ast.Stmt, 0)
 		fieldName := fmt.Sprintf("\"%s\"", field.Name)
-		caseBody = append(caseBody, generateBodyForArgument("GetQuery", string(fieldName))...)
+		caseBody = append(caseBody, generateBodyForArgument(methodName, string(fieldName))...)
 		caseBody = append(caseBody,
 			&ast.ExprStmt{X: &ast.CallExpr{
 				Fun: &ast.SelectorExpr{
@@ -271,19 +287,30 @@ func generateExecutorBody(op *schema.OperationDefinition) *ast.BlockStmt {
 				},
 				Body: &ast.BlockStmt{
 					List: []ast.Stmt{
-						&ast.ExprStmt{X: &ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("r"),
-								Sel: ast.NewIdent("queryExecutor"),
+						&ast.IfStmt{
+							Cond: &ast.BinaryExpr{
+								X:  ast.NewIdent("child.SelectSets"),
+								Op: token.NEQ,
+								Y:  ast.NewIdent("nil"),
 							},
-							Args: []ast.Expr{
-								ast.NewIdent("w"),
-								ast.NewIdent("req"),
-								ast.NewIdent("child"),
-								ast.NewIdent("parsedQuery"),
-								ast.NewIdent("variables"),
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.ExprStmt{X: &ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X:   ast.NewIdent("r"),
+											Sel: ast.NewIdent(executorName),
+										},
+										Args: []ast.Expr{
+											ast.NewIdent("w"),
+											ast.NewIdent("req"),
+											ast.NewIdent("child"),
+											ast.NewIdent("parsedQuery"),
+											ast.NewIdent("variables"),
+										},
+									},
+									},
+								},
 							},
-						},
 						},
 					},
 				},
@@ -633,7 +660,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 									Rhs: []ast.Expr{
 										&ast.SelectorExpr{
 											X:   ast.NewIdent("utils"),
-											Sel: ast.NewIdent("ExtractExecuteSelector(parsedQuery.Operations.GetQuery(), request.OperationName)"),
+											Sel: ast.NewIdent("ExtractExecuteSelector(parsedQuery.Operations.GetMutation(), request.OperationName)"),
 										},
 									},
 								},
@@ -679,16 +706,6 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					},
 				},
 			},
-			&ast.ExprStmt{X: &ast.BasicLit{}},
-
-			&ast.ExprStmt{X: &ast.CallExpr{
-				Fun: ast.NewIdent("http.Error"),
-				Args: []ast.Expr{
-					ast.NewIdent("w"),
-					&ast.BasicLit{Kind: token.STRING, Value: "\"Unknown operation\""},
-					ast.NewIdent("http.StatusUnprocessableEntity"),
-				},
-			}},
 		},
 	}
 }

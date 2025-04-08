@@ -56,8 +56,15 @@ func ExtractExecuteSelector(op *query.Operation, operationName string) []query.S
 		switch s := sel.(type) {
 		case *query.Field:
 			if string(s.Name) == operationName {
-				return s.Selections
+				return []query.Selection{s}
 			}
+		}
+	}
+
+	if len(op.Selections) == 1 {
+		switch s := op.Selections[0].(type) {
+		case *query.Field:
+			return []query.Selection{s}
 		}
 	}
 

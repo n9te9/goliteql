@@ -1,6 +1,8 @@
 package executor
 
-import "github.com/lkeix/gg-executor/query"
+import (
+	"github.com/lkeix/gg-executor/query"
+)
 
 type Node struct {
 	Name       []byte
@@ -15,6 +17,7 @@ func PlanExecution(selections []query.Selection) *Node {
 			node := &Node{
 				Name:       s.Name,
 				SelectSets: s.Selections,
+				Children:   make([]*Node, 0),
 			}
 
 			for _, child := range s.Selections {
@@ -23,6 +26,7 @@ func PlanExecution(selections []query.Selection) *Node {
 					node.Children = append(node.Children, digExecution(c))
 				}
 			}
+
 			return node
 		}
 	}
