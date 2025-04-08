@@ -200,6 +200,12 @@ func (g *Generator) generateResolver() error {
 					Value: `"github.com/lkeix/gg-executor/query/utils"`,
 				},
 			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"github.com/lkeix/gg-executor/executor"`,
+				},
+			},
 		}
 
 		importSpecs = append(importSpecs, generateResolverImport().Specs...)
@@ -237,6 +243,9 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(fields)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls,
 		generateResolverInterface(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
+		generateQueryExecutor(g.Schema.GetQuery()),
+		generateMutationExecutor(g.Schema.GetMutation()),
+		generateSubscriptionExecutor(g.Schema.GetSubscription()),
 		generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
 	if err := format.Node(g.resolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
@@ -244,27 +253,6 @@ func (g *Generator) generateResolver() error {
 	}
 
 	return nil
-}
-
-func golangType(fieldType *schema.FieldType, graphQLType GraphQLType, modelPackagePath string) *ast.Ident {
-	if fieldType.IsList {
-		return ast.NewIdent(golangType(fieldType.ListType, GraphQLType(fieldType.ListType.Name), modelPackagePath).Name)
-	}
-
-	if graphQLType.IsPrimitive() {
-		if fieldType.Nullable {
-			return ast.NewIdent("*" + graphQLType.golangType())
-		}
-
-		return ast.NewIdent(graphQLType.golangType())
-	}
-
-	modelPackagePrefix := filepath.Base(modelPackagePath)
-	if fieldType.Nullable {
-		return ast.NewIdent("*" + modelPackagePrefix + "." + graphQLType.golangType())
-	}
-
-	return ast.NewIdent(modelPackagePrefix + "." + graphQLType.golangType())
 }
 
 type GraphQLType string

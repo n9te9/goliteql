@@ -47,6 +47,23 @@ func ExtractSelectorArgs(op *query.Operation, operationName string) []*query.Arg
 	return nil
 }
 
+func ExtractExecuteSelector(op *query.Operation, operationName string) []query.Selection {
+	if op == nil {
+		return nil
+	}
+
+	for _, sel := range op.Selections {
+		switch s := sel.(type) {
+		case *query.Field:
+			if string(s.Name) == operationName {
+				return s.Selections
+			}
+		}
+	}
+
+	return nil
+}
+
 func ConvRequestBodyFromVariables(variables json.RawMessage, args []*query.Argument) ([]byte, error) {
 	mp := make(map[string]any)
 	ret := make(map[string]any)

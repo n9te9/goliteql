@@ -182,6 +182,7 @@ func (p *Parser) Parse(input []byte) (*Document, error) {
 		tokens:     tokens,
 		Operations: make([]*Operation, 0),
 	}
+
 	for cur < len(tokens) {
 		if tokens[cur].Type.IsOperation() {
 			op, newCur, err := p.parseOperation(tokens, cur)
@@ -600,6 +601,10 @@ func (p *Parser) parseFieldArgument(tokens Tokens, cur int) (*Argument, int, err
 		return nil, cur, fmt.Errorf("expected : after argument name")
 	}
 	cur++
+
+	if tokens[cur].Type == Dollar {
+		cur++
+	}
 
 	fieldType, newCur, err := p.parseFieldType(tokens, cur, 0)
 	if err != nil {
