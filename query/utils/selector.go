@@ -72,6 +72,10 @@ func ExtractExecuteSelector(op *query.Operation, operationName string) []query.S
 }
 
 func ConvRequestBodyFromVariables(variables json.RawMessage, args []*query.Argument) ([]byte, error) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+
 	mp := make(map[string]any)
 	ret := make(map[string]any)
 
