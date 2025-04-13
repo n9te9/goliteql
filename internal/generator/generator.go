@@ -19,17 +19,23 @@ type Generator struct {
 	mutationAST         *ast.File
 	subscriptionAST     *ast.File
 	modelAST            *ast.File
-	resolverAST         *ast.File
 	modelPackagePath    string
 	resolverPackagePath string
 
 	modelOutput    io.Writer
-	resolverOutput io.Writer
+	queryResolverOutput io.Writer
+	queryResolverAST         *ast.File
+
+	mutationResolverOutput io.Writer
+	mutationResolverAST         *ast.File
+
+	rootResolverOutput io.Writer
+	resolverAST         *ast.File
 }
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
 
-func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer, modelPackagePath, resolverPackagePath string) (*Generator, error) {
+func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput io.Writer, modelPackagePath, resolverPackagePath string) (*Generator, error) {
 	gqlFilePaths := make([]string, 0)
 
 	err := filepath.Walk(schemaDirectory, func(path string, info os.FileInfo, err error) error {
@@ -78,6 +84,18 @@ func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer,
 		return nil, fmt.Errorf("error merging schema: %w", err)
 	}
 
+	importDecl := &ast.GenDecl{
+		Tok: token.IMPORT,
+		Specs: []ast.Spec{
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"net/http"`,
+				},
+			},
+		},
+	}
+
 	g := &Generator{
 		Schema:          s,
 		queryAST:        &ast.File{},
@@ -89,9 +107,23 @@ func NewGenerator(schemaDirectory string, modelOutput, resolverOutput io.Writer,
 		resolverAST: &ast.File{
 			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
 		},
+		queryResolverAST: &ast.File{
+			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
+			Decls: []ast.Decl{
+				importDecl,
+			},
+		},
+		mutationResolverAST: &ast.File{
+			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
+			Decls: []ast.Decl{
+				importDecl,
+			},
+		},
 		modelOutput:         modelOutput,
 		modelPackagePath:    modelPackagePath,
-		resolverOutput:      resolverOutput,
+		queryResolverOutput: queryResolverOutput,
+		mutationResolverOutput: mutationResolverOutput,
+		rootResolverOutput:     rootResolverOutput,
 		resolverPackagePath: resolverPackagePath,
 	}
 
@@ -217,14 +249,16 @@ func (g *Generator) generateResolver() error {
 		})
 	}
 
+	queryFields := make(schema.FieldDefinitions, 0)
+	mutationFields := make(schema.FieldDefinitions, 0)
 	fields := make(schema.FieldDefinitions, 0)
 
 	if q := g.Schema.GetQuery(); q != nil {
-		fields = append(fields, q.Fields...)
+		queryFields = q.Fields
 	}
 
 	if m := g.Schema.GetMutation(); m != nil {
-		fields = append(fields, m.Fields...)
+		mutationFields = m.Fields
 	}
 
 	if s := g.Schema.GetSubscription(); s != nil {
@@ -232,15 +266,19 @@ func (g *Generator) generateResolver() error {
 	}
 
 	if g.Schema.GetQuery() != nil {
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateInterfaceField(g.Schema.GetQuery()))
+		g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateInterfaceField(g.Schema.GetQuery()))
 	}
 
 	if g.Schema.GetMutation() != nil {
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateInterfaceField(g.Schema.GetMutation()))
+		g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateInterfaceField(g.Schema.GetMutation()))
 	}
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementationStruct()...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(fields)...)
+
+	g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateResolverImplementation(queryFields)...)
+	g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateResolverImplementation(mutationFields)...)
+
 	g.resolverAST.Decls = append(g.resolverAST.Decls,
 		generateResolverInterface(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
 		generateQueryExecutor(g.Schema.GetQuery()),
@@ -248,8 +286,16 @@ func (g *Generator) generateResolver() error {
 		generateSubscriptionExecutor(g.Schema.GetSubscription()),
 		generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
-	if err := format.Node(g.resolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
+	if err := format.Node(g.rootResolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)
+	}
+
+	if err := format.Node(g.queryResolverOutput, token.NewFileSet(), g.queryResolverAST); err != nil {
+		return fmt.Errorf("error formatting query resolver: %w", err)
+	}
+
+	if err := format.Node(g.mutationResolverOutput, token.NewFileSet(), g.mutationResolverAST); err != nil {
+		return fmt.Errorf("error formatting mutation resolver: %w", err)
 	}
 
 	return nil
