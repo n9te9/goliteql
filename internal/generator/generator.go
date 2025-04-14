@@ -249,20 +249,28 @@ func (g *Generator) generateResolver() error {
 		})
 	}
 
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverInterface(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
+
 	queryFields := make(schema.FieldDefinitions, 0)
 	mutationFields := make(schema.FieldDefinitions, 0)
 	fields := make(schema.FieldDefinitions, 0)
 
 	if q := g.Schema.GetQuery(); q != nil {
 		queryFields = q.Fields
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryExecutor(g.Schema.GetQuery()))
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetQuery(), g.Schema.Indexes.TypeIndex)...)
 	}
 
 	if m := g.Schema.GetMutation(); m != nil {
 		mutationFields = m.Fields
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateMutationExecutor(g.Schema.GetMutation()))
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetMutation(), g.Schema.Indexes.TypeIndex)...)
 	}
 
 	if s := g.Schema.GetSubscription(); s != nil {
 		fields = append(fields, s.Fields...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateSubscriptionExecutor(g.Schema.GetSubscription()))
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetSubscription(), g.Schema.Indexes.TypeIndex)...)
 	}
 
 	if g.Schema.GetQuery() != nil {
@@ -279,12 +287,7 @@ func (g *Generator) generateResolver() error {
 	g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateResolverImplementation(queryFields)...)
 	g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateResolverImplementation(mutationFields)...)
 
-	g.resolverAST.Decls = append(g.resolverAST.Decls,
-		generateResolverInterface(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()),
-		generateQueryExecutor(g.Schema.GetQuery()),
-		generateMutationExecutor(g.Schema.GetMutation()),
-		generateSubscriptionExecutor(g.Schema.GetSubscription()),
-		generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
 	if err := format.Node(g.rootResolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)
