@@ -270,7 +270,6 @@ func generateWrapResponseWriterStruct(field *schema.FieldDefinition) *ast.GenDec
 					Fields: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{ast.NewIdent("ResponseWriter")},
 								Type: &ast.SelectorExpr{
 									X:   ast.NewIdent("http"),
 									Sel: ast.NewIdent("ResponseWriter"),
@@ -415,7 +414,7 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 					},
 					Body: []ast.Stmt{
 						&ast.BranchStmt{
-							Tok: token.BREAK,
+							Tok: token.CONTINUE,
 						},
 					},
 				})
@@ -517,8 +516,9 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 									Args: []ast.Expr{
 										&ast.BasicLit{
 											Kind:  token.STRING,
-											Value: fmt.Sprintf("\"unknown field: %s\"", string(field.Name)),
+											Value: "\"unknown field: %s\"",
 										},
+										ast.NewIdent(fmt.Sprintf("k%d", k)),
 									},
 								},
 							},
@@ -776,14 +776,20 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 		caseBody := make([]ast.Stmt, 0)
 		fieldName := fmt.Sprintf("\"%s\"", field.Name)
 		caseBody = append(caseBody, generateBodyForArgument(methodName, string(fieldName))...)
-		caseBody = append(caseBody, &ast.ExprStmt{
-			X: &ast.CallExpr{
-				Fun: ast.NewIdent("new" + string(field.Name) + "Writer"),
-				Args: []ast.Expr{
+		caseBody = append(caseBody, &ast.AssignStmt{
+				Tok: token.ASSIGN,
+				Lhs: []ast.Expr{
 					ast.NewIdent("w"),
-					&ast.SelectorExpr{
-						X: ast.NewIdent("node"),
-						Sel: ast.NewIdent("SelectSets"),
+				},
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+					Fun: ast.NewIdent("new" + string(field.Name) + "Writer"),
+					Args: []ast.Expr{
+						ast.NewIdent("w"),
+						&ast.SelectorExpr{
+							X: ast.NewIdent("node"),
+							Sel: ast.NewIdent("SelectSets"),
+						},
 					},
 				},
 			},
