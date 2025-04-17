@@ -340,11 +340,11 @@ func generateWrapResponseWriterFunc(field *schema.FieldDefinition) *ast.FuncDecl
 								Type: ast.NewIdent("Wrap" + string(field.Name) + "ResponseWriter"),
 								Elts: []ast.Expr{
 									&ast.KeyValueExpr{
-										Key: ast.NewIdent("ResponseWriter"),
+										Key:   ast.NewIdent("ResponseWriter"),
 										Value: ast.NewIdent("w"),
 									},
 									&ast.KeyValueExpr{
-										Key: ast.NewIdent("selections"),
+										Key:   ast.NewIdent("selections"),
 										Value: ast.NewIdent("selections"),
 									},
 								},
@@ -422,6 +422,61 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 		}
 	}
 
+	excludeStmt := &ast.AssignStmt{
+		Tok: token.ASSIGN,
+		Lhs: []ast.Expr{
+			ast.NewIdent("resp"),
+		},
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("executor"),
+					Sel: ast.NewIdent("ExcludeSelectFields"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("resp"),
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("w"),
+						Sel: ast.NewIdent("selections"),
+					},
+				},
+			},
+		},
+	}
+
+	xName := "resp"
+	if k > 0 {
+		xName = fmt.Sprintf("v%d", k-1)
+		itr := ""
+		for i := 0; i < k; i++ {
+			itr += fmt.Sprintf("[k%d]", i)
+		}
+
+		for i := 0; i < k; i++ {
+			excludeStmt = &ast.AssignStmt{
+				Tok: token.ASSIGN,
+				Lhs: []ast.Expr{
+					ast.NewIdent(fmt.Sprintf("resp%s", itr)),
+				},
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("ExcludeSelectFields"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent(fmt.Sprintf("resp%s", itr)),
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("w"),
+								Sel: ast.NewIdent("selections"),
+							},
+						},
+					},
+				},
+			}
+		}
+	}
+
 	body := &ast.BlockStmt{
 		List: []ast.Stmt{
 			&ast.AssignStmt{
@@ -437,9 +492,9 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 				},
 			},
 			&ast.RangeStmt{
-				Key: ast.NewIdent("_"),
+				Key:   ast.NewIdent("_"),
 				Value: ast.NewIdent("sel"),
-				Tok: token.DEFINE,
+				Tok:   token.DEFINE,
 				X: &ast.SelectorExpr{
 					X:   ast.NewIdent("w"),
 					Sel: ast.NewIdent("selections"),
@@ -488,6 +543,7 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 					},
 				},
 			},
+			excludeStmt,
 			&ast.SwitchStmt{
 				Tag: ast.NewIdent(fmt.Sprintf("k%d", k)),
 				Body: &ast.BlockStmt{
@@ -531,28 +587,22 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 			},
 		},
 	}
-	
-	xName := "resp"
-	if k > 0 {
-		xName = fmt.Sprintf("v%d", k - 1)
-	}
 
 	if _, ok := typeExpr.(*ast.MapType); ok {
-
 		return &ast.RangeStmt{
-			Key: ast.NewIdent(fmt.Sprintf("k%d", k)),
-			Tok: token.DEFINE,
-			X: ast.NewIdent(xName),
+			Key:  ast.NewIdent(fmt.Sprintf("k%d", k)),
+			Tok:  token.DEFINE,
+			X:    ast.NewIdent(xName),
 			Body: body,
 		}
 	}
 
 	if t, ok := typeExpr.(*ast.ArrayType); ok {
 		return &ast.RangeStmt{
-			Key: ast.NewIdent("_"),
+			Key:   ast.NewIdent(fmt.Sprintf("k%d", k)),
 			Value: ast.NewIdent(fmt.Sprintf("v%d", k)),
-			Tok: token.DEFINE,
-			X: ast.NewIdent(xName),
+			Tok:   token.DEFINE,
+			X:     ast.NewIdent(xName),
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{
 					generateWrapResponseWriterWriteRangeStmt(field, index, t.Elt, k+1),
@@ -677,7 +727,7 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 								Names: []*ast.Ident{
 									ast.NewIdent("err"),
 								},
-								Type: ast.NewIdent("error"),
+								Type:   ast.NewIdent("error"),
 								Values: nil,
 							},
 						},
@@ -696,7 +746,7 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 								X: &ast.CallExpr{
 									Fun: &ast.SelectorExpr{
 										X: &ast.SelectorExpr{
-											X: ast.NewIdent("w"),
+											X:   ast.NewIdent("w"),
 											Sel: ast.NewIdent("ResponseWriter"),
 										},
 										Sel: ast.NewIdent("WriteHeader"),
@@ -711,7 +761,7 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.SelectorExpr{
-												X: ast.NewIdent("w"),
+												X:   ast.NewIdent("w"),
 												Sel: ast.NewIdent("ResponseWriter"),
 											},
 											Sel: ast.NewIdent("Write"),
@@ -725,11 +775,29 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 						},
 					},
 				},
+				&ast.AssignStmt{
+					Tok: token.ASSIGN,
+					Lhs: []ast.Expr{
+						ast.NewIdent("b"),
+						ast.NewIdent("err"),
+					},
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("Marshal"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("resp"),
+							},
+						},
+					},
+				},
 				&ast.ReturnStmt{
 					Results: []ast.Expr{
 						&ast.CallExpr{
 							Fun: &ast.SelectorExpr{
-								X:   &ast.SelectorExpr{
+								X: &ast.SelectorExpr{
 									X:   ast.NewIdent("w"),
 									Sel: ast.NewIdent("ResponseWriter"),
 								},
@@ -777,17 +845,17 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 		fieldName := fmt.Sprintf("\"%s\"", field.Name)
 		caseBody = append(caseBody, generateBodyForArgument(methodName, string(fieldName))...)
 		caseBody = append(caseBody, &ast.AssignStmt{
-				Tok: token.ASSIGN,
-				Lhs: []ast.Expr{
-					ast.NewIdent("w"),
-				},
-				Rhs: []ast.Expr{
-					&ast.CallExpr{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{
+				ast.NewIdent("w"),
+			},
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
 					Fun: ast.NewIdent("new" + string(field.Name) + "Writer"),
 					Args: []ast.Expr{
 						ast.NewIdent("w"),
 						&ast.SelectorExpr{
-							X: ast.NewIdent("node"),
+							X:   ast.NewIdent("node"),
 							Sel: ast.NewIdent("SelectSets"),
 						},
 					},
