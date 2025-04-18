@@ -85,8 +85,8 @@ func initializeConfig() {
 		log.Fatalf("error creating schema directory: %v", err)
 	}
 
-	schemaFile := initConfig.SchemaDirectory + "/schema.graphql"
-	schemaFileIO, err := os.Create(schemaFile)
+	schemaFilePath := initConfig.SchemaDirectory + "/schema.graphql"
+	schemaFileIO, err := os.Create(schemaFilePath)
 	if err != nil && !os.IsExist(err) {
 		log.Fatalf("error creating model output file: %v", err)
 	}
