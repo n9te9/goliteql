@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/lkeix/gg-executor/schema"
+	"github.com/n9te9/goliteql/schema"
 )
 
 func TestParser_Parse(t *testing.T) {

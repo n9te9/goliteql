@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/lkeix/gg-executor/schema"
+	"github.com/n9te9/goliteql/schema"
 )
 
 func newQueryIdent(query *schema.OperationDefinition) *ast.Ident {

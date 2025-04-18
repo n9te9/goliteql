@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/lkeix/gg-executor/internal/generator"
+	"github.com/n9te9/goliteql/internal/generator"
 )
 
 func TestGenerator_Generate(t *testing.T) {
@@ -26,9 +26,9 @@ func TestGenerator_Generate(t *testing.T) {
 			name:                "Generate Model code",
 			schemaDirectory:     "../golden_files/model_test",
 			modelOutput:         bytes.NewBuffer(nil),
-			modelPackagePath:    "github.com/lkeix/gg-executor/internal/generated/model",
+			modelPackagePath:    "github.com/n9te9/goliteql/internal/generated/model",
 			resolverOutput:      bytes.NewBuffer(nil),
-			resolverPackagePath: "github.com/lkeix/gg-executor/internal/generated/resolver",
+			resolverPackagePath: "github.com/n9te9/goliteql/internal/generated/resolver",
 			expected:            nil,
 			expectGoFilePath:    "../golden_files/model_test/model.go",
 		},
@@ -36,9 +36,9 @@ func TestGenerator_Generate(t *testing.T) {
 			name:                "Generate Input code",
 			schemaDirectory:     "../golden_files/operation_test",
 			modelOutput:         bytes.NewBuffer(nil),
-			modelPackagePath:    "github.com/lkeix/gg-executor/internal/generated/model",
+			modelPackagePath:    "github.com/n9te9/goliteql/internal/generated/model",
 			resolverOutput:      bytes.NewBuffer(nil),
-			resolverPackagePath: "github.com/lkeix/gg-executor/internal/generated/resolver",
+			resolverPackagePath: "github.com/n9te9/goliteql/internal/generated/resolver",
 			expected:            nil,
 			expectGoFilePath:    "../golden_files/operation_test/model.go",
 		},

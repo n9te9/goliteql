@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/lkeix/gg-executor/schema"
+	"github.com/n9te9/goliteql/schema"
 )
 
 func TestLexer_Lex(t *testing.T) {

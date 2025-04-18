@@ -1,4 +1,4 @@
-module github.com/lkeix/gg-executor
+module github.com/n9te9/goliteql
 
 go 1.23.2
 

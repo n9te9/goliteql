@@ -3,9 +3,9 @@ package validator_test
 import (
 	"testing"
 
-	"github.com/lkeix/gg-executor/query"
-	"github.com/lkeix/gg-executor/schema"
-	"github.com/lkeix/gg-executor/validator"
+	"github.com/n9te9/goliteql/query"
+	"github.com/n9te9/goliteql/schema"
+	"github.com/n9te9/goliteql/validator"
 )
 
 func BenchmarkValidator_Validate(b *testing.B) {

@@ -3,7 +3,7 @@ package executor
 import (
 	"encoding/json"
 
-	"github.com/lkeix/gg-executor/query"
+	"github.com/n9te9/goliteql/query"
 )
 
 func ExcludeSelectFields(resp map[string]json.RawMessage, selectSets []query.Selection) map[string]json.RawMessage {

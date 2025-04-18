@@ -1,7 +1,7 @@
 package executor
 
 import (
-	"github.com/lkeix/gg-executor/query"
+	"github.com/n9te9/goliteql/query"
 )
 
 type Node struct {

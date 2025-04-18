@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/lkeix/gg-executor/query"
+	"github.com/n9te9/goliteql/query"
 )
 
 func TestQueryParse(t *testing.T) {

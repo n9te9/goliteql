@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/lkeix/gg-executor/schema"
+	"github.com/n9te9/goliteql/schema"
 )
 
 type Generator struct {
@@ -223,19 +223,19 @@ func (g *Generator) generateResolver() error {
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
-					Value: `"github.com/lkeix/gg-executor/query"`,
+					Value: `"github.com/n9te9/goliteql/query"`,
 				},
 			},
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
-					Value: `"github.com/lkeix/gg-executor/query/utils"`,
+					Value: `"github.com/n9te9/goliteql/query/utils"`,
 				},
 			},
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
-					Value: `"github.com/lkeix/gg-executor/executor"`,
+					Value: `"github.com/n9te9/goliteql/executor"`,
 				},
 			},
 		}

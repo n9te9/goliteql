@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/lkeix/gg-executor/executor"
-	"github.com/lkeix/gg-executor/query"
+	"github.com/n9te9/goliteql/executor"
+	"github.com/n9te9/goliteql/query"
 )
 
 func TestPlanExecution(t *testing.T) {

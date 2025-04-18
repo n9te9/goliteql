@@ -5,9 +5,9 @@ import (
 
 	"errors"
 
-	"github.com/lkeix/gg-executor/query"
-	"github.com/lkeix/gg-executor/schema"
-	"github.com/lkeix/gg-executor/validator"
+	"github.com/n9te9/goliteql/query"
+	"github.com/n9te9/goliteql/schema"
+	"github.com/n9te9/goliteql/validator"
 )
 
 func TestValidator_Validate(t *testing.T) {

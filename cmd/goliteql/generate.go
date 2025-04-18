@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/lkeix/gg-executor/internal/generator"
+	"github.com/n9te9/goliteql/internal/generator"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -74,7 +74,7 @@ func main() {
 		panic(err)
 	}
 
-	g, err := generator.NewGenerator(schemaDirectory, modelOutputFile, queryResolverOutputFile, mutationResolverOutputFile, rootResolverOutputFile, "github.com/lkeix/gg-executor/internal/generated/operation_test/model", "github.com/lkeix/gg-executor/internal/generated/operation_test/resolver")
+	g, err := generator.NewGenerator(schemaDirectory, modelOutputFile, queryResolverOutputFile, mutationResolverOutputFile, rootResolverOutputFile, "github.com/n9te9/goliteql/internal/generated/operation_test/model", "github.com/n9te9/goliteql/internal/generated/operation_test/resolver")
 	if err != nil {
 		log.Fatalf("error creating generator: %v", err)
 	}
