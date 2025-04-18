@@ -74,8 +74,8 @@ var initConfig = Config{
 	SchemaDirectory: "./graphql/schema",
 	ModelOutputFile:  "./graphql/model/models.go",
 	QueryResolverOutputFile: "./graphql/resolver/query.resolver.go",
-	MutationResolverOutputFile: "./graphql/resolver/query.resolver.go",
-	RootResolverOutputFile: "$/graphql/resolver/resolver.go",
+	MutationResolverOutputFile: "./graphql/resolver/mutate.resolver.go",
+	RootResolverOutputFile: "./graphql/resolver/resolver.go",
 	ModelPackageName: "example/graphql/model",
 	ResolverPackageName: "example/graphql/resolver",
 }
