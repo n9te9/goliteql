@@ -72,12 +72,6 @@ func generateResolverImport() *ast.GenDecl {
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
-					Value: `"bytes"`,
-				},
-			},
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
 					Value: `"strings"`,
 				},
 			},
@@ -380,46 +374,10 @@ func generateSliceMapType(typ *schema.FieldType) ast.Expr {
 	}
 }
 
-func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, index map[string]*schema.TypeDefinition, typeExpr ast.Expr, k int) ast.Stmt {
-	caseStmts := make([]ast.Stmt, 0)
-
+func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, index map[string]*schema.TypeDefinition, typeExpr ast.Expr, k int) []ast.Stmt {
 	ft := field.Type
 	for ft.IsList {
 		ft = ft.ListType
-	}
-
-	typ := index[string(ft.Name)]
-
-	if typ != nil {
-		if typ.IsPremitive() {
-			caseStmts = append(caseStmts, &ast.ExprStmt{
-				X: &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("w"),
-						Sel: ast.NewIdent("ResponseWriter"),
-					},
-					Args: []ast.Expr{
-						ast.NewIdent("b"),
-					},
-				},
-			})
-		} else {
-			for _, f := range typ.Fields {
-				caseStmts = append(caseStmts, &ast.CaseClause{
-					List: []ast.Expr{
-						&ast.BasicLit{
-							Kind:  token.STRING,
-							Value: fmt.Sprintf("\"%s\"", string(f.Name)),
-						},
-					},
-					Body: []ast.Stmt{
-						&ast.BranchStmt{
-							Tok: token.CONTINUE,
-						},
-					},
-				})
-			}
-		}
 	}
 
 	excludeStmt := &ast.AssignStmt{
@@ -445,9 +403,9 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 	}
 
 	xName := "resp"
+	itr := ""
 	if k > 0 {
 		xName = fmt.Sprintf("v%d", k-1)
-		itr := ""
 		for i := 0; i < k; i++ {
 			itr += fmt.Sprintf("[k%d]", i)
 		}
@@ -479,108 +437,72 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 
 	body := &ast.BlockStmt{
 		List: []ast.Stmt{
-			&ast.AssignStmt{
-				Tok: token.DEFINE,
-				Lhs: []ast.Expr{
-					ast.NewIdent("has"),
-				},
-				Rhs: []ast.Expr{
-					&ast.BasicLit{
-						Kind:  token.INT,
-						Value: "false",
+			&ast.IfStmt{
+				Init: &ast.AssignStmt{
+					Tok: token.DEFINE,
+					Lhs: []ast.Expr{
+						ast.NewIdent("_"),
+						ast.NewIdent("ok"),
+					},
+					Rhs: []ast.Expr{
+						&ast.IndexExpr{
+							X: ast.NewIdent(fmt.Sprintf("resp%s", itr)),
+							Index: ast.NewIdent(fmt.Sprintf("k%d", k)),
+						},
 					},
 				},
-			},
-			&ast.RangeStmt{
-				Key:   ast.NewIdent("_"),
-				Value: ast.NewIdent("sel"),
-				Tok:   token.DEFINE,
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("w"),
-					Sel: ast.NewIdent("selections"),
-				},
+				Cond: ast.NewIdent("!ok"),
 				Body: &ast.BlockStmt{
 					List: []ast.Stmt{
-						&ast.AssignStmt{
-							Tok: token.DEFINE,
-							Lhs: []ast.Expr{
-								ast.NewIdent("sel"),
-							},
-							Rhs: []ast.Expr{
-								&ast.TypeAssertExpr{
-									X: ast.NewIdent("sel"),
-									Type: &ast.StarExpr{
-										X: &ast.SelectorExpr{
-											X:   ast.NewIdent("query"),
-											Sel: ast.NewIdent("Field"),
-										},
+						&ast.ExprStmt{
+							X: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   &ast.SelectorExpr{
+										X:   ast.NewIdent("w"),
+										Sel: ast.NewIdent("ResponseWriter"),
 									},
+									Sel: ast.NewIdent("WriteHeader"),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("http.StatusInternalServerError"),
 								},
 							},
 						},
-						&ast.IfStmt{
-							Cond: ast.NewIdent(fmt.Sprintf("bytes.Equal([]byte(k%d), sel.Name)", k)),
-							Body: &ast.BlockStmt{
-								List: []ast.Stmt{
-									&ast.AssignStmt{
-										Tok: token.ASSIGN,
-										Lhs: []ast.Expr{
-											ast.NewIdent("has"),
+						&ast.ReturnStmt{
+							Results: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   &ast.SelectorExpr{
+											X:   ast.NewIdent("w"),
+											Sel: ast.NewIdent("ResponseWriter"),
 										},
-										Rhs: []ast.Expr{
-											&ast.BasicLit{
-												Kind:  token.INT,
-												Value: "true",
+										Sel: ast.NewIdent("Write"),
+									},
+									Args: []ast.Expr{
+										&ast.CallExpr{
+											Fun: ast.NewIdent("[]byte"),
+											Args: []ast.Expr{
+												&ast.CallExpr{
+													Fun: &ast.SelectorExpr{
+														X:   ast.NewIdent("fmt"),
+														Sel: ast.NewIdent("Sprintf"),
+													},
+													Args: []ast.Expr{
+														&ast.BasicLit{
+															Kind:  token.STRING,
+															Value: "\"unknown field: %s\"",
+														},
+														&ast.BasicLit{
+															Kind:  token.STRING,
+															Value: fmt.Sprintf("k%d", k),
+														},
+													},
+												},
 											},
 										},
 									},
-									&ast.BranchStmt{
-										Tok: token.BREAK,
-									},
 								},
 							},
-						},
-					},
-				},
-			},
-			excludeStmt,
-			&ast.SwitchStmt{
-				Tag: ast.NewIdent(fmt.Sprintf("k%d", k)),
-				Body: &ast.BlockStmt{
-					List: caseStmts,
-				},
-			},
-			&ast.IfStmt{
-				Cond: &ast.BinaryExpr{
-					X:  ast.NewIdent("has"),
-					Op: token.EQL,
-					Y:  ast.NewIdent("false"),
-				},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.AssignStmt{
-							Tok: token.ASSIGN,
-							Lhs: []ast.Expr{
-								ast.NewIdent("err"),
-							},
-							Rhs: []ast.Expr{
-								&ast.CallExpr{
-									Fun: &ast.SelectorExpr{
-										X:   ast.NewIdent("fmt"),
-										Sel: ast.NewIdent("Errorf"),
-									},
-									Args: []ast.Expr{
-										&ast.BasicLit{
-											Kind:  token.STRING,
-											Value: "\"unknown field: %s\"",
-										},
-										ast.NewIdent(fmt.Sprintf("k%d", k)),
-									},
-								},
-							},
-						},
-						&ast.BranchStmt{
-							Tok: token.BREAK,
 						},
 					},
 				},
@@ -589,23 +511,25 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 	}
 
 	if _, ok := typeExpr.(*ast.MapType); ok {
-		return &ast.RangeStmt{
-			Key:  ast.NewIdent(fmt.Sprintf("k%d", k)),
-			Tok:  token.DEFINE,
-			X:    ast.NewIdent(xName),
-			Body: body,
+		return []ast.Stmt{
+			&ast.RangeStmt{
+				Key:  ast.NewIdent(fmt.Sprintf("k%d", k)),
+				Tok:  token.DEFINE,
+				X:    ast.NewIdent("selected"),
+				Body: body,
+			},
+			excludeStmt,
 		}
 	}
 
 	if t, ok := typeExpr.(*ast.ArrayType); ok {
-		return &ast.RangeStmt{
-			Key:   ast.NewIdent(fmt.Sprintf("k%d", k)),
-			Value: ast.NewIdent(fmt.Sprintf("v%d", k)),
-			Tok:   token.DEFINE,
-			X:     ast.NewIdent(xName),
-			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-					generateWrapResponseWriterWriteRangeStmt(field, index, t.Elt, k+1),
+		return []ast.Stmt{
+			&ast.RangeStmt{
+				Key:   ast.NewIdent(fmt.Sprintf("k%d", k)),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(xName),
+				Body: &ast.BlockStmt{
+					List: generateWrapResponseWriterWriteRangeStmt(field, index, t.Elt, k+1),
 				},
 			},
 		}
@@ -616,6 +540,21 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 
 func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[string]*schema.TypeDefinition) *ast.FuncDecl {
 	typeExpr := generateSliceMapType(field.Type)
+
+	
+	rangeStmts := generateWrapResponseWriterWriteRangeStmt(field, index, typeExpr, 0)
+	var validationStmt, excludeStmt ast.Stmt
+	if len(rangeStmts) == 1 {
+		validationStmt = rangeStmts[0]
+		excludeStmt = &ast.ExprStmt{
+			X: &ast.BasicLit{},
+		}
+	}
+
+	if len(rangeStmts) == 2 {
+		validationStmt = rangeStmts[0]
+		excludeStmt = rangeStmts[1]
+	}
 
 	return &ast.FuncDecl{
 		Name: ast.NewIdent("Write"),
@@ -719,21 +658,115 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 				&ast.ExprStmt{
 					X: &ast.BasicLit{},
 				},
-				&ast.DeclStmt{
-					Decl: &ast.GenDecl{
-						Tok: token.VAR,
-						Specs: []ast.Spec{
-							&ast.ValueSpec{
-								Names: []*ast.Ident{
-									ast.NewIdent("err"),
+				&ast.AssignStmt{
+					Tok: token.DEFINE,
+					Lhs: []ast.Expr{
+						ast.NewIdent("selected"),
+					},
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.BasicLit{
+								Kind:  token.IDENT,
+								Value: "make",
+							},
+							Args: []ast.Expr{
+								&ast.MapType{
+									Key:   &ast.Ident{Name: "string"},
+									Value: &ast.StructType{
+										Fields: &ast.FieldList{},
+									},
 								},
-								Type:   ast.NewIdent("error"),
-								Values: nil,
 							},
 						},
 					},
 				},
-				generateWrapResponseWriterWriteRangeStmt(field, index, typeExpr, 0),
+				&ast.ExprStmt{
+					X: &ast.BasicLit{},
+				},
+				&ast.RangeStmt{
+					Key: ast.NewIdent("_"),
+					Value: ast.NewIdent("selection"),
+					Tok: token.DEFINE,
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("w"),
+						Sel: ast.NewIdent("selections"),
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Tok: token.DEFINE,
+								Lhs: []ast.Expr{
+									ast.NewIdent("sel"),
+								},
+								Rhs: []ast.Expr{
+									&ast.TypeAssertExpr{
+										X: ast.NewIdent("selection"),
+										Type: &ast.StarExpr{
+											X: &ast.SelectorExpr{
+												X:   ast.NewIdent("query"),
+												Sel: ast.NewIdent("Field"),
+											},
+										},
+									},
+								},
+							},
+							&ast.AssignStmt{
+								Tok: token.ASSIGN,
+								Lhs: []ast.Expr{
+									&ast.IndexExpr{
+										X: ast.NewIdent("selected"),
+										Index: &ast.CallExpr{
+											Fun: &ast.BasicLit{
+												Kind:  token.IDENT,
+												Value: "string",
+											},
+											Args: []ast.Expr{
+												&ast.SelectorExpr{
+													X:   ast.NewIdent("sel"),
+													Sel: ast.NewIdent("Name"),
+												},
+											},
+										},
+									},
+								},
+								Rhs: []ast.Expr{
+									&ast.CompositeLit{
+										Type: &ast.StructType{
+											Fields: &ast.FieldList{},
+										},
+										Elts: []ast.Expr{},
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.ExprStmt{
+					X: &ast.BasicLit{},
+				},
+
+				validationStmt,
+				excludeStmt,
+
+				&ast.AssignStmt{
+					Tok: token.DEFINE,
+					Lhs: []ast.Expr{
+						ast.NewIdent("respByte"),
+						ast.NewIdent("err"),
+					},
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("Marshal"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("resp"),
+							},
+						},
+					},
+				},
+
 				&ast.IfStmt{
 					Cond: &ast.BinaryExpr{
 						X:  ast.NewIdent("err"),
@@ -775,24 +808,6 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 						},
 					},
 				},
-				&ast.AssignStmt{
-					Tok: token.ASSIGN,
-					Lhs: []ast.Expr{
-						ast.NewIdent("b"),
-						ast.NewIdent("err"),
-					},
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("json"),
-								Sel: ast.NewIdent("Marshal"),
-							},
-							Args: []ast.Expr{
-								ast.NewIdent("resp"),
-							},
-						},
-					},
-				},
 				&ast.ReturnStmt{
 					Results: []ast.Expr{
 						&ast.CallExpr{
@@ -804,7 +819,7 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 								Sel: ast.NewIdent("Write"),
 							},
 							Args: []ast.Expr{
-								ast.NewIdent("b"),
+								ast.NewIdent("respByte"),
 							},
 						},
 					},

@@ -76,20 +76,18 @@ func ConvRequestBodyFromVariables(variables json.RawMessage, args []*query.Argum
 		return nil, nil
 	}
 
-	mp := make(map[string]any)
-	ret := make(map[string]any)
+	mp := make(map[string]json.RawMessage)
 
 	if err := json.Unmarshal(variables, &mp); err != nil {
 		return nil, err
 	}
 
 	for i, arg := range args {
-		for k, v := range mp {
-			if string(arg.Name) == k {
-				ret[fmt.Sprintf("arg%d", i)] = v
-			}
+		if _, ok := mp[string(arg.Name)]; ok {
+			mp[fmt.Sprintf("arg%d", i)] = mp[string(arg.Name)]
+			delete(mp, string(arg.Name))
 		}
 	}
 
-	return json.Marshal(ret)
+	return json.Marshal(mp)
 }
