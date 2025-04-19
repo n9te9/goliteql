@@ -25,3 +25,8 @@ func ExcludeSelectFields(resp map[string]json.RawMessage, selectSets []query.Sel
 
 	return resp
 }
+
+type GraphQLResponse struct {
+	Data   any `json:"data"`
+	Errors []error `json:"errors,omitempty"`
+}
