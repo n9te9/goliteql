@@ -383,7 +383,7 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 	excludeStmt := &ast.AssignStmt{
 		Tok: token.ASSIGN,
 		Lhs: []ast.Expr{
-			ast.NewIdent("resp"),
+			ast.NewIdent("resp[\"data\"]"),
 		},
 		Rhs: []ast.Expr{
 			&ast.CallExpr{
@@ -392,7 +392,7 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 					Sel: ast.NewIdent("ExcludeSelectFields"),
 				},
 				Args: []ast.Expr{
-					ast.NewIdent("resp"),
+					ast.NewIdent("resp[\"data\"]"),
 					&ast.SelectorExpr{
 						X:   ast.NewIdent("w"),
 						Sel: ast.NewIdent("selections"),
@@ -402,8 +402,8 @@ func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, ind
 		},
 	}
 
-	xName := "resp"
-	itr := ""
+	xName := "resp[\"data\"]"
+	itr := "[\"data\"]"
 	if k > 0 {
 		xName = fmt.Sprintf("v%d", k-1)
 		for i := 0; i < k; i++ {
@@ -617,9 +617,14 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 					},
 					Tok: token.DEFINE,
 					Rhs: []ast.Expr{
-						&ast.CompositeLit{
-							Type: typeExpr,
-							Elts: nil,
+						&ast.CallExpr{
+							Fun: ast.NewIdent("make"),
+							Args: []ast.Expr{
+								&ast.MapType{
+									Key:  &ast.Ident{Name: "string"},
+									Value: typeExpr,
+								},
+							},
 						},
 					},
 				},
@@ -658,6 +663,41 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 				&ast.ExprStmt{
 					X: &ast.BasicLit{},
 				},
+				&ast.IfStmt{
+					Init: &ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent("err"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X: ast.NewIdent("executor"),
+									Sel: ast.NewIdent("MatchGraphQLResponse"),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("resp"),
+								},
+							},
+						},
+					},
+					Cond: &ast.BinaryExpr{
+						X:  ast.NewIdent("err"),
+						Op: token.NEQ,
+						Y:  ast.NewIdent("nil"),
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.ReturnStmt{
+								Results: []ast.Expr{
+									ast.NewIdent("0"),
+									ast.NewIdent("err"),
+								},
+							},
+						},
+					},
+				},
+
 				&ast.AssignStmt{
 					Tok: token.DEFINE,
 					Lhs: []ast.Expr{
