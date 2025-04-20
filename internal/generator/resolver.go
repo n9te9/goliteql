@@ -249,7 +249,7 @@ func generateWrapResponseWriter(op *schema.OperationDefinition, index map[string
 	for _, field := range op.Fields {
 		res = append(res, generateWrapResponseWriterStruct(field))
 		res = append(res, generateWrapResponseWriterFunc(field))
-		res = append(res, generateWrapResponseWriterWrite(field, index))
+		res = append(res, generateWrapResponseWriterWrite(field))
 	}
 
 	return res
@@ -360,183 +360,6 @@ func generateWrapResponseWriterFunc(field *schema.FieldDefinition) *ast.FuncDecl
 			},
 		},
 	}
-}
-
-func generateSliceMapType(typ *schema.FieldType) ast.Expr {
-	if !typ.IsList {
-		return &ast.MapType{
-			Key:   &ast.Ident{Name: "string"},
-			Value: &ast.Ident{Name: "json.RawMessage"},
-		}
-	}
-
-	return &ast.ArrayType{
-		Elt: generateSliceMapType(typ.ListType),
-	}
-}
-
-func generateWrapResponseWriterWriteRangeStmt(field *schema.FieldDefinition, index map[string]*schema.TypeDefinition, typeExpr ast.Expr, k int) []ast.Stmt {
-	ft := field.Type
-	for ft.IsList {
-		ft = ft.ListType
-	}
-
-	excludeStmt := &ast.AssignStmt{
-		Tok: token.ASSIGN,
-		Lhs: []ast.Expr{
-			ast.NewIdent("resp[\"data\"]"),
-		},
-		Rhs: []ast.Expr{
-			&ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent("executor"),
-					Sel: ast.NewIdent("ExcludeSelectFields"),
-				},
-				Args: []ast.Expr{
-					ast.NewIdent("resp[\"data\"]"),
-					&ast.SelectorExpr{
-						X:   ast.NewIdent("w"),
-						Sel: ast.NewIdent("selections"),
-					},
-				},
-			},
-		},
-	}
-
-	xName := "resp[\"data\"]"
-	itr := "[\"data\"]"
-	if k > 0 {
-		xName = fmt.Sprintf("v%d", k-1)
-		for i := 0; i < k; i++ {
-			itr += fmt.Sprintf("[k%d]", i)
-		}
-
-		for i := 0; i < k; i++ {
-			excludeStmt = &ast.AssignStmt{
-				Tok: token.ASSIGN,
-				Lhs: []ast.Expr{
-					ast.NewIdent(fmt.Sprintf("resp%s", itr)),
-				},
-				Rhs: []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("executor"),
-							Sel: ast.NewIdent("ExcludeSelectFields"),
-						},
-						Args: []ast.Expr{
-							ast.NewIdent(fmt.Sprintf("resp%s", itr)),
-							&ast.SelectorExpr{
-								X:   ast.NewIdent("w"),
-								Sel: ast.NewIdent("selections"),
-							},
-						},
-					},
-				},
-			}
-		}
-	}
-
-	body := &ast.BlockStmt{
-		List: []ast.Stmt{
-			&ast.IfStmt{
-				Init: &ast.AssignStmt{
-					Tok: token.DEFINE,
-					Lhs: []ast.Expr{
-						ast.NewIdent("_"),
-						ast.NewIdent("ok"),
-					},
-					Rhs: []ast.Expr{
-						&ast.IndexExpr{
-							X:     ast.NewIdent(fmt.Sprintf("resp%s", itr)),
-							Index: ast.NewIdent(fmt.Sprintf("k%d", k)),
-						},
-					},
-				},
-				Cond: ast.NewIdent("!ok"),
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.ExprStmt{
-							X: &ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X: &ast.SelectorExpr{
-										X:   ast.NewIdent("w"),
-										Sel: ast.NewIdent("ResponseWriter"),
-									},
-									Sel: ast.NewIdent("WriteHeader"),
-								},
-								Args: []ast.Expr{
-									ast.NewIdent("http.StatusInternalServerError"),
-								},
-							},
-						},
-						&ast.ReturnStmt{
-							Results: []ast.Expr{
-								&ast.CallExpr{
-									Fun: &ast.SelectorExpr{
-										X: &ast.SelectorExpr{
-											X:   ast.NewIdent("w"),
-											Sel: ast.NewIdent("ResponseWriter"),
-										},
-										Sel: ast.NewIdent("Write"),
-									},
-									Args: []ast.Expr{
-										&ast.CallExpr{
-											Fun: ast.NewIdent("[]byte"),
-											Args: []ast.Expr{
-												&ast.CallExpr{
-													Fun: &ast.SelectorExpr{
-														X:   ast.NewIdent("fmt"),
-														Sel: ast.NewIdent("Sprintf"),
-													},
-													Args: []ast.Expr{
-														&ast.BasicLit{
-															Kind:  token.STRING,
-															Value: "\"unknown field: %s\"",
-														},
-														&ast.BasicLit{
-															Kind:  token.STRING,
-															Value: fmt.Sprintf("k%d", k),
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	if _, ok := typeExpr.(*ast.MapType); ok {
-		return []ast.Stmt{
-			&ast.RangeStmt{
-				Key:  ast.NewIdent(fmt.Sprintf("k%d", k)),
-				Tok:  token.DEFINE,
-				X:    ast.NewIdent("selected"),
-				Body: body,
-			},
-			excludeStmt,
-		}
-	}
-
-	if t, ok := typeExpr.(*ast.ArrayType); ok {
-		return []ast.Stmt{
-			&ast.RangeStmt{
-				Key: ast.NewIdent(fmt.Sprintf("k%d", k)),
-				Tok: token.DEFINE,
-				X:   ast.NewIdent(xName),
-				Body: &ast.BlockStmt{
-					List: generateWrapResponseWriterWriteRangeStmt(field, index, t.Elt, k+1),
-				},
-			},
-		}
-	}
-
-	panic("unknown type")
 }
 
 func extractWillDeclTypeDefinition(typeIndex map[string]*schema.TypeDefinition, fieldType *schema.FieldType) *schema.TypeDefinition {
@@ -775,13 +598,20 @@ func generateWrapResponseWriterReponseFieldWalkerValidationStmts(fieldType *sche
 			X:   ast.NewIdent(validationTargetName),
 			Sel: ast.NewIdent(fieldName),
 		}
-		if !field.Type.Nullable {
+		if !field.Type.Nullable && !field.Type.IsList {
 			argExpr = &ast.UnaryExpr{
 				Op: token.AND,
 				X: &ast.SelectorExpr{
 					X:   ast.NewIdent(validationTargetName),
 					Sel: ast.NewIdent(fieldName),
 				},
+			}
+		}
+
+		if field.Type.IsList {
+			argExpr = &ast.SelectorExpr{
+				X:   ast.NewIdent(validationTargetName),
+				Sel: ast.NewIdent(fieldName),
 			}
 		}
 
@@ -873,11 +703,15 @@ func generateWrapResponseWriterResponseFieldForSlice(responeStructName string, f
 		}
 	}
 
-	return &ast.StarExpr{
-		X: &ast.Ident{
-			Name: responeStructName,
-		},
+	if fieldType.Nullable {
+		return &ast.StarExpr{
+			X: &ast.Ident{
+				Name: responeStructName,
+			},
+		}
 	}
+
+	return ast.NewIdent(responeStructName)
 }
 
 func getFieldSliceNestLevel(fieldType *schema.FieldType) int {
@@ -956,10 +790,16 @@ func generateWrapResponseWriterResponseFieldArgType(structName string, fieldType
 		}
 	}
 
-	return &ast.StarExpr{
-		X: &ast.Ident{
-			Name: structName,
-		},
+	if fieldType.Nullable {
+		return &ast.StarExpr{
+			X: &ast.Ident{
+				Name: structName,
+			},
+		}
+	}
+
+	return &ast.Ident{
+		Name: structName,
 	}
 }
 
@@ -983,7 +823,7 @@ func generateWrapResponseWriterResponseFieldWalker(operationName string, field *
 	}
 
 	if field.Type.IsList {
-		resultType = generateResponseStructArrayType(getFieldSliceNestLevel(field.Type) - 1, responseStructName, "")
+		resultType = generateWrapResponseWriterResponseFieldArgType(responseStructName, field.Type)
 	}
 
 	return &ast.FuncDecl{
@@ -1035,6 +875,7 @@ func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, fiel
 	operationName := rootFieldName
 	structPrefix := operationName + string(typeDefinition.Name)
 
+	ret := make([]ast.Decl, 0)
 	for _, field := range typeDefinition.Fields {
 		graphqlType := GraphQLType(field.Type.Name)
 
@@ -1050,12 +891,15 @@ func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, fiel
 				ft = ft.ListType
 			}
 			td := index[string(ft.Name)]
-	
+
+			typeExpr = generateWrapResponseWriterResponseFieldForSlice(rootFieldName + string(td.Name) + "Response", field.Type)
+
 			graphqlType = GraphQLType(td.TypeName())
 			if graphqlType == "" {
 				panic("unknown type")
 			}
-			return generateResponseStructDeclsForWrapResponseWriter(rootFieldName, field, td, index)
+
+			ret = append(ret, generateResponseStructDeclsForWrapResponseWriter(rootFieldName, field, td, index)...)
 		}
 
 		if !graphqlType.IsPrimitive() && !field.Type.IsList {
@@ -1065,15 +909,16 @@ func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, fiel
 			}
 
 			typeExpr = &ast.StarExpr{
-				X: ast.NewIdent(operationName + graphqlType.golangType() + "Response"),
+				X: ast.NewIdent(rootFieldName + graphqlType.golangType() + "Response"),
 			}
 		}
 
 		fieldName := FieldName(targetField.Name)
 		tag := fmt.Sprintf("`json:\"%s,omitempty\"`", string(targetField.Name))
-		if !targetField.Type.Nullable {
-			tag = fmt.Sprintf("`json:\"%s\"`", string(targetField.Name))
-		}
+		// TODO: implment validation
+		// if !targetField.Type.Nullable {
+		// 	tag = fmt.Sprintf("`json:\"%s\"`", string(targetField.Name))
+		// }
 		fields = append(fields, &ast.Field{
 			Tag: &ast.BasicLit{
 				Kind:  token.STRING,
@@ -1084,7 +929,6 @@ func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, fiel
 		})
 	}
 
-	ret := make([]ast.Decl, 0)
 
 	structDecl := &ast.GenDecl{
 		Tok: token.TYPE,
@@ -1119,7 +963,7 @@ func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, fiel
 	return ret
 }
 
-func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[string]*schema.TypeDefinition) *ast.FuncDecl {
+func generateWrapResponseWriterWrite(field *schema.FieldDefinition) *ast.FuncDecl {
 	graphqlType := GraphQLType(field.Type.Name)
 
 	if field.Type.IsList {
@@ -1191,12 +1035,20 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 		graphqlType = GraphQLType(toUpperCase(string(graphqlType.golangType())))
 	}
 
-	var typeExpr ast.Expr = &ast.StarExpr{
-		X: &ast.SelectorExpr{
-			X:  ast.NewIdent("model"),
-			Sel: &ast.Ident{Name: graphqlType.golangType()},
-		},
+	var typeExpr ast.Expr = &ast.SelectorExpr{
+		X:  ast.NewIdent("model"),
+		Sel: &ast.Ident{Name: graphqlType.golangType()},
 	}
+
+	if field.Type.Nullable {
+		typeExpr = &ast.StarExpr{
+			X: &ast.SelectorExpr{
+				X:  ast.NewIdent("model"),
+				Sel: &ast.Ident{Name: graphqlType.golangType()},
+			},
+		}
+	}
+
 
 	if field.Type.IsList {
 		ft := field.Type
@@ -1210,7 +1062,7 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition, index map[st
 		if !graphqlType.IsPrimitive() {
 			prefix = "model"
 		}
-		typeExpr = generateResponseStructArrayType(nestCount - 1, graphqlType.golangType(), prefix)
+		typeExpr = generateWrapResponseWriterResponseFieldForSlice(prefix + "." + graphqlType.golangType(), field.Type)
 	}
 
 	return &ast.FuncDecl{
