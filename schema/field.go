@@ -9,6 +9,16 @@ type FieldDefinition struct {
 	Location *Location
 }
 
+func (f *FieldDefinition) IsPremitive() bool {
+	typeName := string(f.Type.Name)
+
+	if typeName == "ID" || typeName == "String" || typeName == "Int" || typeName == "Float" || typeName == "Boolean" {
+		return true
+	}
+
+	return false
+}
+
 type FieldDefinitions []*FieldDefinition
 
 func (f FieldDefinitions) Last(name string) *FieldDefinition {

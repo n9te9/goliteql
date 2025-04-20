@@ -207,14 +207,6 @@ func (g *Generator) generateResolver() error {
 				},
 			},
 			&ast.ImportSpec{
-				Doc: &ast.CommentGroup{
-					List: []*ast.Comment{
-						{
-							Text: `// remove _, when use model package`,
-						},
-					},
-				},
-				Name: ast.NewIdent("_"),
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
 					Value: fmt.Sprintf(`"%s"`, g.modelPackagePath),
@@ -289,6 +281,10 @@ func (g *Generator) generateResolver() error {
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetQuery())...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetMutation())...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetSubscription())...)
+
 	if err := format.Node(g.rootResolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)
 	}
@@ -334,4 +330,24 @@ func (g GraphQLType) golangType() string {
 
 func toUpperCase(s string) string {
 	return string(s[0]-32) + s[1:]
+}
+
+func isLowerCase(s string) bool {
+	return s[0] >= 'a' && s[0] <= 'z'
+}
+
+type FieldName string
+
+func (f FieldName) ExportedGolangFieldName() string {
+	// check uppercase
+	if f[0] >= 'A' && f[0] <= 'Z' {
+		return string(f)
+	}
+
+	// check lowercase
+	if f[0] >= 'a' && f[0] <= 'z' {
+		return string(f[0]-32) + string(f[1:])
+	}
+
+	panic(fmt.Sprintf("invalid field name: %s", f))
 }
