@@ -1342,7 +1342,7 @@ func generateWrapResponseWriterWrite(field *schema.FieldDefinition) *ast.FuncDec
 								Sel: ast.NewIdent("Marshal"),
 							},
 							Args: []ast.Expr{
-								ast.NewIdent("selected"),
+								ast.NewIdent("selectedResp"),
 							},
 						},
 					},
