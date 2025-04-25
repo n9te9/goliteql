@@ -22,15 +22,15 @@ type Generator struct {
 	modelPackagePath    string
 	resolverPackagePath string
 
-	modelOutput    io.Writer
+	modelOutput         io.Writer
 	queryResolverOutput io.Writer
-	queryResolverAST         *ast.File
+	queryResolverAST    *ast.File
 
 	mutationResolverOutput io.Writer
-	mutationResolverAST         *ast.File
+	mutationResolverAST    *ast.File
 
 	rootResolverOutput io.Writer
-	resolverAST         *ast.File
+	resolverAST        *ast.File
 }
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
@@ -93,6 +93,18 @@ func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, muta
 					Value: `"net/http"`,
 				},
 			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf(`"%s"`, modelPackagePath),
+				},
+			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"github.com/n9te9/goliteql/executor"`,
+				},
+			},
 		},
 	}
 
@@ -119,12 +131,12 @@ func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, muta
 				importDecl,
 			},
 		},
-		modelOutput:         modelOutput,
-		modelPackagePath:    modelPackagePath,
-		queryResolverOutput: queryResolverOutput,
+		modelOutput:            modelOutput,
+		modelPackagePath:       modelPackagePath,
+		queryResolverOutput:    queryResolverOutput,
 		mutationResolverOutput: mutationResolverOutput,
 		rootResolverOutput:     rootResolverOutput,
-		resolverPackagePath: resolverPackagePath,
+		resolverPackagePath:    resolverPackagePath,
 	}
 
 	return g, nil
