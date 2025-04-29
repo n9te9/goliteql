@@ -346,6 +346,15 @@ func generateWrapResponseWriterStruct(field *schema.FieldDefinition) *ast.GenDec
 									},
 								},
 							},
+							{
+								Names: []*ast.Ident{
+									ast.NewIdent("variables"),
+								},
+								Type: &ast.SelectorExpr{
+									X: ast.NewIdent("json"),
+									Sel: ast.NewIdent("RawMessage"),
+								},
+							},
 						},
 					},
 				},
@@ -375,6 +384,15 @@ func generateWrapResponseWriterFunc(field *schema.FieldDefinition) *ast.FuncDecl
 								X:   ast.NewIdent("query"),
 								Sel: ast.NewIdent("Selection"),
 							},
+						},
+					},
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("variables"),
+						},
+						Type: &ast.SelectorExpr{
+							X: ast.NewIdent("json"),
+							Sel: ast.NewIdent("RawMessage"),
 						},
 					},
 				},
@@ -407,6 +425,10 @@ func generateWrapResponseWriterFunc(field *schema.FieldDefinition) *ast.FuncDecl
 									&ast.KeyValueExpr{
 										Key:   ast.NewIdent("selections"),
 										Value: ast.NewIdent("selections"),
+									},
+									&ast.KeyValueExpr{
+										Key:   ast.NewIdent("variables"),
+										Value: ast.NewIdent("variables"),
 									},
 								},
 							},
@@ -769,24 +791,6 @@ func generateWrapResponseWriterResponseFieldWalkerStmts(field *schema.FieldDefin
 	}
 }
 
-func generateWrapResponseWriterResponseFieldForSlice(responeStructName string, fieldType *schema.FieldType) ast.Expr {
-	if fieldType.IsList {
-		return &ast.ArrayType{
-			Elt: generateWrapResponseWriterResponseFieldForSlice(responeStructName, fieldType.ListType),
-		}
-	}
-
-	if fieldType.Nullable {
-		return &ast.StarExpr{
-			X: &ast.Ident{
-				Name: responeStructName,
-			},
-		}
-	}
-
-	return ast.NewIdent(responeStructName)
-}
-
 func getFieldSliceNestLevel(fieldType *schema.FieldType) int {
 	nestLevel := 0
 
@@ -956,7 +960,6 @@ func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, fiel
 			td := index[string(ft.Name)]
 
 			typeExpr = generateWrapResponseWriterResponseFieldArgType(rootFieldName+string(td.Name)+"Response", field.Type)
-			// typeExpr = generateWrapResponseWriterResponseFieldForSlice(rootFieldName+string(td.Name)+"Response", field.Type)
 
 			graphqlType = GraphQLType(td.TypeName())
 			if graphqlType == "" {
@@ -1077,56 +1080,6 @@ func generateWrapResponseWriterResponseTypeExprBasedTypeName(basedTypeName strin
 
 	return &ast.Ident{
 		Name: basedTypeName,
-	}
-}
-
-func generateWrapResponseWriterResponseTypeExpr(fieldType *schema.FieldType) ast.Expr {
-	graphqlType := GraphQLType(fieldType.Name)
-
-	if fieldType.IsList {
-		return &ast.ArrayType{
-			Elt: generateWrapResponseWriterResponseTypeExpr(fieldType.ListType),
-		}
-	}
-
-	if graphqlType == "" {
-		return &ast.Ident{
-			Name: "interface{}",
-		}
-	}
-
-	prefix := ""
-	if !graphqlType.IsPrimitive() {
-		prefix = "model."
-	}
-
-	return &ast.Ident{
-		Name: prefix + string(graphqlType.golangType()),
-	}
-}
-
-func generateWrapResponseWriterResponseTypeStarExpr(fieldType *schema.FieldType) ast.Expr {
-	graphqlType := GraphQLType(fieldType.Name)
-
-	if fieldType.IsList {
-		return &ast.ArrayType{
-			Elt: generateWrapResponseWriterResponseTypeExpr(fieldType.ListType),
-		}
-	}
-
-	if graphqlType == "" {
-		return &ast.Ident{
-			Name: "interface{}",
-		}
-	}
-
-	prefix := ""
-	if !graphqlType.IsPrimitive() {
-		prefix = "model."
-	}
-
-	return &ast.StarExpr{
-		X: &ast.Ident{Name: prefix + string(graphqlType.golangType())},
 	}
 }
 
@@ -1536,6 +1489,7 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 							X:   ast.NewIdent("node"),
 							Sel: ast.NewIdent("SelectSets"),
 						},
+						ast.NewIdent("variables"),
 					},
 				},
 			},

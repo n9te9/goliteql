@@ -1,12 +1,14 @@
 package executor
 
 import (
+
 	"github.com/n9te9/goliteql/query"
 )
 
 type Node struct {
 	Name       []byte
 	SelectSets []query.Selection
+	Directives []*query.Directive
 	Children   []*Node
 }
 
@@ -17,6 +19,7 @@ func PlanExecution(selections []query.Selection) *Node {
 			node := &Node{
 				Name:       s.Name,
 				SelectSets: s.Selections,
+				Directives: s.Directives,
 				Children:   make([]*Node, 0),
 			}
 
@@ -40,6 +43,7 @@ func digExecution(selectSet query.Selection) *Node {
 		node := &Node{
 			Name:       s.Name,
 			SelectSets: s.Selections,
+			Directives: s.Directives,
 		}
 		for _, child := range s.Selections {
 			switch c := child.(type) {
