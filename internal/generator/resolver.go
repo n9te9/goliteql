@@ -351,7 +351,7 @@ func generateWrapResponseWriterStruct(field *schema.FieldDefinition) *ast.GenDec
 									ast.NewIdent("variables"),
 								},
 								Type: &ast.SelectorExpr{
-									X: ast.NewIdent("json"),
+									X:   ast.NewIdent("json"),
 									Sel: ast.NewIdent("RawMessage"),
 								},
 							},
@@ -391,7 +391,7 @@ func generateWrapResponseWriterFunc(field *schema.FieldDefinition) *ast.FuncDecl
 							ast.NewIdent("variables"),
 						},
 						Type: &ast.SelectorExpr{
-							X: ast.NewIdent("json"),
+							X:   ast.NewIdent("json"),
 							Sel: ast.NewIdent("RawMessage"),
 						},
 					},
@@ -590,6 +590,71 @@ func generateWrapResponseWriterNestedTypeInitializer(responseStructName string, 
 	return generateWrapResponseWriterNestedTypeInitializerForFieldType(field.Type.ListType, responseStructName, nestCount-1, 0)
 }
 
+func generateApplySkipDirective() ast.Stmt {
+	return &ast.IfStmt{
+		Cond: &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("executor"),
+				Sel: ast.NewIdent("IsSkipped"),
+			},
+			Args: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("sel"),
+					Sel: ast.NewIdent("Directives"),
+				},
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("w"),
+					Sel: ast.NewIdent("variables"),
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ExprStmt{
+					X: &ast.BasicLit{
+						Kind:  token.CONTINUE,
+						Value: "continue",
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateApplyIncludeDirective() ast.Stmt {
+	return &ast.IfStmt{
+		Cond: &ast.UnaryExpr{
+			Op: token.NOT,
+			X: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("executor"),
+					Sel: ast.NewIdent("IsIncluded"),
+				},
+				Args: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("sel"),
+						Sel: ast.NewIdent("Directives"),
+					},
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("w"),
+						Sel: ast.NewIdent("variables"),
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ExprStmt{
+					X: &ast.BasicLit{
+						Kind:  token.CONTINUE,
+						Value: "continue",
+					},
+				},
+			},
+		},
+	}
+}
+
 func generateWrapResponseWriterReponseFieldWalkerValidationStmts(fieldType *schema.FieldType, typeDefinition *schema.TypeDefinition, nestCount int) []ast.Stmt {
 	xName := "baseResp"
 
@@ -663,6 +728,8 @@ func generateWrapResponseWriterReponseFieldWalkerValidationStmts(fieldType *sche
 				},
 				Body: &ast.BlockStmt{
 					List: []ast.Stmt{
+						generateApplySkipDirective(),
+						generateApplyIncludeDirective(),
 						&ast.AssignStmt{
 							Tok: token.ASSIGN,
 							Lhs: []ast.Expr{
@@ -726,6 +793,8 @@ func generateWrapResponseWriterReponseFieldWalkerValidationStmts(fieldType *sche
 			},
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{
+					generateApplySkipDirective(),
+					generateApplyIncludeDirective(),
 					&ast.AssignStmt{
 						Tok: token.ASSIGN,
 						Lhs: []ast.Expr{
