@@ -262,19 +262,19 @@ func (g *Generator) generateResolver() error {
 	if q := g.Schema.GetQuery(); q != nil {
 		queryFields = q.Fields
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryExecutor(g.Schema.GetQuery()))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetQuery(), g.Schema.Indexes.TypeIndex)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetQuery())...)
 	}
 
 	if m := g.Schema.GetMutation(); m != nil {
 		mutationFields = m.Fields
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateMutationExecutor(g.Schema.GetMutation()))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetMutation(), g.Schema.Indexes.TypeIndex)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetMutation())...)
 	}
 
 	if s := g.Schema.GetSubscription(); s != nil {
 		fields = append(fields, s.Fields...)
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateSubscriptionExecutor(g.Schema.GetSubscription()))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetSubscription(), g.Schema.Indexes.TypeIndex)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetSubscription())...)
 	}
 
 	if g.Schema.GetQuery() != nil {

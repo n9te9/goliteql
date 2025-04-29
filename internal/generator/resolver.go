@@ -309,7 +309,7 @@ func generateSubscriptionExecutor(subscription *schema.OperationDefinition) *ast
 	}
 }
 
-func generateWrapResponseWriter(op *schema.OperationDefinition, index map[string]*schema.TypeDefinition) []ast.Decl {
+func generateWrapResponseWriter(op *schema.OperationDefinition) []ast.Decl {
 	res := make([]ast.Decl, 0, len(op.Fields))
 
 	for _, field := range op.Fields {
@@ -802,7 +802,7 @@ func getFieldSliceNestLevel(fieldType *schema.FieldType) int {
 	return nestLevel
 }
 
-func generateWrapResponseWriterResponseInitializeStmt(responseStructName string, field *schema.FieldDefinition, typeDefinition *schema.TypeDefinition) ast.Stmt {
+func generateWrapResponseWriterResponseInitializeStmt(responseStructName string, field *schema.FieldDefinition) ast.Stmt {
 	if field.Type.IsList {
 		return &ast.AssignStmt{
 			Tok: token.DEFINE,
@@ -844,7 +844,7 @@ func generateWrapResponseWriterResponseInitializeStmt(responseStructName string,
 
 func generateWrapResponseWriterResponseFieldWalkerBody(responseStructName string, field *schema.FieldDefinition, typeDefinition *schema.TypeDefinition) *ast.BlockStmt {
 	stmts := []ast.Stmt{
-		generateWrapResponseWriterResponseInitializeStmt(responseStructName, field, typeDefinition),
+		generateWrapResponseWriterResponseInitializeStmt(responseStructName, field),
 		&ast.ExprStmt{X: &ast.BasicLit{}},
 	}
 	stmts = append(stmts, generateWrapResponseWriterNestedTypeInitializer(responseStructName, field)...)
@@ -2263,12 +2263,6 @@ func generateResolverImplementation(fields schema.FieldDefinitions) []ast.Decl {
 	}
 
 	for _, f := range fields {
-		argsStr := make([]string, 0, len(f.Arguments))
-		for _, arg := range f.Arguments {
-			s := recv(arg.Type)
-			argsStr = append(argsStr, s)
-		}
-
 		returnsStr := recv(f.Type)
 
 		if f.Type != nil {
