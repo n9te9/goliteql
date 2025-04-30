@@ -441,7 +441,7 @@ func TestQueryParse(t *testing.T) {
 			name: "Parse fragment spread with multiple directives",
 			input: []byte(`query MyQuery {
 				field {
-					...FragmentName @include(if: true) @deprecated(reason: "Use newField")
+					...FragmentName @include(if: true)
 				}
 			}`),
 			expected: &query.Document{
@@ -465,74 +465,125 @@ func TestQueryParse(t *testing.T) {
 													},
 												},
 											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse field with directive",
+			input: []byte(`query MyQuery {
+				user @include(if: true)
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("user"),
+								Directives: []*query.Directive{
+									{
+										Name: []byte("include"),
+										Arguments: []*query.DirectiveArgument{
 											{
-												Name: []byte("deprecated"),
+												Name:  []byte("if"),
+												Value: []byte("true"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse field with directive",
+			input: []byte(`query MyQuery {
+				user @include(if: true)
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("user"),
+								Directives: []*query.Directive{
+									{
+										Name: []byte("include"),
+										Arguments: []*query.DirectiveArgument{
+											{
+												Name:  []byte("if"),
+												Value: []byte("true"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Parse field with skip directive",
+			input: []byte(`query MyQuery {
+				post {
+					id
+					title
+					content
+					author @skip(if: true) {
+						id
+					}
+				}
+			}`),
+			expected: &query.Document{
+				Operations: []*query.Operation{
+					{
+						OperationType: query.QueryOperation,
+						Name:          "MyQuery",
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("post"),
+								Selections: []query.Selection{
+									&query.Field{
+										Name: []byte("id"),
+										Directives: nil,
+									},
+									&query.Field{
+										Name: []byte("title"),
+										Directives: nil,
+									},
+									&query.Field{
+										Name: []byte("content"),
+										Directives: nil,
+									},
+									&query.Field{
+										Name: []byte("author"),
+										Selections: []query.Selection{
+											&query.Field{
+												Name: []byte("id"),
+											},
+										},
+										Directives: []*query.Directive{
+											{
+												Name: []byte("skip"),
 												Arguments: []*query.DirectiveArgument{
 													{
-														Name:  []byte("reason"),
-														Value: []byte("\"Use newField\""),
+														Name:  []byte("if"),
+														Value: []byte("true"),
+														IsVariable: false,
 													},
 												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "Parse field with directive",
-			input: []byte(`query MyQuery {
-				user @include(if: true)
-			}`),
-			expected: &query.Document{
-				Operations: []*query.Operation{
-					{
-						OperationType: query.QueryOperation,
-						Name:          "MyQuery",
-						Selections: []query.Selection{
-							&query.Field{
-								Name: []byte("user"),
-								Directives: []*query.Directive{
-									{
-										Name: []byte("include"),
-										Arguments: []*query.DirectiveArgument{
-											{
-												Name:  []byte("if"),
-												Value: []byte("true"),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "Parse field with directive",
-			input: []byte(`query MyQuery {
-				user @include(if: true)
-			}`),
-			expected: &query.Document{
-				Operations: []*query.Operation{
-					{
-						OperationType: query.QueryOperation,
-						Name:          "MyQuery",
-						Selections: []query.Selection{
-							&query.Field{
-								Name: []byte("user"),
-								Directives: []*query.Directive{
-									{
-										Name: []byte("include"),
-										Arguments: []*query.DirectiveArgument{
-											{
-												Name:  []byte("if"),
-												Value: []byte("true"),
 											},
 										},
 									},

@@ -339,6 +339,10 @@ func (p *Parser) parseFragment(tokens Tokens, cur int) (Selection, int, error) {
 		return p.parseInlineFragment(tokens, cur)
 	}
 
+	if tokens[cur].Type == CurlyOpen {
+		cur++
+	}
+
 	return p.parseFragmentSpread(tokens, cur)
 }
 
@@ -536,6 +540,16 @@ func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {
 		field.Arguments = arguments
 	}
 
+	for tokens[cur].Type == At {
+		cur++
+		directive, newCur, err := p.parseDirective(tokens, cur)
+		if err != nil {
+			return nil, newCur, err
+		}
+		cur = newCur
+		field.Directives = append(field.Directives, directive)
+	}
+
 	if tokens[cur].Type == CurlyOpen {
 		cur++
 
@@ -545,16 +559,6 @@ func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {
 		}
 		cur = newCur + 1
 		field.Selections = selections
-	}
-
-	for tokens[cur].Type == At {
-		cur++
-		directive, newCur, err := p.parseDirective(tokens, cur)
-		if err != nil {
-			return nil, newCur, err
-		}
-		cur = newCur
-		field.Directives = append(field.Directives, directive)
 	}
 
 	return field, cur, nil
