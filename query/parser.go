@@ -523,7 +523,7 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 
 func (p *Parser) parseField(tokens Tokens, cur int) (*Field, int, error) {
 	if tokens[cur].Type != Name {
-		return nil, cur, fmt.Errorf("expected field name but got %s", tokens[cur].Value)
+		return nil, cur, fmt.Errorf("expected field but got %s at %d row, %d col", tokens[cur].Value, tokens[cur].Line, tokens[cur].Column)
 	}
 
 	field := &Field{
