@@ -19,6 +19,7 @@ func TestGenerator_Generate(t *testing.T) {
 		modelPackagePath    string
 		resolverOutput      *bytes.Buffer
 		resolverPackagePath string
+		enumOutput          *bytes.Buffer
 		expected            error
 		expectGoFilePath    string
 	}{
@@ -29,6 +30,7 @@ func TestGenerator_Generate(t *testing.T) {
 			modelPackagePath:    "github.com/n9te9/goliteql/internal/generated/model",
 			resolverOutput:      bytes.NewBuffer(nil),
 			resolverPackagePath: "github.com/n9te9/goliteql/internal/generated/resolver",
+			enumOutput:          bytes.NewBuffer(nil),
 			expected:            nil,
 			expectGoFilePath:    "../golden_files/model_test/model.go",
 		},
@@ -39,6 +41,7 @@ func TestGenerator_Generate(t *testing.T) {
 			modelPackagePath:    "github.com/n9te9/goliteql/internal/generated/model",
 			resolverOutput:      bytes.NewBuffer(nil),
 			resolverPackagePath: "github.com/n9te9/goliteql/internal/generated/resolver",
+			enumOutput:          bytes.NewBuffer(nil),
 			expected:            nil,
 			expectGoFilePath:    "../golden_files/operation_test/model.go",
 		},
@@ -47,7 +50,7 @@ func TestGenerator_Generate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fmt.Println(filepath.Abs(tt.schemaDirectory))
-			generator, err := generator.NewGenerator(tt.schemaDirectory, tt.modelOutput, tt.resolverOutput, tt.resolverOutput, tt.resolverOutput, tt.modelPackagePath, tt.resolverPackagePath)
+			generator, err := generator.NewGenerator(tt.schemaDirectory, tt.modelOutput, tt.resolverOutput, tt.resolverOutput, tt.resolverOutput, tt.enumOutput, tt.modelPackagePath, tt.resolverPackagePath)
 			if err != nil {
 				t.Fatalf("error creating generator: %v", err)
 			}

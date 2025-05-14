@@ -59,6 +59,15 @@ func (t *TypeDefinition) TypeName() []byte {
 	return t.Name
 }
 
+func (t *TypeDefinition) IsIntrospection() bool {
+	return bytes.Equal(t.Name, []byte("__Schema")) ||
+		bytes.Equal(t.Name, []byte("__Type")) ||
+		bytes.Equal(t.Name, []byte("__Field")) ||
+		bytes.Equal(t.Name, []byte("__InputValue")) ||
+		bytes.Equal(t.Name, []byte("__EnumValue")) ||
+		bytes.Equal(t.Name, []byte("__Directive"))
+}
+
 type FieldType struct {
 	Name     []byte
 	Nullable bool

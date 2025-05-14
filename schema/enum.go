@@ -1,11 +1,14 @@
 package schema
 
-
 type EnumDefinition struct {
-	Name []byte
-	Values []*EnumElement
+	Name       []byte
+	Values     []*EnumElement
 	Extentions []*EnumDefinition
 	Directives []*Directive
+}
+
+func (e *EnumDefinition) IsIntrospection() bool {
+	return string(e.Name) == "__EnumType"
 }
 
 func (e *EnumDefinition) Location() *Location {
@@ -27,8 +30,8 @@ func (e EnumDefinitions) Has(name string) bool {
 }
 
 type EnumElement struct {
-	Name []byte
-	Value []byte
+	Name       []byte
+	Value      []byte
 	Directives []*Directive
 }
 

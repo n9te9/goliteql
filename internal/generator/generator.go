@@ -31,11 +31,14 @@ type Generator struct {
 
 	rootResolverOutput io.Writer
 	resolverAST        *ast.File
+
+	enumOutput io.Writer
+	enumAST    *ast.File
 }
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
 
-func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput io.Writer, modelPackagePath, resolverPackagePath string) (*Generator, error) {
+func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, enumOutput io.Writer, modelPackagePath, resolverPackagePath string) (*Generator, error) {
 	gqlFilePaths := make([]string, 0)
 
 	err := filepath.Walk(schemaDirectory, func(path string, info os.FileInfo, err error) error {
@@ -119,6 +122,9 @@ func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, muta
 		resolverAST: &ast.File{
 			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
 		},
+		enumAST: &ast.File{
+			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
+		},
 		queryResolverAST: &ast.File{
 			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
 			Decls: []ast.Decl{
@@ -136,6 +142,7 @@ func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, muta
 		queryResolverOutput:    queryResolverOutput,
 		mutationResolverOutput: mutationResolverOutput,
 		rootResolverOutput:     rootResolverOutput,
+		enumOutput:             enumOutput,
 		resolverPackagePath:    resolverPackagePath,
 	}
 
@@ -157,6 +164,7 @@ func (g *Generator) Generate() error {
 
 func (g *Generator) generateModel() error {
 	g.modelAST.Decls = append(g.modelAST.Decls, generateModelImport())
+	g.enumAST.Decls = append(g.enumAST.Decls, generateModelImport())
 
 	for _, input := range g.Schema.Inputs {
 		g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
@@ -177,6 +185,10 @@ func (g *Generator) generateModel() error {
 	}
 
 	for _, t := range g.Schema.Types {
+		if t.IsIntrospection() {
+			continue
+		}
+
 		g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
 			Tok: token.TYPE,
 			Specs: []ast.Spec{
@@ -191,6 +203,8 @@ func (g *Generator) generateModel() error {
 			},
 		})
 	}
+
+	g.enumAST.Decls = append(g.enumAST.Decls, generateEnumModelAST(g.Schema.Enums)...)
 
 	if op := g.Schema.GetQuery(); op != nil {
 		g.modelAST.Decls = append(g.modelAST.Decls, generateSelectionSetInput(op.Fields)...)
@@ -296,6 +310,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetQuery())...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetMutation())...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetSubscription())...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
 
 	if err := format.Node(g.rootResolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)

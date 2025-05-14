@@ -31,8 +31,8 @@ var generateCmd = &cobra.Command{
 		}
 
 		createDirectories(config)
-		modelOutputFile, queryResolverOutputFile, mutationResolverOutputFile, rootResolverOutputFile := createFiles(config)
-		g, err := generator.NewGenerator(config.SchemaDirectory, modelOutputFile, queryResolverOutputFile, mutationResolverOutputFile, rootResolverOutputFile, config.ModelPackageName, config.ResolverPackageName)
+		modelOutputFile, queryResolverOutputFile, mutationResolverOutputFile, rootResolverOutputFile, enumOutputFile := createFiles(config)
+		g, err := generator.NewGenerator(config.SchemaDirectory, modelOutputFile, queryResolverOutputFile, mutationResolverOutputFile, rootResolverOutputFile, enumOutputFile, config.ModelPackageName, config.ResolverPackageName)
 		if err != nil {
 			log.Fatalf("error creating generator: %v", err)
 		}
@@ -61,23 +61,25 @@ func main() {
 }
 
 type Config struct {
-	SchemaDirectory string `yaml:"schema_directory"`
-	ModelOutputFile  string `yaml:"model_output_file"`
-	QueryResolverOutputFile string `yaml:"query_resolver_output_file"`
+	SchemaDirectory            string `yaml:"schema_directory"`
+	ModelOutputFile            string `yaml:"model_output_file"`
+	QueryResolverOutputFile    string `yaml:"query_resolver_output_file"`
 	MutationResolverOutputFile string `yaml:"mutation_resolver_output_file"`
-	RootResolverOutputFile string `yaml:"root_resolver_output_file"`
-	ModelPackageName string `yaml:"model_package_name"`
-	ResolverPackageName string `yaml:"resolver_package_name"`
+	RootResolverOutputFile     string `yaml:"root_resolver_output_file"`
+	EnumOutputFile             string `yaml:"enum_output_file"`
+	ModelPackageName           string `yaml:"model_package_name"`
+	ResolverPackageName        string `yaml:"resolver_package_name"`
 }
 
 var initConfig = Config{
-	SchemaDirectory: "./graphql/schema",
-	ModelOutputFile:  "./graphql/model/models.go",
-	QueryResolverOutputFile: "./graphql/resolver/query.resolver.go",
+	SchemaDirectory:            "./graphql/schema",
+	ModelOutputFile:            "./graphql/model/models.go",
+	QueryResolverOutputFile:    "./graphql/resolver/query.resolver.go",
 	MutationResolverOutputFile: "./graphql/resolver/mutate.resolver.go",
-	RootResolverOutputFile: "./graphql/resolver/resolver.go",
-	ModelPackageName: "example/graphql/model",
-	ResolverPackageName: "example/graphql/resolver",
+	RootResolverOutputFile:     "./graphql/resolver/resolver.go",
+	EnumOutputFile:             "./graphql/model/enum.go",
+	ModelPackageName:           "example/graphql/model",
+	ResolverPackageName:        "example/graphql/resolver",
 }
 
 func initializeConfig() {
@@ -135,7 +137,7 @@ func createDirectories(conf Config) {
 	if err := os.MkdirAll(filepath.Dir(conf.ModelOutputFile), 0755); err != nil {
 		log.Fatalf("error creating model output directory: %v", err)
 	}
-	
+
 	if err := os.MkdirAll(filepath.Dir(conf.QueryResolverOutputFile), 0755); err != nil {
 		log.Fatalf("error creating query resolver output directory: %v", err)
 	}
@@ -149,7 +151,7 @@ func createDirectories(conf Config) {
 	}
 }
 
-func createFiles(conf Config) (*os.File, *os.File, *os.File, *os.File) {
+func createFiles(conf Config) (*os.File, *os.File, *os.File, *os.File, *os.File) {
 	modelOutputFile, err := os.Create(conf.ModelOutputFile)
 	if err != nil && !os.IsExist(err) {
 		log.Fatalf("error creating model output file: %v", err)
@@ -170,5 +172,10 @@ func createFiles(conf Config) (*os.File, *os.File, *os.File, *os.File) {
 		log.Fatalf("error creating root resolver output file: %v", err)
 	}
 
-	return modelOutputFile, queryResolverOutputFile, mutationResolverOutputFile, rootResolverOutputFile
+	enumOutputFile, err := os.Create(conf.EnumOutputFile)
+	if err != nil && !os.IsExist(err) {
+		log.Fatalf("error creating enum output file: %v", err)
+	}
+
+	return modelOutputFile, queryResolverOutputFile, mutationResolverOutputFile, rootResolverOutputFile, enumOutputFile
 }
