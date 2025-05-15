@@ -32,16 +32,17 @@ type CompositeType interface {
 }
 
 type TypeDefinition struct {
-	Name       []byte
-	Fields     FieldDefinitions
-	Required   map[*FieldDefinition]struct{}
-	tokens     Tokens
-	Interfaces []*InterfaceDefinition
-	Directives []*Directive
-	Extentions []*TypeDefinition
+	Name              []byte
+	Fields            FieldDefinitions
+	Required          map[*FieldDefinition]struct{}
+	tokens            Tokens
+	PrimitiveTypeName []byte
+	Interfaces        []*InterfaceDefinition
+	Directives        []*Directive
+	Extentions        []*TypeDefinition
 }
 
-func (t *TypeDefinition) IsPremitive() bool {
+func (t *TypeDefinition) IsPrimitive() bool {
 	return bytes.Equal(t.Name, []byte("String")) || bytes.Equal(t.Name, []byte("Int")) || bytes.Equal(t.Name, []byte("Float")) || bytes.Equal(t.Name, []byte("Boolean")) || bytes.Equal(t.Name, []byte("ID"))
 }
 
@@ -65,7 +66,9 @@ func (t *TypeDefinition) IsIntrospection() bool {
 		bytes.Equal(t.Name, []byte("__Field")) ||
 		bytes.Equal(t.Name, []byte("__InputValue")) ||
 		bytes.Equal(t.Name, []byte("__EnumValue")) ||
-		bytes.Equal(t.Name, []byte("__Directive"))
+		bytes.Equal(t.Name, []byte("__Directive")) ||
+		bytes.Equal(t.Name, []byte("__DirectiveLocation")) ||
+		bytes.Equal(t.Name, []byte("__TypeKind"))
 }
 
 type FieldType struct {
@@ -75,9 +78,9 @@ type FieldType struct {
 	ListType *FieldType
 }
 
-func (f *FieldType) GetPremitiveType() *FieldType {
+func (f *FieldType) GetPrimitiveType() *FieldType {
 	if f.IsList {
-		return f.ListType.GetPremitiveType()
+		return f.ListType.GetPrimitiveType()
 	}
 
 	return f
@@ -263,6 +266,7 @@ func (s *Schema) mergeTypeDefinition(newSchema *Schema) error {
 		newType.Fields = t.Fields
 		newType.Interfaces = t.Interfaces
 		newType.Directives = t.Directives
+		newType.PrimitiveTypeName = t.PrimitiveTypeName
 
 		newFields := make(FieldDefinitions, 0)
 
@@ -429,6 +433,7 @@ func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
 		newEnum.Name = enum.Name
 		newEnum.Directives = enum.Directives
 		newEnum.Values = enum.Values
+		newEnum.Type = enum.Type
 
 		newSchema.Enums = append(newSchema.Enums, newEnum)
 		if len(enum.Extentions) > 0 {

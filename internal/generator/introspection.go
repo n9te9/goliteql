@@ -12,6 +12,20 @@ func generateIntrospectionModelAST(types []*schema.TypeDefinition) []ast.Decl {
 
 	for _, t := range types {
 		if t.IsIntrospection() {
+			if t.PrimitiveTypeName != nil {
+				decls = append(decls, &ast.GenDecl{
+					Tok: token.TYPE,
+					Specs: []ast.Spec{
+						&ast.TypeSpec{
+							Name: ast.NewIdent(string(t.Name)),
+							Type: ast.NewIdent(string(t.PrimitiveTypeName)),
+						},
+					},
+				})
+
+				continue
+			}
+
 			decls = append(decls, &ast.GenDecl{
 				Tok: token.TYPE,
 				Specs: []ast.Spec{

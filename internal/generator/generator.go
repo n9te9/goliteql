@@ -6,6 +6,7 @@ import (
 	"go/format"
 	"go/token"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -36,9 +37,57 @@ type Generator struct {
 	enumAST    *ast.File
 }
 
+type Config struct {
+	SchemaDirectory            string `yaml:"schema_directory"`
+	ModelOutputFile            string `yaml:"model_output_file"`
+	QueryResolverOutputFile    string `yaml:"query_resolver_output_file"`
+	MutationResolverOutputFile string `yaml:"mutation_resolver_output_file"`
+	RootResolverOutputFile     string `yaml:"root_resolver_output_file"`
+	EnumOutputFile             string `yaml:"enum_output_file"`
+	ModelPackageName           string `yaml:"model_package_name"`
+	ResolverPackageName        string `yaml:"resolver_package_name"`
+}
+
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
 
-func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, enumOutput io.Writer, modelPackagePath, resolverPackagePath string) (*Generator, error) {
+func createDirectories(conf *Config) {
+	if err := os.MkdirAll(conf.SchemaDirectory, 0755); err != nil && !os.IsExist(err) {
+		log.Fatalf("error creating schema directory: %v", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(conf.ModelOutputFile), 0755); err != nil {
+		log.Fatalf("error creating model output directory: %v", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(conf.QueryResolverOutputFile), 0755); err != nil {
+		log.Fatalf("error creating query resolver output directory: %v", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(conf.MutationResolverOutputFile), 0755); err != nil {
+		log.Fatalf("error creating mutation resolver output directory: %v", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(conf.RootResolverOutputFile), 0755); err != nil {
+		log.Fatalf("error creating root resolver output directory: %v", err)
+	}
+}
+
+func createFile(filePath string) (*os.File, error) {
+	file, err := os.Create(filePath)
+	if err != nil && !os.IsExist(err) {
+		return nil, fmt.Errorf("error creating file %s: %w", filePath, err)
+	}
+
+	return file, nil
+}
+
+func NewGenerator(config *Config) (*Generator, error) {
+	createDirectories(config)
+
+	schemaDirectory := config.SchemaDirectory
+	modelPackagePath := config.ModelPackageName
+	resolverPackagePath := config.ResolverPackageName
+
 	gqlFilePaths := make([]string, 0)
 
 	err := filepath.Walk(schemaDirectory, func(path string, info os.FileInfo, err error) error {
@@ -109,6 +158,39 @@ func NewGenerator(schemaDirectory string, modelOutput, queryResolverOutput, muta
 				},
 			},
 		},
+	}
+
+	var modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, enumOutput io.Writer
+	if len(extractUserEnumDefinitions(s.Enums)) > 0 {
+		enumOutput, err = createFile(config.EnumOutputFile)
+		if err != nil {
+			return nil, fmt.Errorf("error creating enum output file: %w", err)
+		}
+	}
+
+	if s.Definition.Query != nil {
+		queryResolverOutput, err = createFile(config.QueryResolverOutputFile)
+		if err != nil {
+			return nil, fmt.Errorf("error creating query resolver output file: %w", err)
+		}
+	}
+
+	if s.Definition.Mutation != nil {
+		mutationResolverOutput, err = createFile(config.MutationResolverOutputFile)
+		if err != nil {
+			return nil, fmt.Errorf("error creating mutation resolver output file: %w", err)
+		}
+	}
+
+	if s.Definition.Subscription != nil {
+		rootResolverOutput, err = createFile(config.RootResolverOutputFile)
+		if err != nil {
+			return nil, fmt.Errorf("error creating root resolver output file: %w", err)
+		}
+	}
+	modelOutput, err = createFile(config.ModelOutputFile)
+	if err != nil {
+		return nil, fmt.Errorf("error creating model output file: %w", err)
 	}
 
 	g := &Generator{
@@ -202,9 +284,26 @@ func (g *Generator) generateModel() error {
 				},
 			},
 		})
+
+		if t.PrimitiveTypeName != nil {
+			g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
+				Tok: token.TYPE,
+				Specs: []ast.Spec{
+					&ast.TypeSpec{
+						Name: &ast.Ident{
+							Name: string(t.Name),
+						},
+						Type: &ast.Ident{
+							Name: string(t.PrimitiveTypeName),
+						},
+					},
+				},
+			})
+		}
 	}
 
-	g.enumAST.Decls = append(g.enumAST.Decls, generateEnumModelAST(g.Schema.Enums)...)
+	userEnums := extractUserEnumDefinitions(g.Schema.Enums)
+	g.enumAST.Decls = append(g.enumAST.Decls, generateEnumModelAST(userEnums)...)
 
 	if op := g.Schema.GetQuery(); op != nil {
 		g.modelAST.Decls = append(g.modelAST.Decls, generateSelectionSetInput(op.Fields)...)
@@ -220,7 +319,35 @@ func (g *Generator) generateModel() error {
 
 	format.Node(g.modelOutput, token.NewFileSet(), g.modelAST)
 
+	if g.enumOutput != nil {
+		if err := format.Node(g.enumOutput, token.NewFileSet(), g.enumAST); err != nil {
+			return fmt.Errorf("error formatting enum: %w", err)
+		}
+	}
+
 	return nil
+}
+
+func extractUserEnumDefinitions(enums []*schema.EnumDefinition) []*schema.EnumDefinition {
+	ret := make([]*schema.EnumDefinition, 0, len(enums))
+	for _, e := range enums {
+		if !e.IsIntrospection() {
+			ret = append(ret, e)
+		}
+	}
+
+	return ret
+}
+
+func extractIntrospectionEnumDefinitions(enums []*schema.EnumDefinition) []*schema.EnumDefinition {
+	ret := make([]*schema.EnumDefinition, 0, len(enums))
+	for _, e := range enums {
+		if e.IsIntrospection() {
+			ret = append(ret, e)
+		}
+	}
+
+	return ret
 }
 
 func (g *Generator) generateResolver() error {
@@ -311,6 +438,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetMutation())...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetSubscription())...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
 
 	if err := format.Node(g.rootResolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)

@@ -1,15 +1,15 @@
 package schema
 
 type FieldDefinition struct {
-	Name []byte
-	Arguments []*ArgumentDefinition
-	Type *FieldType
+	Name       []byte
+	Arguments  []*ArgumentDefinition
+	Type       *FieldType
 	Directives []*Directive
-	Default []byte
-	Location *Location
+	Default    []byte
+	Location   *Location
 }
 
-func (f *FieldDefinition) IsPremitive() bool {
+func (f *FieldDefinition) IsPrimitive() bool {
 	typeName := string(f.Type.Name)
 
 	if typeName == "ID" || typeName == "String" || typeName == "Int" || typeName == "Float" || typeName == "Boolean" {
@@ -38,6 +38,6 @@ func (f FieldDefinitions) Has(name string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }

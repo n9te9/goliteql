@@ -446,166 +446,138 @@ var (
 
 	typeKindIntrospectionFields = []*EnumDefinition{
 		{
-			Name:       []byte("SCALAR"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("OBJECT"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("INTERFACE"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("UNION"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("ENUM"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("INPUT_OBJECT"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("LIST"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("NON_NULL"),
-			Values:     nil,
+			Name: nil,
+			Type: &FieldType{
+				Name:     []byte("__TypeKind"),
+				IsList:   false,
+				Nullable: false,
+				ListType: nil,
+			},
+			Values: []*EnumElement{
+				{
+					Name:  []byte("__TypeKind_SCALAR"),
+					Value: []byte("SCALAR"),
+				},
+				{
+					Name:  []byte("__TypeKind_OBJECT"),
+					Value: []byte("OBJECT"),
+				},
+				{
+					Name:  []byte("__TypeKind_INTERFACE"),
+					Value: []byte("INTERFACE"),
+				},
+				{
+					Name:  []byte("__TypeKind_UNION"),
+					Value: []byte("UNION"),
+				},
+				{
+					Name:  []byte("__TypeKind_ENUM"),
+					Value: []byte("ENUM"),
+				},
+				{
+					Name:  []byte("__TypeKind_INPUT_OBJECT"),
+					Value: []byte("INPUT_OBJECT"),
+				},
+				{
+					Name:  []byte("__TypeKind_LIST"),
+					Value: []byte("LIST"),
+				},
+				{
+					Name:  []byte("__TypeKind_NON_NULL"),
+					Value: []byte("NON_NULL"),
+				},
+			},
 			Directives: nil,
 			Extentions: nil,
 		},
 	}
 	directiveLocationIntrospectionFields = []*EnumDefinition{
 		{
-			Name:       []byte("QUERY"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("MUTATION"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("SUBSCRIPTION"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("FIELD"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("FRAGMENT_DEFINITION"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("FRAGMENT_SPREAD"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("INLINE_FRAGMENT"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("VARIABLE_DEFINITION"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("SCHEMA"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("SCALAR"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("OBJECT"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("FIELD_DEFINITION"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("ARGUMENT_DEFINITION"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("INTERFACE"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("UNION"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("ENUM"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("ENUM_VALUE"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("INPUT_OBJECT"),
-			Values:     nil,
-			Directives: nil,
-			Extentions: nil,
-		},
-		{
-			Name:       []byte("INPUT_FIELD_DEFINITION"),
-			Values:     nil,
+			Name: nil,
+			Type: &FieldType{
+				Name:     []byte("__DirectiveLocation"),
+				IsList:   false,
+				Nullable: false,
+				ListType: nil,
+			},
+			Values: []*EnumElement{
+				{
+					Name:  []byte("__DirectiveLocation_QUERY"),
+					Value: []byte("QUERY"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_MUTATION"),
+					Value: []byte("MUTATION"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_SUBSCRIPTION"),
+					Value: []byte("SUBSCRIPTION"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_FIELD"),
+					Value: []byte("FIELD"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_FRAGMENT_DEFINITION"),
+					Value: []byte("FRAGMENT_DEFINITION"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_FRAGMENT_SPREAD"),
+					Value: []byte("FRAGMENT_SPREAD"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_INLINE_FRAGMENT"),
+					Value: []byte("INLINE_FRAGMENT"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_VARIABLE_DEFINITION"),
+					Value: []byte("VARIABLE_DEFINITION"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_SCHEMA"),
+					Value: []byte("SCHEMA"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_SCALAR"),
+					Value: []byte("SCALAR"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_OBJECT"),
+					Value: []byte("OBJECT"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_FIELD_DEFINITION"),
+					Value: []byte("FIELD_DEFINITION"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_ARGUMENT_DEFINITION"),
+					Value: []byte("ARGUMENT_DEFINITION"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_INTERFACE"),
+					Value: []byte("INTERFACE"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_UNION"),
+					Value: []byte("UNION"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_ENUM"),
+					Value: []byte("ENUM"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_ENUM_VALUE"),
+					Value: []byte("ENUM_VALUE"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_INPUT_OBJECT"),
+					Value: []byte("INPUT_OBJECT"),
+				},
+				{
+					Name:  []byte("__DirectiveLocation_INPUT_FIELD_DEFINITION"),
+					Value: []byte("INPUT_FIELD_DEFINITION"),
+				},
+			},
 			Directives: nil,
 			Extentions: nil,
 		},
@@ -667,6 +639,27 @@ func withTypeIntrospection(schema *Schema) *Schema {
 		Directives: nil,
 		Extentions: nil,
 	})
+	schema.Types = append(schema.Types, &TypeDefinition{
+		Name:              []byte("__DirectiveLocation"),
+		Fields:            nil,
+		Required:          make(map[*FieldDefinition]struct{}),
+		tokens:            schema.tokens,
+		PrimitiveTypeName: []byte("string"),
+		Interfaces:        nil,
+		Directives:        nil,
+		Extentions:        nil,
+	})
+	schema.Types = append(schema.Types, &TypeDefinition{
+		Name:              []byte("__TypeKind"),
+		Fields:            nil,
+		Required:          make(map[*FieldDefinition]struct{}),
+		tokens:            schema.tokens,
+		PrimitiveTypeName: []byte("string"),
+		Interfaces:        nil,
+		Directives:        nil,
+		Extentions:        nil,
+	})
+
 	schema.Enums = append(schema.Enums, typeKindIntrospectionFields...)
 	schema.Enums = append(schema.Enums, directiveLocationIntrospectionFields...)
 

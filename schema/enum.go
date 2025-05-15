@@ -2,13 +2,15 @@ package schema
 
 type EnumDefinition struct {
 	Name       []byte
+	Type       *FieldType
 	Values     []*EnumElement
 	Extentions []*EnumDefinition
 	Directives []*Directive
 }
 
 func (e *EnumDefinition) IsIntrospection() bool {
-	return string(e.Name) == "__EnumType"
+	return string(e.Type.Name) == "__TypeKind" ||
+		string(e.Type.Name) == "__DirectiveLocation"
 }
 
 func (e *EnumDefinition) Location() *Location {

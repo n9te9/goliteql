@@ -74,7 +74,7 @@ func validateRootField(schemaOperation *schema.OperationDefinition, queryOperati
 				return fmt.Errorf("error validating field %s: %w", field.Name, err)
 			}
 
-			premitiveFieldType := f.Type.GetPremitiveType()
+			premitiveFieldType := f.Type.GetPrimitiveType()
 			td := schema.Indexes.GetTypeDefinition(string(premitiveFieldType.Name))
 			ud := schema.Indexes.GetUnionDefinition(string(premitiveFieldType.Name))
 			id := schema.Indexes.GetInterfaceDefinition(string(premitiveFieldType.Name))
@@ -164,7 +164,7 @@ func validateSubField(t schema.CompositeType, field query.Selection, fragmentDef
 		}
 
 		if schemaField.Type.IsList {
-			premitiveFieldType := schemaField.Type.GetPremitiveType()
+			premitiveFieldType := schemaField.Type.GetPrimitiveType()
 			t := schema.Indexes.GetTypeDefinition(string(premitiveFieldType.Name))
 			if t == nil {
 				return nil

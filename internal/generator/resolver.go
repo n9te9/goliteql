@@ -711,7 +711,7 @@ func generateWrapResponseWriterReponseFieldWalkerValidationStmts(fieldType *sche
 			}
 		}
 
-		if field.IsPremitive() {
+		if field.IsPrimitive() {
 			stmts = append(stmts, &ast.IfStmt{
 				Cond: &ast.BinaryExpr{
 					X: &ast.CallExpr{
@@ -1083,7 +1083,7 @@ func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, fiel
 	fieldName := FieldName(string(rootFieldName) + string(typeFieldName))
 
 	typeExpr := generateWrapResponseWriterResponseTypeExprBasedTypeName(rootFieldName+typeFieldName.ExportedGolangFieldName()+"Response", field.Type)
-	if !field.Type.IsList && !field.IsPremitive() {
+	if !field.Type.IsList && !field.IsPrimitive() {
 		typeExpr = &ast.StarExpr{
 			X: typeExpr,
 		}
@@ -1117,7 +1117,7 @@ func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, fiel
 	ret = append(ret, generateWrapResponseWriterResponseFieldWalker(rootFieldName, field, typeDefinition))
 
 	for _, field := range typeDefinition.Fields {
-		if field.IsPremitive() {
+		if field.IsPrimitive() {
 			continue
 		}
 
