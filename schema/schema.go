@@ -182,6 +182,7 @@ func NewSchema(tokens Tokens) *Schema {
 	}
 
 	s = withTypeIntrospection(s)
+
 	return s
 }
 
