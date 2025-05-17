@@ -266,26 +266,7 @@ func generateQueryTypeSwitchBodyAST(s *schema.Schema) []ast.Stmt {
 					},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						&ast.UnaryExpr{
-							Op: token.AND,
-							X: &ast.IndexExpr{
-								X: &ast.CompositeLit{
-									Type: &ast.ArrayType{
-										Elt: ast.NewIdent("string"),
-									},
-									Elts: []ast.Expr{
-										&ast.BasicLit{
-											Kind:  token.STRING,
-											Value: fmt.Sprintf(`"%s"`, string(s.Definition.Query)),
-										},
-									},
-								},
-								Index: &ast.BasicLit{
-									Kind:  token.INT,
-									Value: "0",
-								},
-							},
-						},
+						generateStringPointerAST(string(s.Definition.Query)),
 					},
 				},
 			},
@@ -376,26 +357,7 @@ func generateIntrospectionFieldsAST(fieldDefinitions []*schema.FieldDefinition) 
 		})
 		elm = append(elm, &ast.KeyValueExpr{
 			Key: ast.NewIdent("DeprecationReason"),
-			Value: &ast.UnaryExpr{
-				Op: token.AND,
-				X: &ast.IndexExpr{
-					X: &ast.CompositeLit{
-						Type: &ast.ArrayType{
-							Elt: ast.NewIdent("string"),
-						},
-						Elts: []ast.Expr{
-							&ast.BasicLit{
-								Kind:  token.STRING,
-								Value: fmt.Sprintf(`"%s"`, f.DeprecatedReason()),
-							},
-						},
-					},
-					Index: &ast.BasicLit{
-						Kind:  token.INT,
-						Value: "0",
-					},
-				},
-			},
+			Value: generateStringPointerAST(f.DeprecatedReason()),
 		})
 
 		ret = append(ret, &ast.CompositeLit{
@@ -406,10 +368,147 @@ func generateIntrospectionFieldsAST(fieldDefinitions []*schema.FieldDefinition) 
 	return ret
 }
 
+func generateStringPointerAST(value string) ast.Expr {
+	return &ast.UnaryExpr{
+		Op: token.AND,
+		X: &ast.IndexExpr{
+			X: &ast.CompositeLit{
+				Type: &ast.ArrayType{
+					Elt: ast.NewIdent("string"),
+				},
+				Elts: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf(`"%s"`, value),
+					},
+				},
+			},
+			Index: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: "0",
+			},
+		},
+	}
+}
+
 func generateIntrospectionFieldTypeAST(fieldType *schema.FieldType) ast.Expr {
+	nameKeyValue := &ast.KeyValueExpr{
+		Key: ast.NewIdent("Name"),
+		Value: ast.NewIdent("nil"),
+	}
+	if fieldType.Name != nil {
+		nameKeyValue.Value = generateStringPointerAST(string(fieldType.Name))
+	}
+	kindKeyValue := &ast.KeyValueExpr{
+		Key: ast.NewIdent("Kind"),
+		Value: ast.NewIdent("__TypeKind_NON_NULL"),
+	}
+
 	return &ast.CompositeLit{
 		Type: ast.NewIdent("__Type"),
-		Elts: []ast.Expr{},
+		Elts: []ast.Expr{
+			nameKeyValue,
+			kindKeyValue,
+			generateIntrospectionFieldOfTypeAST(fieldType),
+		},
+	}
+}
+
+func generateIntrospectionFieldOfTypeAST(fieldType *schema.FieldType) ast.Expr {
+	nameKeyValue := &ast.KeyValueExpr{
+		Key: ast.NewIdent("Name"),
+		Value: ast.NewIdent("nil"),
+	}
+	if fieldType.Name != nil {
+		nameKeyValue.Value = generateStringPointerAST(string(fieldType.Name))
+	}
+
+	typeKindValue := &ast.KeyValueExpr{
+		Key: ast.NewIdent("Kind"),
+		Value: ast.NewIdent("__TypeKind_SCALAR"),
+	}
+
+	if !fieldType.IsPrimitive() {
+		typeKindValue.Value = ast.NewIdent("__TypeKind_OBJECT")
+	}
+
+	if !fieldType.Nullable {
+		if fieldType.IsList {
+			return &ast.KeyValueExpr{
+				Key: ast.NewIdent("OfType"),
+				Value: &ast.UnaryExpr{
+					Op: token.AND,
+					X: &ast.CompositeLit{
+						Type: ast.NewIdent("__Type"),
+						Elts: []ast.Expr{
+							&ast.KeyValueExpr{
+								Key: ast.NewIdent("Kind"),
+								Value: ast.NewIdent("__TypeKind_NON_NULL"),
+							},
+							&ast.KeyValueExpr{
+								Key: ast.NewIdent("OfType"),
+								Value: &ast.UnaryExpr{
+									Op: token.AND,
+									X: &ast.CompositeLit{
+										Type: ast.NewIdent("__Type"),
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key: ast.NewIdent("Kind"),
+												Value: ast.NewIdent("__TypeKind_LIST"),
+											},
+											generateIntrospectionFieldOfTypeAST(fieldType.ListType),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+		} else {
+			return &ast.KeyValueExpr{
+				Key: ast.NewIdent("OfType"),
+				Value: &ast.UnaryExpr{
+					Op: token.AND,
+					X: &ast.CompositeLit{
+						Type: ast.NewIdent("__Type"),
+						Elts: []ast.Expr{
+							&ast.KeyValueExpr{
+								Key: ast.NewIdent("Kind"),
+								Value: ast.NewIdent("__TypeKind_NON_NULL"),
+							},
+							&ast.KeyValueExpr{
+								Key: ast.NewIdent("OfType"),
+								Value: &ast.UnaryExpr{
+									Op: token.AND,
+									X: &ast.CompositeLit{
+										Type: ast.NewIdent("__Type"),
+										Elts: []ast.Expr{
+											nameKeyValue,
+											typeKindValue,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+		}
+	}
+
+	return &ast.KeyValueExpr{
+		Key: ast.NewIdent("OfType"),
+		Value: &ast.UnaryExpr{
+			Op: token.AND,
+			X: &ast.CompositeLit{
+				Type: ast.NewIdent("__Type"),
+				Elts: []ast.Expr{
+					nameKeyValue,
+					typeKindValue,
+				},
+			},
+		},
 	}
 }
 

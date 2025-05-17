@@ -78,12 +78,16 @@ type FieldType struct {
 	ListType *FieldType
 }
 
-func (f *FieldType) GetPrimitiveType() *FieldType {
+func (f *FieldType) GetRootType() *FieldType {
 	if f.IsList {
-		return f.ListType.GetPrimitiveType()
+		return f.ListType.GetRootType()
 	}
 
 	return f
+}
+
+func (f *FieldType) IsPrimitive() bool {
+	return bytes.Equal(f.Name, []byte("String")) || bytes.Equal(f.Name, []byte("Int")) || bytes.Equal(f.Name, []byte("Float")) || bytes.Equal(f.Name, []byte("Boolean")) || bytes.Equal(f.Name, []byte("ID"))
 }
 
 type OperationDefinition struct {
