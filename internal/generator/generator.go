@@ -440,6 +440,9 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaQueryAST(g.Schema))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateSchemaResponseModelAST())
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateSchemaResponseDataModelAST())
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryTypeMethodAST(g.Schema))
 
 	if err := format.Node(g.rootResolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)

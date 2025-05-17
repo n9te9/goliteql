@@ -102,6 +102,31 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 	}
 }
 
+func generateModelFieldWithOmitempty(field schema.FieldDefinitions) *ast.FieldList {
+	fields := make([]*ast.Field, 0, len(field))
+
+	for _, f := range field {
+		fieldTypeExpr := generateExpr(f.Type)
+
+		fields = append(fields, &ast.Field{
+			Names: []*ast.Ident{
+				{
+					Name: toUpperCase(string(f.Name)),
+				},
+			},
+			Type: fieldTypeExpr,
+			Tag: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("`json:\"%s,omitempty\"`", string(f.Name)),
+			},
+		})
+	}
+
+	return &ast.FieldList{
+		List: fields,
+	}
+}
+
 func generateExpr(fieldType *schema.FieldType) ast.Expr {
 	graphQLType := GraphQLType(fieldType.Name)
 	if fieldType.Nullable {

@@ -14,48 +14,48 @@ func (t Type) IsOperation() bool {
 }
 
 type Token struct {
-	Type Type
-	Value []byte
-	Line int
+	Type   Type
+	Value  []byte
+	Line   int
 	Column int
 }
 
 const (
-	Name Type = "NAME"
-	Query Type = "QUERY"
-	Mutation Type = "MUTATION"
+	Name         Type = "NAME"
+	Query        Type = "QUERY"
+	Mutation     Type = "MUTATION"
 	Subscription Type = "SUBSCRIPTION"
-	EOF Type = "EOF"
+	EOF          Type = "EOF"
 
 	CurlyOpen    Type = "CURLY_OPEN"    // '{'
 	CurlyClose   Type = "CURLY_CLOSE"   // '}'
 	ParenOpen    Type = "PAREN_OPEN"    // '('
 	ParenClose   Type = "PAREN_CLOSE"   // ')'
 	Colon        Type = "COLON"         // ':'
-	At           Type = "AT"           // '@'
-	Comma        Type = "COMMA"        // ','
-	Equal        Type = "EQUAL"        // '='
-	BracketOpen  Type = "BRACKET_OPEN" // '['
+	At           Type = "AT"            // '@'
+	Comma        Type = "COMMA"         // ','
+	Equal        Type = "EQUAL"         // '='
+	BracketOpen  Type = "BRACKET_OPEN"  // '['
 	BracketClose Type = "BRACKET_CLOSE" // ']'
-	Dollar      Type = "DALLAR"       // '$'
-	Exclamation Type = "EXCLAMATION" // '!'
-	Spread 		Type = "SPREAD"      // '...'
-	On 			Type = "ON"
-	Fragment Type = "FRAGMENT"
-	Value Type = "VALUE"
+	Dollar       Type = "DALLAR"        // '$'
+	Exclamation  Type = "EXCLAMATION"   // '!'
+	Spread       Type = "SPREAD"        // '...'
+	On           Type = "ON"
+	Fragment     Type = "FRAGMENT"
+	Value        Type = "VALUE"
 )
 
 var queryKeywords = map[string]Type{
-	"query": Query,
-	"mutation": Mutation,
+	"query":        Query,
+	"mutation":     Mutation,
 	"subscription": Subscription,
-	"on": On,
-	"fragment": Fragment,
+	"on":           On,
+	"fragment":     Fragment,
 }
 
 func newNameToken(input []byte, cur, col, line int) (*Token, int) {
 	start := cur
-	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) {
+	for cur < len(input) && unicode.IsLetter(rune(input[cur])) || unicode.IsDigit(rune(input[cur])) || input[cur] == '_' {
 		cur++
 	}
 
@@ -70,8 +70,8 @@ func newBlockStringValueToken(input []byte, cur, col, line int) (*Token, int, in
 	cur += 3
 
 	tokenStartLine := line
-	for cur + 2 < len(input) {
-		if input[cur] == '"' && input[cur + 1] == '"' && input[cur + 2] == '"' {
+	for cur+2 < len(input) {
+		if input[cur] == '"' && input[cur+1] == '"' && input[cur+2] == '"' {
 			break
 		}
 		cur++
@@ -84,7 +84,7 @@ func newBlockStringValueToken(input []byte, cur, col, line int) (*Token, int, in
 		}
 	}
 
-	if cur + 2 > len(input) {
+	if cur+2 > len(input) {
 		return nil, -1, -1, -1, fmt.Errorf("unterminated string at line %d, column %d", tokenStartLine, col)
 	}
 	cur += 3
@@ -93,7 +93,7 @@ func newBlockStringValueToken(input []byte, cur, col, line int) (*Token, int, in
 }
 
 func newStringValueToken(input []byte, cur, col, line int) (*Token, int, int, int, error) {
-	if cur + 3 < len(input) && input[cur] == '"' && input[cur + 1] == '"' && input[cur + 2] == '"' {
+	if cur+3 < len(input) && input[cur] == '"' && input[cur+1] == '"' && input[cur+2] == '"' {
 		return newBlockStringValueToken(input, cur, col, line)
 	}
 
@@ -114,9 +114,8 @@ func newStringValueToken(input []byte, cur, col, line int) (*Token, int, int, in
 		return nil, -1, -1, -1, fmt.Errorf("unterminated string at line %d, column %d", line, col)
 	}
 
-	return &Token{Type: Value, Value: input[start:cur+1], Column: col, Line: line}, cur + 1, line, col, nil
+	return &Token{Type: Value, Value: input[start : cur+1], Column: col, Line: line}, cur + 1, line, col, nil
 }
-
 
 func newValueToken(input []byte, cur, col, line int) (*Token, int, int, int) {
 	start := cur
@@ -164,7 +163,7 @@ func (t Tokens) isDefaultValue() bool {
 		return false
 	}
 
-	if t[len(t) - 1].Type == Equal {
+	if t[len(t)-1].Type == Equal {
 		return true
 	}
 
@@ -176,7 +175,7 @@ func (t Tokens) isArgument() bool {
 		return false
 	}
 
-	if t[len(t) - 1].Type == Colon {
+	if t[len(t)-1].Type == Colon {
 		return true
 	}
 
@@ -230,19 +229,19 @@ func (l *Lexer) Lex(input []byte) (Tokens, error) {
 				return nil, errors.New("invalid token")
 			}
 
-			if stack[len(stack) - 1] == CurlyOpen && input[cur] != '}' {
+			if stack[len(stack)-1] == CurlyOpen && input[cur] != '}' {
 				return nil, errors.New("invalid token")
 			}
 
-			if stack[len(stack) - 1] == ParenOpen && input[cur] != ')' {
+			if stack[len(stack)-1] == ParenOpen && input[cur] != ')' {
 				return nil, errors.New("invalid token")
 			}
 
-			if stack[len(stack) - 1] == BracketOpen && input[cur] != ']' {
+			if stack[len(stack)-1] == BracketOpen && input[cur] != ']' {
 				return nil, errors.New("invalid token")
 			}
 
-			stack = stack[:len(stack) - 1]
+			stack = stack[:len(stack)-1]
 			tokens = append(tokens, &Token{Type: queryPunctuators[input[cur]], Value: []byte{input[cur]}, Column: col, Line: line})
 			cur++
 			col++
@@ -285,7 +284,7 @@ func (l *Lexer) Lex(input []byte) (Tokens, error) {
 		}
 
 		if input[cur] == '.' {
-			if input[cur + 1] == '.' && input[cur + 2] == '.' {
+			if input[cur+1] == '.' && input[cur+2] == '.' {
 				tokens = append(tokens, &Token{Type: Spread, Value: []byte("..."), Column: col, Line: line})
 				cur += 3
 				col += 3

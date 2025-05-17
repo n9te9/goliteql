@@ -1619,6 +1619,31 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 			Body: caseBody,
 		})
 	}
+
+	if operationType == "query" {
+		schemaCase := &ast.CaseClause{
+			List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"__schema\""}},
+			Body: []ast.Stmt{
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("r"),
+							Sel: ast.NewIdent("__schema"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("w"),
+							ast.NewIdent("req"),
+							ast.NewIdent("node"),
+							ast.NewIdent("parsedQuery"),
+							ast.NewIdent("variables"),
+						},
+					},
+				},
+			},
+		}
+		bodyStmt = append(bodyStmt, schemaCase)
+	}
+
 	body = append(body, &ast.SwitchStmt{
 		Tag: ast.NewIdent("string(node.Name)"),
 		Body: &ast.BlockStmt{

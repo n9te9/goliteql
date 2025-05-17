@@ -1,7 +1,6 @@
 package executor
 
 import (
-
 	"github.com/n9te9/goliteql/query"
 )
 
