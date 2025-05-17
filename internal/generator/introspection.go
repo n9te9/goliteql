@@ -58,9 +58,7 @@ func generateSchemaResponseDataModelAST() ast.Decl {
 									ast.NewIdent("Schema"),
 								},
 								Type: &ast.StarExpr{
-									X: &ast.StarExpr{
-										X: ast.NewIdent("__Schema"),
-									},
+									X: ast.NewIdent("__Schema"),
 								},
 								Tag: &ast.BasicLit{
 									Kind:  token.STRING,
@@ -292,6 +290,126 @@ func generateQueryTypeSwitchBodyAST(s *schema.Schema) []ast.Stmt {
 				},
 			},
 		},
+		&ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"kind"`,
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("ret"),
+							Sel: ast.NewIdent("Kind"),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						ast.NewIdent("__TypeKind_OBJECT"),
+					},
+				},
+			},
+		},
+		&ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"fields"`,
+				},
+			},
+			Body: generateIntrospectionOperationFieldsAST(s.GetQuery()),
+		},
+	}
+}
+
+func generateIntrospectionOperationFieldsAST(fieldDefinitions *schema.OperationDefinition) []ast.Stmt {
+	if fieldDefinitions == nil {
+		return []ast.Stmt{}
+	}
+
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent("Fields"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.UnaryExpr{
+					Op: token.AND,
+					X: &ast.CompositeLit{
+						Type: &ast.ArrayType{
+							Elt: ast.NewIdent("__Field"),
+						},
+						Elts: generateIntrospectionFieldsAST(fieldDefinitions.Fields),
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateIntrospectionFieldsAST(fieldDefinitions []*schema.FieldDefinition) []ast.Expr {
+	ret := make([]ast.Expr, 0, len(fieldDefinitions))
+	for _, f := range fieldDefinitions {
+		elm := make([]ast.Expr, 0, 5)
+
+		elm = append(elm, &ast.KeyValueExpr{
+			Key:   ast.NewIdent("Name"),
+			Value: ast.NewIdent(fmt.Sprintf(`"%s"`, string(f.Name))),
+		})
+		// TODO' implement args, description
+		elm = append(elm, &ast.KeyValueExpr{
+			Key:   ast.NewIdent("Type"),
+			Value: generateIntrospectionFieldTypeAST(f.Type),
+		})
+		elm = append(elm, &ast.KeyValueExpr{
+			Key: ast.NewIdent("IsDeprecated"),
+			Value: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("%t", f.IsDeprecated()),
+			},
+		})
+		elm = append(elm, &ast.KeyValueExpr{
+			Key: ast.NewIdent("DeprecationReason"),
+			Value: &ast.UnaryExpr{
+				Op: token.AND,
+				X: &ast.IndexExpr{
+					X: &ast.CompositeLit{
+						Type: &ast.ArrayType{
+							Elt: ast.NewIdent("string"),
+						},
+						Elts: []ast.Expr{
+							&ast.BasicLit{
+								Kind:  token.STRING,
+								Value: fmt.Sprintf(`"%s"`, f.DeprecatedReason()),
+							},
+						},
+					},
+					Index: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "0",
+					},
+				},
+			},
+		})
+
+		ret = append(ret, &ast.CompositeLit{
+			Elts: elm,
+		})
+	}
+
+	return ret
+}
+
+func generateIntrospectionFieldTypeAST(fieldType *schema.FieldType) ast.Expr {
+	return &ast.CompositeLit{
+		Type: ast.NewIdent("__Type"),
+		Elts: []ast.Expr{},
 	}
 }
 
@@ -418,11 +536,8 @@ func generateResponseWrite() ast.Stmt {
 												Type: ast.NewIdent("__SchemaResponseData"),
 												Elts: []ast.Expr{
 													&ast.KeyValueExpr{
-														Key: ast.NewIdent("Schema"),
-														Value: &ast.UnaryExpr{
-															Op: token.AND,
-															X:  ast.NewIdent("ret"),
-														},
+														Key:   ast.NewIdent("Schema"),
+														Value: ast.NewIdent("ret"),
 													},
 												},
 											},

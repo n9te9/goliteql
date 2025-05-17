@@ -19,6 +19,32 @@ func (f *FieldDefinition) IsPrimitive() bool {
 	return false
 }
 
+func (f *FieldDefinition) IsDeprecated() bool {
+	for _, directive := range f.Directives {
+		if string(directive.Name) == "deprecated" {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *FieldDefinition) DeprecatedReason() string {
+	for _, directive := range f.Directives {
+		if string(directive.Name) == "deprecated" {
+			if len(directive.Arguments) > 0 {
+				for _, arg := range directive.Arguments {
+					if string(arg.Name) == "reason" {
+						return string(arg.Value)
+					}
+				}
+			}
+			return "No reason provided"
+		}
+	}
+
+	return ""
+}
+
 type FieldDefinitions []*FieldDefinition
 
 func (f FieldDefinitions) Last(name string) *FieldDefinition {
