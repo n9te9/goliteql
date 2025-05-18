@@ -320,13 +320,13 @@ func generateIntrospectionOperationFieldsAST(fieldDefinitions *schema.OperationD
 			},
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{
-				&ast.UnaryExpr{
-					Op: token.AND,
-					X: &ast.CompositeLit{
-						Type: &ast.ArrayType{
-							Elt: ast.NewIdent("__Field"),
-						},
-						Elts: generateIntrospectionFieldsAST(fieldDefinitions.Fields),
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent("__schema_fields"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("child"),
 					},
 				},
 			},
@@ -334,38 +334,181 @@ func generateIntrospectionOperationFieldsAST(fieldDefinitions *schema.OperationD
 	}
 }
 
-func generateIntrospectionFieldsAST(fieldDefinitions []*schema.FieldDefinition) []ast.Expr {
-	ret := make([]ast.Expr, 0, len(fieldDefinitions))
-	for _, f := range fieldDefinitions {
-		elm := make([]ast.Expr, 0, 5)
+func generateIntrospectionFieldsFuncsAST(fieldDefinitions schema.FieldDefinitions) []ast.Decl {
+	decls := make([]ast.Decl, 0)
 
-		elm = append(elm, &ast.KeyValueExpr{
-			Key:   ast.NewIdent("Name"),
-			Value: ast.NewIdent(fmt.Sprintf(`"%s"`, string(f.Name))),
-		})
-		// TODO' implement args, description
-		elm = append(elm, &ast.KeyValueExpr{
-			Key:   ast.NewIdent("Type"),
-			Value: generateIntrospectionFieldTypeAST(f.Type),
-		})
-		elm = append(elm, &ast.KeyValueExpr{
-			Key: ast.NewIdent("IsDeprecated"),
-			Value: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: fmt.Sprintf("%t", f.IsDeprecated()),
+	decls = append(decls, generateIntrospectionFieldsFuncAST(fieldDefinitions))
+
+	return decls
+}
+
+func generateIntrospectionFieldsFuncAST(fields schema.FieldDefinitions) ast.Decl {
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						ast.NewIdent("r"),
+					},
+					Type: &ast.StarExpr{
+						X: ast.NewIdent("resolver"),
+					},
+				},
 			},
-		})
-		elm = append(elm, &ast.KeyValueExpr{
-			Key: ast.NewIdent("DeprecationReason"),
-			Value: generateStringPointerAST(f.DeprecatedReason()),
-		})
+		},
+		Name: ast.NewIdent("__schema_fields"),
+		Type: &ast.FuncType{
+			Params: generateNodeWalkerArgs(),
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: &ast.ArrayType{
+								Elt: ast.NewIdent("__Field"),
+							},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: generateIntrospectionFieldFuncBodyStmts(fields),
+		},
+	}
+}
 
-		ret = append(ret, &ast.CompositeLit{
-			Elts: elm,
+func generateIntrospectionFieldFuncBodyStmts(fields schema.FieldDefinitions) []ast.Stmt {
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("ret"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("make"),
+					Args: []ast.Expr{
+						&ast.ArrayType{
+							Elt: ast.NewIdent("__Field"),
+						},
+						ast.NewIdent(fmt.Sprintf("%d", len(fields))),
+					},
+				},
+			},
+		},
+		&ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Tok:   token.DEFINE,
+			Value: ast.NewIdent("child"),
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("node"),
+				Sel: ast.NewIdent("Children"),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.SwitchStmt{
+						Tag: &ast.CallExpr{
+							Fun: ast.NewIdent("string"),
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("child"),
+									Sel: ast.NewIdent("Name"),
+								},
+							},
+						},
+						Body: &ast.BlockStmt{
+							List: []ast.Stmt{
+								&ast.CaseClause{
+									List: []ast.Expr{
+										&ast.BasicLit{
+											Kind:  token.STRING,
+											Value: `"name"`,
+										},
+									},
+									Body: generateIntrospectionFieldNameBodyStmt(fields),
+								},
+								&ast.CaseClause{
+									List: []ast.Expr{
+										&ast.BasicLit{
+											Kind:  token.STRING,
+											Value: `"description"`,
+										},
+									},
+								},
+								&ast.CaseClause{
+									List: []ast.Expr{
+										&ast.BasicLit{
+											Kind:  token.STRING,
+											Value: `"type"`,
+										},
+									},
+								},
+								&ast.CaseClause{
+									List: []ast.Expr{
+										&ast.BasicLit{
+											Kind:  token.STRING,
+											Value: `"args"`,
+										},
+									},
+								},
+								&ast.CaseClause{
+									List: []ast.Expr{
+										&ast.BasicLit{
+											Kind:  token.STRING,
+											Value: `"isDeprecated"`,
+										},
+									},
+									Body: []ast.Stmt{},
+								},
+								&ast.CaseClause{
+									List: []ast.Expr{
+										&ast.BasicLit{
+											Kind:  token.STRING,
+											Value: `"deprecationReason"`,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		&ast.ReturnStmt{
+			Results: []ast.Expr{
+				&ast.UnaryExpr{
+					Op: token.AND,
+					X:  ast.NewIdent("ret"),
+				},
+			},
+		},
+	}
+}
+
+func generateIntrospectionFieldNameBodyStmt(fields schema.FieldDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(fields))
+	for i, field := range fields {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X: &ast.IndexExpr{
+						X: ast.NewIdent("ret"),
+						Index: &ast.BasicLit{
+							Kind:  token.INT,
+							Value: fmt.Sprintf("%d", i),
+						},
+					},
+					Sel: ast.NewIdent("Name"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf(`"%s"`, string(field.Name))),
+			},
 		})
 	}
 
-	return ret
+	return stmts
 }
 
 func generateStringPointerAST(value string) ast.Expr {
@@ -386,127 +529,6 @@ func generateStringPointerAST(value string) ast.Expr {
 			Index: &ast.BasicLit{
 				Kind:  token.INT,
 				Value: "0",
-			},
-		},
-	}
-}
-
-func generateIntrospectionFieldTypeAST(fieldType *schema.FieldType) ast.Expr {
-	nameKeyValue := &ast.KeyValueExpr{
-		Key: ast.NewIdent("Name"),
-		Value: ast.NewIdent("nil"),
-	}
-	if fieldType.Name != nil {
-		nameKeyValue.Value = generateStringPointerAST(string(fieldType.Name))
-	}
-	kindKeyValue := &ast.KeyValueExpr{
-		Key: ast.NewIdent("Kind"),
-		Value: ast.NewIdent("__TypeKind_NON_NULL"),
-	}
-
-	return &ast.CompositeLit{
-		Type: ast.NewIdent("__Type"),
-		Elts: []ast.Expr{
-			nameKeyValue,
-			kindKeyValue,
-			generateIntrospectionFieldOfTypeAST(fieldType),
-		},
-	}
-}
-
-func generateIntrospectionFieldOfTypeAST(fieldType *schema.FieldType) ast.Expr {
-	nameKeyValue := &ast.KeyValueExpr{
-		Key: ast.NewIdent("Name"),
-		Value: ast.NewIdent("nil"),
-	}
-	if fieldType.Name != nil {
-		nameKeyValue.Value = generateStringPointerAST(string(fieldType.Name))
-	}
-
-	typeKindValue := &ast.KeyValueExpr{
-		Key: ast.NewIdent("Kind"),
-		Value: ast.NewIdent("__TypeKind_SCALAR"),
-	}
-
-	if !fieldType.IsPrimitive() {
-		typeKindValue.Value = ast.NewIdent("__TypeKind_OBJECT")
-	}
-
-	if !fieldType.Nullable {
-		if fieldType.IsList {
-			return &ast.KeyValueExpr{
-				Key: ast.NewIdent("OfType"),
-				Value: &ast.UnaryExpr{
-					Op: token.AND,
-					X: &ast.CompositeLit{
-						Type: ast.NewIdent("__Type"),
-						Elts: []ast.Expr{
-							&ast.KeyValueExpr{
-								Key: ast.NewIdent("Kind"),
-								Value: ast.NewIdent("__TypeKind_NON_NULL"),
-							},
-							&ast.KeyValueExpr{
-								Key: ast.NewIdent("OfType"),
-								Value: &ast.UnaryExpr{
-									Op: token.AND,
-									X: &ast.CompositeLit{
-										Type: ast.NewIdent("__Type"),
-										Elts: []ast.Expr{
-											&ast.KeyValueExpr{
-												Key: ast.NewIdent("Kind"),
-												Value: ast.NewIdent("__TypeKind_LIST"),
-											},
-											generateIntrospectionFieldOfTypeAST(fieldType.ListType),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			}
-		} else {
-			return &ast.KeyValueExpr{
-				Key: ast.NewIdent("OfType"),
-				Value: &ast.UnaryExpr{
-					Op: token.AND,
-					X: &ast.CompositeLit{
-						Type: ast.NewIdent("__Type"),
-						Elts: []ast.Expr{
-							&ast.KeyValueExpr{
-								Key: ast.NewIdent("Kind"),
-								Value: ast.NewIdent("__TypeKind_NON_NULL"),
-							},
-							&ast.KeyValueExpr{
-								Key: ast.NewIdent("OfType"),
-								Value: &ast.UnaryExpr{
-									Op: token.AND,
-									X: &ast.CompositeLit{
-										Type: ast.NewIdent("__Type"),
-										Elts: []ast.Expr{
-											nameKeyValue,
-											typeKindValue,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			}
-		}
-	}
-
-	return &ast.KeyValueExpr{
-		Key: ast.NewIdent("OfType"),
-		Value: &ast.UnaryExpr{
-			Op: token.AND,
-			X: &ast.CompositeLit{
-				Type: ast.NewIdent("__Type"),
-				Elts: []ast.Expr{
-					nameKeyValue,
-					typeKindValue,
-				},
 			},
 		},
 	}
