@@ -198,6 +198,289 @@ func generateQueryTypeMethodAST(s *schema.Schema) ast.Decl {
 	}
 }
 
+func generateTypeMethodDecls(s *schema.Schema) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+	q := s.GetQuery()
+	if q == nil {
+		return ret
+	}
+
+	for _, field := range q.Fields {
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema_%s_type", string(field.Name))),
+			Type: &ast.FuncType{
+				Params: generateNodeWalkerArgs(),
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: ast.NewIdent("__Type"),
+						},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent("ret"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CompositeLit{
+								Type: ast.NewIdent("__Type"),
+								Elts: []ast.Expr{},
+							},
+						},
+					},
+					&ast.RangeStmt{
+						Key:   ast.NewIdent("_"),
+						Tok:   token.DEFINE,
+						Value: ast.NewIdent("child"),
+						X: &ast.SelectorExpr{
+							X:   ast.NewIdent("node"),
+							Sel: ast.NewIdent("Children"),
+						},
+						Body: &ast.BlockStmt{
+							List: []ast.Stmt{
+								generateTypeFieldSwitchStmt(field),
+							},
+						},
+					},
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							ast.NewIdent("ret"),
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stmt {
+	var nameExpr ast.Expr
+
+	kindValue := ""
+	if f.IsPrimitive() {
+		kindValue = "__TypeKind_SCALAR"
+		nameExpr = generateStringPointerAST(string(f.Type.Name))
+	} else {
+		kindValue = "__TypeKind_OBJECT"
+		nameExpr = generateStringPointerAST(string(f.Type.Name))
+	}
+
+	if f.Type.IsList {
+		kindValue = "__TypeKind_LIST"
+		nameExpr = &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "nil",
+		}
+	}
+
+	if !f.Type.Nullable {
+		kindValue = "__TypeKind_NON_NULL"
+		nameExpr = &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "nil",
+		}
+	}
+
+	return &ast.SwitchStmt{
+		Tag: &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("child"),
+					Sel: ast.NewIdent("Name"),
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"kind"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("Kind"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								ast.NewIdent(kindValue),
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"name"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("Name"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								nameExpr,
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"description"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"fields"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"interfaces"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"enumValues"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"possibleTypes"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"inputFields"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"ofType"`,
+						},
+					},
+					Body: []ast.Stmt{},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"specifiedByURL"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func generateQueryTypeMethodBodyAST(s *schema.Schema) []ast.Stmt {
 	return []ast.Stmt{
 		&ast.AssignStmt{
@@ -442,6 +725,7 @@ func generateIntrospectionFieldFuncBodyStmts(fields schema.FieldDefinitions) []a
 											Value: `"type"`,
 										},
 									},
+									Body: generateIntrospectionFieldTypeBodyStmt(fields),
 								},
 								&ast.CaseClause{
 									List: []ast.Expr{
@@ -504,6 +788,40 @@ func generateIntrospectionFieldNameBodyStmt(fields schema.FieldDefinitions) []as
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{
 				ast.NewIdent(fmt.Sprintf(`"%s"`, string(field.Name))),
+			},
+		})
+	}
+
+	return stmts
+}
+
+func generateIntrospectionFieldTypeBodyStmt(fields schema.FieldDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(fields))
+	for i, field := range fields {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X: &ast.IndexExpr{
+						X: ast.NewIdent("ret"),
+						Index: &ast.BasicLit{
+							Kind:  token.INT,
+							Value: fmt.Sprintf("%d", i),
+						},
+					},
+					Sel: ast.NewIdent("Type"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema_%s_type", string(field.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("child"),
+					},
+				},
 			},
 		})
 	}

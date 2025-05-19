@@ -443,6 +443,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateSchemaResponseModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateSchemaResponseDataModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryTypeMethodAST(g.Schema))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateTypeMethodDecls(g.Schema)...)
 
 	if q := g.Schema.GetQuery(); q != nil {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(q.Fields)...)
