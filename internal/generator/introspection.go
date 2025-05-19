@@ -44,7 +44,7 @@ func generateIntrospectionModelAST(types []*schema.TypeDefinition) []ast.Decl {
 	return decls
 }
 
-func generateSchemaResponseDataModelAST() ast.Decl {
+func generateIntrospectionSchemaResponseDataModelAST() ast.Decl {
 	return &ast.GenDecl{
 		Tok: token.TYPE,
 		Specs: []ast.Spec{
@@ -73,7 +73,7 @@ func generateSchemaResponseDataModelAST() ast.Decl {
 	}
 }
 
-func generateSchemaResponseModelAST() ast.Decl {
+func generateIntrospectionSchemaResponseModelAST() ast.Decl {
 	return &ast.GenDecl{
 		Tok: token.TYPE,
 		Specs: []ast.Spec{
@@ -110,7 +110,7 @@ func generateSchemaResponseModelAST() ast.Decl {
 	}
 }
 
-func generateModelFieldCaseAST(s *schema.Schema, field *schema.FieldDefinition) ast.Stmt {
+func generateIntrospectionModelFieldCaseAST(s *schema.Schema, field *schema.FieldDefinition) ast.Stmt {
 	var stmts []ast.Stmt
 	switch string(field.Name) {
 	case "description":
@@ -167,7 +167,7 @@ func generateNodeWalkerArgs() *ast.FieldList {
 	}
 }
 
-func generateQueryTypeMethodAST(s *schema.Schema) ast.Decl {
+func generateIntrospectionQueryTypeMethodAST(s *schema.Schema) ast.Decl {
 	return &ast.FuncDecl{
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
@@ -193,12 +193,12 @@ func generateQueryTypeMethodAST(s *schema.Schema) ast.Decl {
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: generateQueryTypeMethodBodyAST(s),
+			List: generateIntrospectionQueryTypeMethodBodyAST(s),
 		},
 	}
 }
 
-func generateTypeMethodDecls(s *schema.Schema) []ast.Decl {
+func generateIntrospectionTypeMethodDecls(s *schema.Schema) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 	q := s.GetQuery()
 	if q == nil {
@@ -254,7 +254,7 @@ func generateTypeMethodDecls(s *schema.Schema) []ast.Decl {
 						},
 						Body: &ast.BlockStmt{
 							List: []ast.Stmt{
-								generateTypeFieldSwitchStmt(field),
+								generateIntrospectionTypeFieldSwitchStmt(field),
 							},
 						},
 					},
@@ -271,7 +271,93 @@ func generateTypeMethodDecls(s *schema.Schema) []ast.Decl {
 	return ret
 }
 
-func generateTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stmt {
+func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	q := s.GetQuery()
+	if q == nil {
+		return ret
+	}
+
+	for _, field := range q.Fields {
+		fieldType := field.Type
+		if fieldType.IsList {
+
+		}
+
+		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), field.Type, 0)...)
+	}
+
+	return ret
+}
+
+func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, field *schema.FieldType, nestCount int) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	typeOfSuffix := "__typeof"
+	for range nestCount {
+		typeOfSuffix += "__typeof"
+	}
+
+	ret = append(ret, &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						ast.NewIdent("r"),
+					},
+					Type: &ast.StarExpr{
+						X: ast.NewIdent("resolver"),
+					},
+				},
+			},
+		},
+		Name: ast.NewIdent(fmt.Sprintf("__schema__%s%s", fieldDefinitionName, typeOfSuffix)),
+		Type: &ast.FuncType{
+			Params: generateNodeWalkerArgs(),
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("__Type"),
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent("ret"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: ast.NewIdent("new"),
+							Args: []ast.Expr{
+								ast.NewIdent("__Type"),
+							},
+						},
+					},
+				},
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent("ret"),
+					},
+				},
+			},
+		},
+	})
+
+	if field.IsList {
+		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field.ListType, nestCount+1)...)
+	}
+
+	return ret
+}
+
+func generateIntrospectionTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stmt {
 	var nameExpr ast.Expr
 
 	kindValue := ""
@@ -458,7 +544,28 @@ func generateTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stmt {
 							Value: `"ofType"`,
 						},
 					},
-					Body: []ast.Stmt{},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("OfType"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("r"),
+										Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__typeof", string(f.Name))),
+									},
+									Args: []ast.Expr{
+										ast.NewIdent("child"),
+									},
+								},
+							},
+						},
+					},
 				},
 				&ast.CaseClause{
 					List: []ast.Expr{
@@ -481,7 +588,7 @@ func generateTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stmt {
 	}
 }
 
-func generateQueryTypeMethodBodyAST(s *schema.Schema) []ast.Stmt {
+func generateIntrospectionQueryTypeMethodBodyAST(s *schema.Schema) []ast.Stmt {
 	return []ast.Stmt{
 		&ast.AssignStmt{
 			Lhs: []ast.Expr{
@@ -855,7 +962,7 @@ func generateStringPointerAST(value string) ast.Expr {
 func generateModelFieldCaseASTs(s *schema.Schema, fields []*schema.FieldDefinition) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(fields))
 	for _, f := range fields {
-		stmts = append(stmts, generateModelFieldCaseAST(s, f))
+		stmts = append(stmts, generateIntrospectionModelFieldCaseAST(s, f))
 	}
 
 	return stmts

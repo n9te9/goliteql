@@ -440,10 +440,11 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaQueryAST(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateSchemaResponseModelAST())
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateSchemaResponseDataModelAST())
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryTypeMethodAST(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateTypeMethodDecls(g.Schema)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseModelAST())
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseDataModelAST())
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionQueryTypeMethodAST(g.Schema))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeMethodDecls(g.Schema)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldTypeTypeOfDecls(g.Schema)...)
 
 	if q := g.Schema.GetQuery(); q != nil {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(q.Fields)...)
