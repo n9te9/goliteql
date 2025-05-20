@@ -280,7 +280,11 @@ func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
 	}
 
 	for _, field := range q.Fields {
-		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), field.Type, 0, true, false, false)...)
+		if field.Type.IsList && field.Type.Nullable {
+			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), field.Type.ListType, 0, !field.Type.Nullable, false, true)...)
+		} else {
+			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), field.Type, 0, true, false, false)...)
+		}
 	}
 
 	return ret
@@ -369,9 +373,7 @@ func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, 
 			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field, nestCount+1, willExportRequired, false, field.IsList)...)
 		}
 		
-		if field.IsList {
-			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field.ListType, nestCount+1, false, false, field.IsList)...)
-		}
+		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field.ListType, nestCount+1, false, false, field.IsList)...)
 	}
 
 	if field.IsObject() && !willExportedObject && isPrevList {
