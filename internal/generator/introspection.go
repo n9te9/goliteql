@@ -280,23 +280,27 @@ func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
 	}
 
 	for _, field := range q.Fields {
-		fieldType := field.Type
-		if fieldType.IsList {
-
-		}
-
-		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), field.Type, 0)...)
+		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), field.Type, 0, false, false)...)
 	}
 
 	return ret
 }
 
-func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, field *schema.FieldType, nestCount int) []ast.Decl {
+func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, field *schema.FieldType, nestCount int, isExportedRequired, isExportedList bool) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 
 	typeOfSuffix := "__typeof"
 	for range nestCount {
 		typeOfSuffix += "__typeof"
+	}
+
+	var willExportRequired, willExportList bool
+	if !isExportedRequired {
+		willExportRequired = !field.Nullable
+	}
+
+	if !isExportedList {
+		willExportList = field.IsList
 	}
 
 	ret = append(ret, &ast.FuncDecl{
@@ -341,6 +345,20 @@ func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, 
 						},
 					},
 				},
+				&ast.RangeStmt{
+					Key:   ast.NewIdent("_"),
+					Tok:   token.DEFINE,
+					Value: ast.NewIdent("child"),
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("node"),
+						Sel: ast.NewIdent("Children"),
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							generateIntrospectionTypeOfSwitchStmt(field, fmt.Sprintf("__schema__%s%s__typeof", fieldDefinitionName, typeOfSuffix), willExportRequired, willExportList),
+						},
+					},
+				},
 				&ast.ReturnStmt{
 					Results: []ast.Expr{
 						ast.NewIdent("ret"),
@@ -350,11 +368,256 @@ func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, 
 		},
 	})
 
-	if field.IsList {
-		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field.ListType, nestCount+1)...)
+	if field == nil {
+		return ret
+	}
+
+	if willExportRequired {
+		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field, nestCount+1, true, false)...)
+	}
+
+	if willExportList {
+		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field.ListType, nestCount+1, false, false)...)
 	}
 
 	return ret
+}
+
+func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncName string, willExportNullable, willExportList bool) ast.Stmt {
+	var nameExpr, kindExpr ast.Expr
+	if f.IsPrimitive() {
+		kindExpr = ast.NewIdent("__TypeKind_SCALAR")
+		nameExpr = generateStringPointerAST(string(f.Name))
+	} else {
+		kindExpr = ast.NewIdent("__TypeKind_OBJECT")
+		nameExpr = generateStringPointerAST(string(f.Name))
+	}
+
+	if willExportNullable {
+		kindExpr = ast.NewIdent("__TypeKind_OBJECT")
+		nameExpr = &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "nil",
+		}
+	}
+
+	if willExportList {
+		kindExpr = ast.NewIdent("__TypeKind_LIST")
+		nameExpr = &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "nil",
+		}
+	}
+
+	if willExportNullable {
+		kindExpr = ast.NewIdent("__TypeKind_NON_NULL")
+		nameExpr = &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "nil",
+		}
+	}
+
+	return &ast.SwitchStmt{
+		Tag: &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("child"),
+					Sel: ast.NewIdent("Name"),
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"kind"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("Kind"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								kindExpr,
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"name"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("Name"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								nameExpr,
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"description"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"fields"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"interfaces"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"enumValues"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"possibleTypes"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"inputFields"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"ofType"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("OfType"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("r"),
+										Sel: ast.NewIdent(callTypeOfFuncName),
+									},
+									Args: []ast.Expr{
+										ast.NewIdent("child"),
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						&ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `"specifiedByURL"`,
+						},
+					},
+					Body: []ast.Stmt{
+						&ast.ExprStmt{
+							X: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: "// TODO",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 func generateIntrospectionTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stmt {
