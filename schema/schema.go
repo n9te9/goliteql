@@ -78,6 +78,10 @@ type FieldType struct {
 	ListType *FieldType
 }
 
+func (f *FieldType) IsObject() bool {
+	return !bytes.Equal(f.Name, []byte(""))
+}
+
 func (f *FieldType) GetRootType() *FieldType {
 	if f.IsList {
 		return f.ListType.GetRootType()
