@@ -287,24 +287,82 @@ func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
 		}
 	}
 
-	for _, field := range s.Types {
-		if field.IsIntrospection() {
-			continue
-		}
-
-		for _, f := range field.Fields {
-			if f.Type.IsList && f.Type.Nullable {
-				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), f.Type.ListType, 0, !f.Type.Nullable, false, true)...)
-			} else {
-				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), f.Type, 0, true, false, false)...)
-			}
-		}
-	}
-
 	return ret
 }
 
 func generateIntrospectionTypeResolverDeclsFromTypeDefinitions(typeDefinitions []*schema.TypeDefinition) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	for _, t := range typeDefinitions {
+		if t.IsIntrospection() {
+			continue
+		}
+
+		for _, field := range t.Fields {
+			ret = append(ret, &ast.FuncDecl{
+				Recv: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("r"),
+							},
+							Type: &ast.StarExpr{
+								X: ast.NewIdent("resolver"),
+							},
+						},
+					},
+				},
+				Name: ast.NewIdent(fmt.Sprintf("__schema__%s__%s__type", string(t.Name), string(field.Name))),
+				Type: &ast.FuncType{
+					Params: generateNodeWalkerArgs(),
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Type: ast.NewIdent("__Type"),
+							},
+						},
+					},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								ast.NewIdent("ret"),
+							},
+							Tok: token.DEFINE,
+							Rhs: []ast.Expr{
+								&ast.CompositeLit{
+									Type: ast.NewIdent("__Type"),
+									Elts: []ast.Expr{},
+								},
+							},
+						},
+						&ast.RangeStmt{
+							Key:   ast.NewIdent("_"),
+							Tok:   token.DEFINE,
+							Value: ast.NewIdent("child"),
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent("node"),
+								Sel: ast.NewIdent("Children"),
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									generateIntrospectionTypeFieldSwitchStmt(field),
+								},
+							},
+						},
+						&ast.ReturnStmt{
+							Results: []ast.Expr{
+								ast.NewIdent("ret"),
+							},
+						},
+					},
+				},
+			})
+		}
+	}
+
+	return ret
 }
 
 func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefinition) []ast.Decl {
@@ -828,7 +886,6 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 
 func generateIntrospectionTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stmt {
 	var nameExpr ast.Expr
-
 	kindValue := ""
 	if f.IsPrimitive() {
 		kindValue = "__TypeKind_SCALAR"
@@ -851,6 +908,19 @@ func generateIntrospectionTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stm
 		nameExpr = &ast.BasicLit{
 			Kind:  token.STRING,
 			Value: "nil",
+		}
+	}
+
+	var ofTypeAssignRhsExpr ast.Expr = ast.NewIdent("nil")
+	if !f.Type.IsPrimitive() {
+		ofTypeAssignRhsExpr = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("r"),
+				Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__typeof", string(f.Name))),
+			},
+			Args: []ast.Expr{
+				ast.NewIdent("child"),
+			},
 		}
 	}
 
@@ -1023,15 +1093,7 @@ func generateIntrospectionTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stm
 							},
 							Tok: token.ASSIGN,
 							Rhs: []ast.Expr{
-								&ast.CallExpr{
-									Fun: &ast.SelectorExpr{
-										X:   ast.NewIdent("r"),
-										Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__typeof", string(f.Name))),
-									},
-									Args: []ast.Expr{
-										ast.NewIdent("child"),
-									},
-								},
+								ofTypeAssignRhsExpr,
 							},
 						},
 					},
@@ -1364,6 +1426,39 @@ func generateIntrospectionFieldNameBodyStmt(fields schema.FieldDefinitions) []as
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{
 				ast.NewIdent(fmt.Sprintf(`"%s"`, string(field.Name))),
+			},
+		})
+	}
+
+	return stmts
+}
+
+func generateIntrospectionFieldTypeObjectBodyStmt(attributeName string, fields schema.FieldDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(fields))
+	for _, field := range fields {
+		prefix := fmt.Sprintf("__schema__%s__%s", attributeName, string(field.Name))
+		if attributeName == "" {
+			prefix = fmt.Sprintf("__schema__%s", string(field.Name))
+		}
+
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent("Type"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("%s__type", prefix)),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("child"),
+					},
+				},
 			},
 		})
 	}
