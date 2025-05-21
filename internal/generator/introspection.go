@@ -290,6 +290,153 @@ func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
 	return ret
 }
 
+func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefinition) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	for _, t := range typeDefinitions {
+		if t.IsIntrospection() {
+			continue
+		}
+
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(t.Name))),
+			Type: &ast.FuncType{
+				Params: generateNodeWalkerArgs(),
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: &ast.StarExpr{
+								X: &ast.ArrayType{
+									Elt: ast.NewIdent("__Field"),
+								},
+							},
+						},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent("ret"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: ast.NewIdent("make"),
+								Args: []ast.Expr{
+									&ast.ArrayType{
+										Elt: ast.NewIdent("__Field"),
+									},
+									ast.NewIdent(fmt.Sprintf("%d", len(t.Fields))),
+								},
+							},
+						},
+					},
+					&ast.RangeStmt{
+						Key:   ast.NewIdent("_"),
+						Tok:   token.DEFINE,
+						Value: ast.NewIdent("child"),
+						X: &ast.SelectorExpr{
+							X:   ast.NewIdent("node"),
+							Sel: ast.NewIdent("Children"),
+						},
+						Body: &ast.BlockStmt{
+							List: []ast.Stmt{
+								&ast.SwitchStmt{
+									Tag: &ast.CallExpr{
+										Fun: ast.NewIdent("string"),
+										Args: []ast.Expr{
+											&ast.SelectorExpr{
+												X:   ast.NewIdent("child"),
+												Sel: ast.NewIdent("Name"),
+											},
+										},
+									},
+									Body: &ast.BlockStmt{
+										List: []ast.Stmt{
+											&ast.CaseClause{
+												List: []ast.Expr{
+													&ast.BasicLit{
+														Kind:  token.STRING,
+														Value: `"name"`,
+													},
+												},
+												Body: []ast.Stmt{
+													&ast.ExprStmt{
+														X: &ast.BasicLit{
+															Kind:  token.STRING,
+															Value: "// TODO",
+														},
+													},
+												},
+											},
+											&ast.CaseClause{
+												List: []ast.Expr{
+													&ast.BasicLit{
+														Kind:  token.STRING,
+														Value: `"description"`,
+													},
+												},
+												Body: []ast.Stmt{
+													&ast.ExprStmt{
+														X: &ast.BasicLit{
+															Kind:  token.STRING,
+															Value: "// TODO",
+														},
+													},
+												},
+											},
+											&ast.CaseClause{
+												List: []ast.Expr{
+													&ast.BasicLit{
+														Kind:  token.STRING,
+														Value: `"type"`,
+													},
+												},
+												Body: []ast.Stmt{
+													&ast.ExprStmt{
+														X: &ast.BasicLit{
+															Kind:  token.STRING,
+															Value: "// TODO",
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X:  ast.NewIdent("ret"),
+							},
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return ret
+}
+
 func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, field *schema.FieldType, nestCount int, isExportedRequired, willExportedObject, isPrevList bool) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 
@@ -372,7 +519,7 @@ func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, 
 		if willExportRequired {
 			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field, nestCount+1, willExportRequired, false, field.IsList)...)
 		}
-		
+
 		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field.ListType, nestCount+1, false, false, field.IsList)...)
 	}
 
@@ -409,18 +556,49 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 		}
 	}
 
-	 var assignRhsExpr ast.Expr = &ast.CallExpr{
-		 Fun: &ast.SelectorExpr{
-			 X:   ast.NewIdent("r"),
-			 Sel: ast.NewIdent(callTypeOfFuncName),
-		 },
-		 Args: []ast.Expr{
-			 ast.NewIdent("child"),
-		 },
+	var ofTypeAssignRhsExpr ast.Expr = &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   ast.NewIdent("r"),
+			Sel: ast.NewIdent(callTypeOfFuncName),
+		},
+		Args: []ast.Expr{
+			ast.NewIdent("child"),
+		},
+	}
+
+	var fieldAssignStmt ast.Stmt
+	if f.IsObject() && !willExportRequired {
+		fieldAssignStmt = &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent("Fields"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(f.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("child"),
+					},
+				},
+			},
+		}
+	} else {
+		fieldAssignStmt = &ast.ExprStmt{
+			X: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: "// TODO",
+			},
+		}
 	}
 
 	if f.IsObject() && !willExportRequired {
-		assignRhsExpr = &ast.BasicLit{
+		ofTypeAssignRhsExpr = &ast.BasicLit{
 			Kind:  token.STRING,
 			Value: "nil",
 		}
@@ -506,12 +684,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 						},
 					},
 					Body: []ast.Stmt{
-						&ast.ExprStmt{
-							X: &ast.BasicLit{
-								Kind:  token.STRING,
-								Value: "// TODO",
-							},
-						},
+						fieldAssignStmt,
 					},
 				},
 				&ast.CaseClause{
@@ -595,7 +768,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 							},
 							Tok: token.ASSIGN,
 							Rhs: []ast.Expr{
-								assignRhsExpr,
+								ofTypeAssignRhsExpr,
 							},
 						},
 					},

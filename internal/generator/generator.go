@@ -445,6 +445,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionQueryTypeMethodAST(g.Schema))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeMethodDecls(g.Schema)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldTypeTypeOfDecls(g.Schema)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsDecls(g.Schema.Types)...)
 
 	if q := g.Schema.GetQuery(); q != nil {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(q.Fields)...)
