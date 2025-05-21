@@ -219,7 +219,7 @@ func generateIntrospectionTypeMethodDecls(s *schema.Schema) []ast.Decl {
 					},
 				},
 			},
-			Name: ast.NewIdent(fmt.Sprintf("__schema_%s_type", string(field.Name))),
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(field.Name))),
 			Type: &ast.FuncType{
 				Params: generateNodeWalkerArgs(),
 				Results: &ast.FieldList{
@@ -287,11 +287,57 @@ func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
 		}
 	}
 
+	for _, field := range s.Types {
+		if field.IsIntrospection() {
+			continue
+		}
+
+		for _, f := range field.Fields {
+			if f.Type.IsList && f.Type.Nullable {
+				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), f.Type.ListType, 0, !f.Type.Nullable, false, true)...)
+			} else {
+				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), f.Type, 0, true, false, false)...)
+			}
+		}
+	}
+
 	return ret
+}
+
+func generateIntrospectionTypeResolverDeclsFromTypeDefinitions(typeDefinitions []*schema.TypeDefinition) []ast.Decl {
 }
 
 func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefinition) []ast.Decl {
 	ret := make([]ast.Decl, 0)
+	generateIntrospectionFieldTypeAssignStmtFunc := func(t *schema.TypeDefinition) []ast.Stmt {
+		ret := make([]ast.Stmt, 0, len(t.Fields))
+
+		for i, field := range t.Fields {
+			ret = append(ret, &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X: &ast.IndexExpr{
+							X: ast.NewIdent("ret"),
+							Index: &ast.BasicLit{
+								Kind:  token.INT,
+								Value: fmt.Sprintf("%d", i),
+							},
+						},
+						Sel: ast.NewIdent("Name"),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf(`"%s"`, string(field.Name)),
+					},
+				},
+			})
+		}
+
+		return ret
+	}
 
 	for _, t := range typeDefinitions {
 		if t.IsIntrospection() {
@@ -374,14 +420,7 @@ func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefiniti
 														Value: `"name"`,
 													},
 												},
-												Body: []ast.Stmt{
-													&ast.ExprStmt{
-														X: &ast.BasicLit{
-															Kind:  token.STRING,
-															Value: "// TODO",
-														},
-													},
-												},
+												Body: generateIntrospectionFieldTypeAssignStmtFunc(t),
 											},
 											&ast.CaseClause{
 												List: []ast.Expr{
@@ -406,14 +445,7 @@ func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefiniti
 														Value: `"type"`,
 													},
 												},
-												Body: []ast.Stmt{
-													&ast.ExprStmt{
-														X: &ast.BasicLit{
-															Kind:  token.STRING,
-															Value: "// TODO",
-														},
-													},
-												},
+												Body: generateIntrospectionFieldTypeBodyStmt(string(t.Name), t.Fields),
 											},
 										},
 									},
@@ -1161,15 +1193,15 @@ func generateIntrospectionOperationFieldsAST(fieldDefinitions *schema.OperationD
 	}
 }
 
-func generateIntrospectionFieldsFuncsAST(fieldDefinitions schema.FieldDefinitions) []ast.Decl {
+func generateIntrospectionFieldsFuncsAST(attributeName string, fieldDefinitions schema.FieldDefinitions) []ast.Decl {
 	decls := make([]ast.Decl, 0)
 
-	decls = append(decls, generateIntrospectionFieldsFuncAST(fieldDefinitions))
+	decls = append(decls, generateIntrospectionFieldsFuncAST(attributeName, fieldDefinitions))
 
 	return decls
 }
 
-func generateIntrospectionFieldsFuncAST(fields schema.FieldDefinitions) ast.Decl {
+func generateIntrospectionFieldsFuncAST(attributeName string, fields schema.FieldDefinitions) ast.Decl {
 	return &ast.FuncDecl{
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
@@ -1199,12 +1231,12 @@ func generateIntrospectionFieldsFuncAST(fields schema.FieldDefinitions) ast.Decl
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: generateIntrospectionFieldFuncBodyStmts(fields),
+			List: generateIntrospectionFieldFuncBodyStmts(attributeName, fields),
 		},
 	}
 }
 
-func generateIntrospectionFieldFuncBodyStmts(fields schema.FieldDefinitions) []ast.Stmt {
+func generateIntrospectionFieldFuncBodyStmts(attributeName string, fields schema.FieldDefinitions) []ast.Stmt {
 	return []ast.Stmt{
 		&ast.AssignStmt{
 			Lhs: []ast.Expr{
@@ -1269,7 +1301,7 @@ func generateIntrospectionFieldFuncBodyStmts(fields schema.FieldDefinitions) []a
 											Value: `"type"`,
 										},
 									},
-									Body: generateIntrospectionFieldTypeBodyStmt(fields),
+									Body: generateIntrospectionFieldTypeBodyStmt(attributeName, fields),
 								},
 								&ast.CaseClause{
 									List: []ast.Expr{
@@ -1339,9 +1371,14 @@ func generateIntrospectionFieldNameBodyStmt(fields schema.FieldDefinitions) []as
 	return stmts
 }
 
-func generateIntrospectionFieldTypeBodyStmt(fields schema.FieldDefinitions) []ast.Stmt {
+func generateIntrospectionFieldTypeBodyStmt(attributeName string, fields schema.FieldDefinitions) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(fields))
 	for i, field := range fields {
+		prefix := fmt.Sprintf("__schema__%s__%s", attributeName, string(field.Name))
+		if attributeName == "" {
+			prefix = fmt.Sprintf("__schema__%s", string(field.Name))
+		}
+
 		stmts = append(stmts, &ast.AssignStmt{
 			Lhs: []ast.Expr{
 				&ast.SelectorExpr{
@@ -1360,7 +1397,7 @@ func generateIntrospectionFieldTypeBodyStmt(fields schema.FieldDefinitions) []as
 				&ast.CallExpr{
 					Fun: &ast.SelectorExpr{
 						X:   ast.NewIdent("r"),
-						Sel: ast.NewIdent(fmt.Sprintf("__schema_%s_type", string(field.Name))),
+						Sel: ast.NewIdent(fmt.Sprintf("%s__type", prefix)),
 					},
 					Args: []ast.Expr{
 						ast.NewIdent("child"),
