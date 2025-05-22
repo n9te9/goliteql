@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 
+	"github.com/n9te9/goliteql/internal/generator/introspection"
 	"github.com/n9te9/goliteql/schema"
 )
 
@@ -281,9 +282,9 @@ func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
 
 	for _, field := range q.Fields {
 		if field.Type.IsList && field.Type.Nullable {
-			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), field.Type.ListType, 0, !field.Type.Nullable, false, true)...)
+			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), introspection.ExpandType(field.Type), 0)...)
 		} else {
-			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), field.Type, 0, true, false, false)...)
+			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), introspection.ExpandType(field.Type), 0)...)
 		}
 	}
 
@@ -527,20 +528,14 @@ func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefiniti
 	return ret
 }
 
-func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, field *schema.FieldType, nestCount int, isExportedRequired, willExportedObject, isPrevList bool) []ast.Decl {
-	ret := make([]ast.Decl, 0)
-
+func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, field *introspection.FieldType, nestCount int) []ast.Decl {
 	typeOfSuffix := "__typeof"
 	for range nestCount {
 		typeOfSuffix += "__typeof"
 	}
 
-	var willExportRequired bool
-	if !isExportedRequired && !field.Nullable && !willExportedObject {
-		willExportRequired = true
-	}
-
-	ret = append(ret, &ast.FuncDecl{
+	decls := make([]ast.Decl, 0)
+	decls = append(decls, &ast.FuncDecl{
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
 				{
@@ -592,7 +587,7 @@ func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, 
 					},
 					Body: &ast.BlockStmt{
 						List: []ast.Stmt{
-							generateIntrospectionTypeOfSwitchStmt(field, fmt.Sprintf("__schema__%s%s__typeof", fieldDefinitionName, typeOfSuffix), willExportRequired),
+							generateIntrospectionTypeOfSwitchStmt(field, fmt.Sprintf("__schema__%s%s__typeof", fieldDefinitionName, typeOfSuffix)),
 						},
 					},
 				},
@@ -605,22 +600,14 @@ func generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName string, 
 		},
 	})
 
-	if field.IsList {
-		if willExportRequired {
-			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field, nestCount+1, willExportRequired, false, field.IsList)...)
-		}
-
-		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field.ListType, nestCount+1, false, false, field.IsList)...)
+	if field.Child != nil {
+		decls = append(decls, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field.Child, nestCount+1)...)
 	}
 
-	if field.IsObject() && !willExportedObject && isPrevList {
-		ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fieldDefinitionName, field, nestCount+1, false, true, field.IsList)...)
-	}
-
-	return ret
+	return decls
 }
 
-func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncName string, willExportRequired bool) ast.Stmt {
+func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeOfFuncName string) ast.Stmt {
 	var nameExpr, kindExpr ast.Expr
 	if f.IsPrimitive() {
 		kindExpr = ast.NewIdent("__TypeKind_SCALAR")
@@ -630,7 +617,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 		nameExpr = generateStringPointerAST(string(f.Name))
 	}
 
-	if f != nil && f.IsList {
+	if f.IsList {
 		kindExpr = ast.NewIdent("__TypeKind_LIST")
 		nameExpr = &ast.BasicLit{
 			Kind:  token.STRING,
@@ -638,7 +625,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 		}
 	}
 
-	if willExportRequired {
+	if f.NonNull {
 		kindExpr = ast.NewIdent("__TypeKind_NON_NULL")
 		nameExpr = &ast.BasicLit{
 			Kind:  token.STRING,
@@ -646,18 +633,25 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 		}
 	}
 
-	var ofTypeAssignRhsExpr ast.Expr = &ast.CallExpr{
-		Fun: &ast.SelectorExpr{
-			X:   ast.NewIdent("r"),
-			Sel: ast.NewIdent(callTypeOfFuncName),
+	var fieldAssignStmt ast.Stmt
+	fieldAssignStmt = &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			&ast.SelectorExpr{
+				X:   ast.NewIdent("ret"),
+				Sel: ast.NewIdent("Fields"),
+			},
 		},
-		Args: []ast.Expr{
-			ast.NewIdent("child"),
+		Tok: token.ASSIGN,
+		Rhs: []ast.Expr{
+			&ast.BasicLit{
+				Kind:  token.STRING,
+				Value: "nil",
+			},
 		},
 	}
 
-	var fieldAssignStmt ast.Stmt
-	if f.IsObject() && !willExportRequired {
+	var ofTypeAssignRhsExpr ast.Expr = ast.NewIdent("nil")
+	if f.IsObject() {
 		fieldAssignStmt = &ast.AssignStmt{
 			Lhs: []ast.Expr{
 				&ast.SelectorExpr{
@@ -670,7 +664,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 				&ast.CallExpr{
 					Fun: &ast.SelectorExpr{
 						X:   ast.NewIdent("r"),
-						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(f.Name))),
+						Sel: ast.NewIdent("__schema__" + string(f.Name) + "__fields"),
 					},
 					Args: []ast.Expr{
 						ast.NewIdent("child"),
@@ -679,18 +673,14 @@ func generateIntrospectionTypeOfSwitchStmt(f *schema.FieldType, callTypeOfFuncNa
 			},
 		}
 	} else {
-		fieldAssignStmt = &ast.ExprStmt{
-			X: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: "// TODO",
+		ofTypeAssignRhsExpr = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("r"),
+				Sel: ast.NewIdent(callTypeOfFuncName),
 			},
-		}
-	}
-
-	if f.IsObject() && !willExportRequired {
-		ofTypeAssignRhsExpr = &ast.BasicLit{
-			Kind:  token.STRING,
-			Value: "nil",
+			Args: []ast.Expr{
+				ast.NewIdent("child"),
+			},
 		}
 	}
 
