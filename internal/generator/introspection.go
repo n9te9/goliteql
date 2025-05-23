@@ -255,7 +255,7 @@ func generateIntrospectionTypeMethodDecls(s *schema.Schema) []ast.Decl {
 						},
 						Body: &ast.BlockStmt{
 							List: []ast.Stmt{
-								generateIntrospectionTypeFieldSwitchStmt(field),
+								generateIntrospectionTypeFieldSwitchStmt(string(field.Type.Name), field),
 							},
 						},
 					},
@@ -285,6 +285,20 @@ func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
 			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), introspection.ExpandType(field.Type).Unwrap(), 0)...)
 		} else {
 			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(string(field.Name), introspection.ExpandType(field.Type).Unwrap(), 0)...)
+		}
+	}
+
+	for _, t := range s.Types {
+		if t.IsIntrospection() {
+			continue
+		}
+
+		for _, field := range t.Fields {
+			if field.Type.IsList && field.Type.Nullable {
+				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", t.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0)...)
+			} else {
+				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", t.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0)...)
+			}
 		}
 	}
 
@@ -348,7 +362,7 @@ func generateIntrospectionTypeResolverDeclsFromTypeDefinitions(typeDefinitions [
 							},
 							Body: &ast.BlockStmt{
 								List: []ast.Stmt{
-									generateIntrospectionTypeFieldSwitchStmt(field),
+									generateIntrospectionTypeFieldSwitchStmt(string(t.Name), field),
 								},
 							},
 						},
@@ -646,7 +660,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 		},
 	}
 
-	if f.IsObject() {
+	if f.IsObject() && !f.IsPrimitive() {
 		kindExpr = ast.NewIdent("__TypeKind_OBJECT")
 		nameExpr = generateStringPointerAST(string(f.Name))
 		fieldAssignStmt = &ast.AssignStmt{
@@ -688,7 +702,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 	}
 
 	var ofTypeAssignRhsExpr ast.Expr = ast.NewIdent("nil")
-	if f.Child != nil {
+	if f.Child != nil{
 		ofTypeAssignRhsExpr = &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
 				X:   ast.NewIdent("r"),
@@ -890,7 +904,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 	}
 }
 
-func generateIntrospectionTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stmt {
+func generateIntrospectionTypeFieldSwitchStmt(typeName string, f *schema.FieldDefinition) ast.Stmt {
 	var nameExpr ast.Expr
 	kindValue := ""
 	if f.IsPrimitive() {
@@ -918,11 +932,17 @@ func generateIntrospectionTypeFieldSwitchStmt(f *schema.FieldDefinition) ast.Stm
 	}
 
 	var ofTypeAssignRhsExpr ast.Expr = ast.NewIdent("nil")
-	if !f.Type.IsPrimitive() {
+	if f.Type.IsObject() || f.Type.IsList {
+		if typeName == string(f.Type.Name) {
+			typeName = ""
+		} else {
+			typeName = fmt.Sprintf("__%s", typeName)
+		}
+
 		ofTypeAssignRhsExpr = &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
 				X:   ast.NewIdent("r"),
-				Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__typeof", string(f.Name))),
+				Sel: ast.NewIdent(fmt.Sprintf("__schema%s__%s__typeof", typeName, string(f.Name))),
 			},
 			Args: []ast.Expr{
 				ast.NewIdent("child"),
