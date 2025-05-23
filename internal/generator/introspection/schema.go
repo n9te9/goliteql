@@ -49,3 +49,7 @@ func expandType(fieldType *schema.FieldType, isExpandedNonNull bool) *FieldType 
 		Child:   nil,
 	}
 }
+
+func (f *FieldType) Unwrap() *FieldType {
+	return f.Child
+}
