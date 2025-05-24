@@ -440,6 +440,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaQueryAST(g.Schema))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypesFuncDecl(g.Schema.Types))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseDataModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionQueryTypeMethodAST(g.Schema))

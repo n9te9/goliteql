@@ -42,6 +42,20 @@ type TypeDefinition struct {
 	Extentions        []*TypeDefinition
 }
 
+type TypeDefinitions []*TypeDefinition
+
+func (t TypeDefinitions) WithoutMetaDefinition() TypeDefinitions {
+	res := make(TypeDefinitions, 0, len(t))
+
+	for _, td := range t {
+		if !td.IsIntrospection() {
+			res = append(res, td)
+		}
+	}
+
+	return res
+}
+
 func (t *TypeDefinition) IsPrimitive() bool {
 	return bytes.Equal(t.Name, []byte("String")) || bytes.Equal(t.Name, []byte("Int")) || bytes.Equal(t.Name, []byte("Float")) || bytes.Equal(t.Name, []byte("Boolean")) || bytes.Equal(t.Name, []byte("ID"))
 }

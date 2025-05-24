@@ -111,6 +111,272 @@ func generateIntrospectionSchemaResponseModelAST() ast.Decl {
 	}
 }
 
+func generateIntrospectionTypesFuncDecl(typeDefinitions schema.TypeDefinitions) ast.Decl {
+	stmts := make([]ast.Stmt, 0)
+	stmts = append(stmts, generateIntrospectionTypesFieldSwitchStmts(typeDefinitions.WithoutMetaDefinition())...)
+	stmts = append(stmts, &ast.ReturnStmt{
+		Results: []ast.Expr{
+			ast.NewIdent("ret"),
+		},
+	})
+
+	return &ast.FuncDecl{
+		Name: ast.NewIdent("__schema_types"),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						ast.NewIdent("r"),
+					},
+					Type: &ast.StarExpr{
+						X: ast.NewIdent("resolver"),
+					},
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Params: generateNodeWalkerArgs(),
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.ArrayType{
+							Elt: ast.NewIdent("__Type"),
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: stmts,
+		},
+	}
+}
+
+func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDefinition) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(typeDefinitions))
+
+	stmts = append(stmts, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("ret"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: ast.NewIdent("make"),
+				Args: []ast.Expr{
+					&ast.ArrayType{
+						Elt: ast.NewIdent("__Type"),
+					},
+					ast.NewIdent(fmt.Sprintf("%d", len(typeDefinitions))),
+				},
+			},
+		},
+	})
+
+	caseStmts := generateIntrospectionTypeFieldCaseStmts(typeDefinitions)
+
+	stmts = append(stmts, &ast.RangeStmt{
+		Key:   ast.NewIdent("_"),
+		Tok:   token.DEFINE,
+		Value: ast.NewIdent("child"),
+		X: &ast.SelectorExpr{
+			X:   ast.NewIdent("node"),
+			Sel: ast.NewIdent("Children"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.SwitchStmt{
+					Tag: &ast.CallExpr{
+						Fun: ast.NewIdent("string"),
+						Args: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("child"),
+								Sel: ast.NewIdent("Name"),
+							},
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: caseStmts,
+					},
+				},
+			},
+		},
+	})
+
+	return stmts
+}
+
+func generateIntrospectionTypeFieldCaseStmts(typeDefinitions schema.TypeDefinitions) []ast.Stmt {
+	typeDefinitionsWithoutMetaField := typeDefinitions.WithoutMetaDefinition()
+	stmts := make([]ast.Stmt, 0, len(typeDefinitionsWithoutMetaField))
+
+	for i, t := range typeDefinitionsWithoutMetaField {
+		if t.IsIntrospection() {
+			continue
+		}
+
+		var kindRhs ast.Expr = ast.NewIdent("__TypeKind_OBJECT")
+		if t.IsPrimitive() {
+			kindRhs = ast.NewIdent("__TypeKind_SCALAR")
+		}
+
+		stmts = append(stmts, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"kind"`,
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X: &ast.IndexExpr{
+								X: &ast.Ident{
+									Name: "ret",
+								},
+								Index: &ast.BasicLit{
+									Kind:  token.INT,
+									Value: fmt.Sprintf("%d", i),
+								},
+							},
+							Sel: ast.NewIdent("Kind"),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						kindRhs,
+					},
+				},
+			},
+		}, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"name"`,
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X: &ast.IndexExpr{
+								X: &ast.Ident{
+									Name: "ret",
+								},
+								Index: &ast.BasicLit{
+									Kind:  token.INT,
+									Value: fmt.Sprintf("%d", i),
+								},
+							},
+							Sel: ast.NewIdent("Name"),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						generateStringPointerAST(string(t.Name)),
+					},
+				},
+			},
+		}, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"fields"`,
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X: &ast.IndexExpr{
+								X: &ast.Ident{
+									Name: "ret",
+								},
+								Index: &ast.BasicLit{
+									Kind:  token.INT,
+									Value: fmt.Sprintf("%d", i),
+								},
+							},
+							Sel: ast.NewIdent("Fields"),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("r"),
+								Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(t.Name))),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("child"),
+							},
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return stmts
+}
+
+func generateIntrospectionTypeFieldBodyStmt(typeName string, fields schema.FieldDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(fields))
+
+	stmts = append(stmts, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("ret"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: ast.NewIdent("make"),
+				Args: []ast.Expr{
+					&ast.ArrayType{
+						Elt: ast.NewIdent("__Type"),
+					},
+					ast.NewIdent(fmt.Sprintf("%d", len(fields))),
+				},
+			},
+		},
+	})
+
+	for i, field := range fields {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.IndexExpr{
+					X: ast.NewIdent("ret"),
+					Index: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: fmt.Sprintf("%d", i),
+					},
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__%s__type", typeName, string(field.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("child"),
+					},
+				},
+			},
+		})
+	}
+
+	stmts = append(stmts, &ast.ReturnStmt{
+		Results: []ast.Expr{
+			ast.NewIdent("ret"),
+		},
+	})
+
+	return stmts
+}
+
 func generateIntrospectionModelFieldCaseAST(s *schema.Schema, field *schema.FieldDefinition) ast.Stmt {
 	var stmts []ast.Stmt
 	switch string(field.Name) {
@@ -130,6 +396,27 @@ func generateIntrospectionModelFieldCaseAST(s *schema.Schema, field *schema.Fiel
 					Fun: &ast.SelectorExpr{
 						X:   ast.NewIdent("r"),
 						Sel: ast.NewIdent("__schema_queryType"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("child"),
+					},
+				},
+			},
+		})
+	case "types":
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent("Types"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent("__schema_types"),
 					},
 					Args: []ast.Expr{
 						ast.NewIdent("child"),
@@ -702,7 +989,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 	}
 
 	var ofTypeAssignRhsExpr ast.Expr = ast.NewIdent("nil")
-	if f.Child != nil{
+	if f.Child != nil {
 		ofTypeAssignRhsExpr = &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
 				X:   ast.NewIdent("r"),
