@@ -8,6 +8,7 @@ type Node struct {
 	Name       []byte
 	SelectSets []query.Selection
 	Directives []*query.Directive
+	Arguments  []*query.Argument
 	Children   []*Node
 }
 
@@ -20,6 +21,7 @@ func PlanExecution(selections []query.Selection) *Node {
 				SelectSets: s.Selections,
 				Directives: s.Directives,
 				Children:   make([]*Node, 0),
+				Arguments:  s.Arguments,
 			}
 
 			for _, child := range s.Selections {
@@ -43,6 +45,7 @@ func digExecution(selectSet query.Selection) *Node {
 			Name:       s.Name,
 			SelectSets: s.Selections,
 			Directives: s.Directives,
+			Arguments:  s.Arguments,
 		}
 		for _, child := range s.Selections {
 			switch c := child.(type) {

@@ -77,9 +77,8 @@ type Selection interface {
 }
 
 type Argument struct {
-	Name         []byte
-	Type         *FieldType
-	DefaultValue []byte
+	Name  []byte
+	Value []byte
 }
 
 type DirectiveArgument struct {
@@ -606,29 +605,12 @@ func (p *Parser) parseFieldArgument(tokens Tokens, cur int) (*Argument, int, err
 	}
 	cur++
 
-	if tokens[cur].Type == Dollar {
+	v := make([]byte, 0)
+	for tokens[cur].Type != Comma && tokens[cur].Type != ParenClose {
+		v = append(v, tokens[cur].Value...)
 		cur++
 	}
-
-	fieldType, newCur, err := p.parseFieldType(tokens, cur, 0)
-	if err != nil {
-		return nil, newCur, err
-	}
-	cur = newCur
-	argument.Type = fieldType
-
-	if tokens[cur].Type == Equal {
-		cur++
-		if tokens[cur].Type != Value {
-			return nil, cur, fmt.Errorf("expected value after =")
-		}
-		argument.DefaultValue, cur, err = p.parseDefaultValue(tokens, cur)
-		if err != nil {
-			return nil, cur, err
-		}
-
-		cur++
-	}
+	argument.Value = v
 
 	return argument, cur, nil
 }
