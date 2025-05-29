@@ -582,6 +582,10 @@ var (
 			Extentions: nil,
 		},
 	}
+
+	fieldsIntrospectionOperationDefinition = &OperationDefinition{
+		Name: []byte("__fields"),
+	}
 )
 
 func withTypeIntrospection(schema *Schema) *Schema {

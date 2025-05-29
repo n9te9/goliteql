@@ -2403,3 +2403,106 @@ func generateResolverImplementation(fields schema.FieldDefinitions) []ast.Decl {
 
 	return decls
 }
+
+func generateExtractOperationArgumentsDecls(operation *schema.OperationDefinition) []ast.Decl {
+	decls := make([]ast.Decl, 0)
+
+	if operation == nil {
+		return decls
+	}
+
+	for _, field := range operation.Fields {
+		if len(field.Arguments) == 0 {
+			continue
+		}
+		decls = append(decls, generateExtractOperationArgumentsDecl(field))
+	}
+
+	return decls
+}
+
+func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition) ast.Decl {
+	bodyStmts := make([]ast.Stmt, 0)
+	bodyStmts = append(bodyStmts, generateDeclareStmts(field.Arguments)...)
+	bodyStmts = append(bodyStmts, generateArgumentReturnStmt(field.Arguments))
+
+	return &ast.FuncDecl{
+		Name: ast.NewIdent("extract" + string(field.Name) + "Args"),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{
+							Name: "r",
+						},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{
+							Name: "resolver",
+						},
+					},
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Params:  generateNodeWalkerArgs(),
+			Results: generateArgumentsParams(field.Arguments),
+		},
+		Body: &ast.BlockStmt{
+			List: bodyStmts,
+		},
+	}
+}
+
+func generateArgumentsParams(args schema.ArgumentDefinitions) *ast.FieldList {
+	fields := make([]*ast.Field, 0, len(args))
+
+	for _, arg := range args {
+		fields = append(fields, &ast.Field{
+			Type: generateTypeExprFromFieldType(arg.Type),
+		})
+	}
+
+	return &ast.FieldList{
+		List: fields,
+	}
+}
+
+func generateDeclareStmts(args schema.ArgumentDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(args))
+
+	stmts = append(stmts, &ast.DeclStmt{
+		Decl: &ast.GenDecl{
+			Tok:   token.VAR,
+			Specs: generateVarSpecs(args),
+		},
+	})
+
+	return stmts
+}
+
+func generateVarSpecs(args schema.ArgumentDefinitions) []ast.Spec {
+	specs := make([]ast.Spec, 0)
+	for _, arg := range args {
+		specs = append(specs, &ast.ValueSpec{
+			Names: []*ast.Ident{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Type: generateTypeExprFromFieldType(arg.Type),
+		})
+	}
+
+	return specs
+}
+
+func generateArgumentReturnStmt(args schema.ArgumentDefinitions) *ast.ReturnStmt {
+	results := make([]ast.Expr, 0, len(args))
+
+	for _, arg := range args {
+		results = append(results, ast.NewIdent(string(arg.Name)))
+	}
+
+	return &ast.ReturnStmt{
+		Results: results,
+	}
+}
