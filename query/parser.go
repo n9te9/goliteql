@@ -3,6 +3,8 @@ package query
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/n9te9/goliteql"
 )
 
 type OperationType string
@@ -155,18 +157,23 @@ func (f *FragmentDefinition) GetSelections() []Selection {
 }
 
 type Parser struct {
-	Lexer *Lexer
+	ValueParser *goliteql.ValueParser
+	Lexer       *Lexer
 }
 
 func NewParser(lexer *Lexer) *Parser {
+	valueLexer := goliteql.NewValueLexer()
 	return &Parser{
-		Lexer: lexer,
+		ValueParser: goliteql.NewValueParser(valueLexer),
+		Lexer:       lexer,
 	}
 }
 
 func NewParserWithLexer() *Parser {
+	valueLexer := goliteql.NewValueLexer()
 	return &Parser{
-		Lexer: NewLexer(),
+		ValueParser: goliteql.NewValueParser(valueLexer),
+		Lexer:       NewLexer(),
 	}
 }
 

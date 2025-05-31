@@ -2404,26 +2404,37 @@ func generateResolverImplementation(fields schema.FieldDefinitions) []ast.Decl {
 	return decls
 }
 
-func generateExtractOperationArgumentsDecls(operation *schema.OperationDefinition) []ast.Decl {
-	decls := make([]ast.Decl, 0)
-
-	if operation == nil {
-		return decls
-	}
-
-	for _, field := range operation.Fields {
-		if len(field.Arguments) == 0 {
-			continue
-		}
-		decls = append(decls, generateExtractOperationArgumentsDecl(field))
-	}
-
-	return decls
+var fieldsIntrospectionFieldDefinition = &schema.FieldDefinition{
+	Name: []byte("__fields"),
+	Arguments: schema.ArgumentDefinitions{
+		{
+			Name: []byte("includeDeprecated"),
+			Type: &schema.FieldType{
+				Name:     []byte("Boolean"),
+				IsList:   false,
+				Nullable: true,
+				ListType: nil,
+			},
+			Default: []byte("false"),
+		},
+	},
+	Type: &schema.FieldType{
+		Name:     nil,
+		IsList:   true,
+		Nullable: true,
+		ListType: &schema.FieldType{
+			Name:     []byte("__Field"),
+			IsList:   false,
+			Nullable: false,
+			ListType: nil,
+		},
+	},
 }
 
 func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition) ast.Decl {
 	bodyStmts := make([]ast.Stmt, 0)
 	bodyStmts = append(bodyStmts, generateDeclareStmts(field.Arguments)...)
+	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments)...)
 	bodyStmts = append(bodyStmts, generateArgumentReturnStmt(field.Arguments))
 
 	return &ast.FuncDecl{
@@ -2479,6 +2490,124 @@ func generateDeclareStmts(args schema.ArgumentDefinitions) []ast.Stmt {
 	})
 
 	return stmts
+}
+
+func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(args))
+
+	for _, arg := range args {
+		if arg.Default != nil {
+			stmts = append(stmts, generateAssignDefaultValueStmt(arg))
+		}
+	}
+
+	return stmts
+}
+
+func generateAssignDefaultValueStmt(arg *schema.ArgumentDefinition) ast.Stmt {
+	return &ast.AssignStmt{
+		Tok: token.ASSIGN,
+		Lhs: []ast.Expr{
+			ast.NewIdent(string(arg.Name)),
+		},
+		Rhs: []ast.Expr{
+			generateDefaultValueExpr(arg),
+		},
+	}
+}
+
+func generateDefaultValueExpr(arg *schema.ArgumentDefinition) ast.Expr {
+	if arg.Type.IsBoolean() {
+		if arg.Type.Nullable {
+			return generateBoolPointerAST(string(arg.Default))
+		} else {
+			return &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: string(arg.Default),
+			}
+		}
+	}
+
+	if arg.Type.IsString() {
+		if arg.Type.Nullable {
+			return generateStringPointerAST(string(arg.Default))
+		} else {
+			return &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: string(arg.Default),
+			}
+		}
+	}
+
+	if arg.Type.IsInt() {
+		if arg.Type.Nullable {
+			return generateIntPointerAST(string(arg.Default))
+		} else {
+			return &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: string(arg.Default),
+			}
+		}
+	}
+
+	if arg.Type.IsFloat() {
+		if arg.Type.Nullable {
+			return generateFloatPointerAST(string(arg.Default))
+		} else {
+			return &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: string(arg.Default),
+			}
+		}
+	}
+
+	return nil
+}
+
+func generateIntPointerAST(value string) ast.Expr {
+	return &ast.UnaryExpr{
+		Op: token.AND,
+		X: &ast.IndexExpr{
+			X: &ast.CompositeLit{
+				Type: &ast.ArrayType{
+					Elt: ast.NewIdent("int"),
+				},
+				Elts: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf(`"%s"`, value),
+					},
+				},
+			},
+			Index: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: "0",
+			},
+		},
+	}
+}
+
+func generateFloatPointerAST(value string) ast.Expr {
+	return &ast.UnaryExpr{
+		Op: token.AND,
+		X: &ast.IndexExpr{
+			X: &ast.CompositeLit{
+				Type: &ast.ArrayType{
+					Elt: ast.NewIdent("float64"),
+				},
+				Elts: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.FLOAT,
+						Value: value,
+					},
+				},
+			},
+			Index: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: "0",
+			},
+		},
+	}
 }
 
 func generateVarSpecs(args schema.ArgumentDefinitions) []ast.Spec {

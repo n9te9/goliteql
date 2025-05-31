@@ -96,6 +96,26 @@ func (f *FieldType) IsObject() bool {
 	return !bytes.Equal(f.Name, []byte(""))
 }
 
+func (f *FieldType) IsBoolean() bool {
+	return bytes.Equal(f.Name, []byte("Boolean"))
+}
+
+func (f *FieldType) IsString() bool {
+	return bytes.Equal(f.Name, []byte("String"))
+}
+
+func (f *FieldType) IsInt() bool {
+	return bytes.Equal(f.Name, []byte("Int"))
+}
+
+func (f *FieldType) IsFloat() bool {
+	return bytes.Equal(f.Name, []byte("Float"))
+}
+
+func (f *FieldType) IsID() bool {
+	return bytes.Equal(f.Name, []byte("ID"))
+}
+
 func (f *FieldType) GetRootType() *FieldType {
 	if f.IsList {
 		return f.ListType.GetRootType()

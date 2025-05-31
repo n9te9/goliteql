@@ -310,6 +310,17 @@ func generateIntrospectionTypeFieldCaseStmts(typeDefinitions schema.TypeDefiniti
 							},
 							Args: []ast.Expr{
 								ast.NewIdent("child"),
+								&ast.StarExpr{
+									X: &ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X:   ast.NewIdent("r"),
+											Sel: ast.NewIdent("extract__fieldsArgs"),
+										},
+										Args: []ast.Expr{
+											ast.NewIdent("child"),
+										},
+									},
+								},
 							},
 						},
 					},
@@ -704,6 +715,17 @@ func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefiniti
 			continue
 		}
 
+		args := generateNodeWalkerArgs()
+
+		args.List = append(args.List, &ast.Field{
+			Names: []*ast.Ident{
+				ast.NewIdent("includeDeprecated"),
+			},
+			Type: &ast.Ident{
+				Name: "bool",
+			},
+		})
+
 		ret = append(ret, &ast.FuncDecl{
 			Recv: &ast.FieldList{
 				List: []*ast.Field{
@@ -719,7 +741,7 @@ func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefiniti
 			},
 			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(t.Name))),
 			Type: &ast.FuncType{
-				Params: generateNodeWalkerArgs(),
+				Params: args,
 				Results: &ast.FieldList{
 					List: []*ast.Field{
 						{
@@ -966,6 +988,17 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 					},
 					Args: []ast.Expr{
 						ast.NewIdent("child"),
+						&ast.StarExpr{
+							X: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("r"),
+									Sel: ast.NewIdent("extract__fieldsArgs"),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("child"),
+								},
+							},
+						},
 					},
 				},
 			},
@@ -1797,6 +1830,29 @@ func generateStringPointerAST(value string) ast.Expr {
 					&ast.BasicLit{
 						Kind:  token.STRING,
 						Value: fmt.Sprintf(`"%s"`, value),
+					},
+				},
+			},
+			Index: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: "0",
+			},
+		},
+	}
+}
+
+func generateBoolPointerAST(value string) ast.Expr {
+	return &ast.UnaryExpr{
+		Op: token.AND,
+		X: &ast.IndexExpr{
+			X: &ast.CompositeLit{
+				Type: &ast.ArrayType{
+					Elt: ast.NewIdent("bool"),
+				},
+				Elts: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf("%s", value),
 					},
 				},
 			},

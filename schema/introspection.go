@@ -582,33 +582,6 @@ var (
 			Extentions: nil,
 		},
 	}
-
-	fieldsIntrospectionFieldDefinition = &FieldDefinition{
-		Name: []byte("__fields"),
-		Arguments: ArgumentDefinitions{
-			{
-				Name: []byte("includeDeprecated"),
-				Type: &FieldType{
-					Name:     []byte("Boolean"),
-					IsList:   false,
-					Nullable: true,
-					ListType: nil,
-				},
-				Default: []byte("false"),
-			},
-		},
-		Type: &FieldType{
-			Name:     nil,
-			IsList:   true,
-			Nullable: true,
-			ListType: &FieldType{
-				Name:     []byte("__Field"),
-				IsList:   false,
-				Nullable: false,
-				ListType: nil,
-			},
-		},
-	}
 )
 
 func withTypeIntrospection(schema *Schema) *Schema {
@@ -686,12 +659,7 @@ func withTypeIntrospection(schema *Schema) *Schema {
 		Directives:        nil,
 		Extentions:        nil,
 	})
-	
-	for i, op := range schema.Operations {
-		if op.OperationType.IsQuery() {
-			schema.Operations[i].Fields = append(op.Fields, fieldsIntrospectionFieldDefinition)
-		}
-	}
+
 	schema.Enums = append(schema.Enums, typeKindIntrospectionFields...)
 	schema.Enums = append(schema.Enums, directiveLocationIntrospectionFields...)
 
