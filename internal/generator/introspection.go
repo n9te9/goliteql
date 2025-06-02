@@ -288,6 +288,24 @@ func generateIntrospectionTypeFieldCaseStmts(typeDefinitions schema.TypeDefiniti
 			Body: []ast.Stmt{
 				&ast.AssignStmt{
 					Lhs: []ast.Expr{
+						ast.NewIdent("includeDeprecated"),
+						ast.NewIdent("err"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("r"),
+								Sel: ast.NewIdent("extract__fieldsArgs"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("child"),
+							},
+						},
+					},
+				},
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
 						&ast.SelectorExpr{
 							X: &ast.IndexExpr{
 								X: &ast.Ident{
@@ -311,15 +329,7 @@ func generateIntrospectionTypeFieldCaseStmts(typeDefinitions schema.TypeDefiniti
 							Args: []ast.Expr{
 								ast.NewIdent("child"),
 								&ast.StarExpr{
-									X: &ast.CallExpr{
-										Fun: &ast.SelectorExpr{
-											X:   ast.NewIdent("r"),
-											Sel: ast.NewIdent("extract__fieldsArgs"),
-										},
-										Args: []ast.Expr{
-											ast.NewIdent("child"),
-										},
-									},
+									X: ast.NewIdent("includeDeprecated"),
 								},
 							},
 						},
@@ -328,62 +338,6 @@ func generateIntrospectionTypeFieldCaseStmts(typeDefinitions schema.TypeDefiniti
 			},
 		})
 	}
-
-	return stmts
-}
-
-func generateIntrospectionTypeFieldBodyStmt(typeName string, fields schema.FieldDefinitions) []ast.Stmt {
-	stmts := make([]ast.Stmt, 0, len(fields))
-
-	stmts = append(stmts, &ast.AssignStmt{
-		Lhs: []ast.Expr{
-			ast.NewIdent("ret"),
-		},
-		Tok: token.DEFINE,
-		Rhs: []ast.Expr{
-			&ast.CallExpr{
-				Fun: ast.NewIdent("make"),
-				Args: []ast.Expr{
-					&ast.ArrayType{
-						Elt: ast.NewIdent("__Type"),
-					},
-					ast.NewIdent(fmt.Sprintf("%d", len(fields))),
-				},
-			},
-		},
-	})
-
-	for i, field := range fields {
-		stmts = append(stmts, &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				&ast.IndexExpr{
-					X: ast.NewIdent("ret"),
-					Index: &ast.BasicLit{
-						Kind:  token.INT,
-						Value: fmt.Sprintf("%d", i),
-					},
-				},
-			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("r"),
-						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__%s__type", typeName, string(field.Name))),
-					},
-					Args: []ast.Expr{
-						ast.NewIdent("child"),
-					},
-				},
-			},
-		})
-	}
-
-	stmts = append(stmts, &ast.ReturnStmt{
-		Results: []ast.Expr{
-			ast.NewIdent("ret"),
-		},
-	})
 
 	return stmts
 }
@@ -969,7 +923,30 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 		},
 	}
 
+	var extractArgsField ast.Stmt = &ast.ExprStmt{
+		X: &ast.BasicLit{
+		},
+	}
 	if f.IsObject() && !f.IsPrimitive() {
+		extractArgsField = &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("includeDeprecated"),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent("extract__fieldsArgs"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("child"),
+					},
+				},
+			},
+		}
+
 		kindExpr = ast.NewIdent("__TypeKind_OBJECT")
 		nameExpr = generateStringPointerAST(string(f.Name))
 		fieldAssignStmt = &ast.AssignStmt{
@@ -989,15 +966,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 					Args: []ast.Expr{
 						ast.NewIdent("child"),
 						&ast.StarExpr{
-							X: &ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   ast.NewIdent("r"),
-									Sel: ast.NewIdent("extract__fieldsArgs"),
-								},
-								Args: []ast.Expr{
-									ast.NewIdent("child"),
-								},
-							},
+							X: ast.NewIdent("includeDeprecated"),
 						},
 					},
 				},
@@ -1114,6 +1083,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 						},
 					},
 					Body: []ast.Stmt{
+						extractArgsField,
 						fieldAssignStmt,
 					},
 				},

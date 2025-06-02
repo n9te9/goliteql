@@ -448,7 +448,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldTypeTypeOfDecls(g.Schema)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsDecls(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromTypeDefinitions(g.Schema.Types)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateExtractOperationArgumentsDecl(fieldsIntrospectionFieldDefinition))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateExtractOperationArgumentsDecl(fieldsIntrospectionFieldDefinition, g.Schema.Indexes))
 
 	if q := g.Schema.GetQuery(); q != nil {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(q.Name), q.Fields)...)

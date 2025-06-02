@@ -2431,11 +2431,23 @@ var fieldsIntrospectionFieldDefinition = &schema.FieldDefinition{
 	},
 }
 
-func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition) ast.Decl {
+func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexes *schema.Indexes) ast.Decl {
+
 	bodyStmts := make([]ast.Stmt, 0)
 	bodyStmts = append(bodyStmts, generateDeclareStmts(field.Arguments)...)
-	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments)...)
-	bodyStmts = append(bodyStmts, generateArgumentReturnStmt(field.Arguments))
+
+	errReturnStmt := generateArgumentReturnStmt(field.Arguments)
+	errReturnStmt.Results = append(errReturnStmt.Results, ast.NewIdent("err"))
+	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments, indexes, errReturnStmt)...)
+
+	okReturnStmt := generateArgumentReturnStmt(field.Arguments)
+	okReturnStmt.Results = append(okReturnStmt.Results, ast.NewIdent("nil"))
+	bodyStmts = append(bodyStmts, okReturnStmt)
+
+	results := generateArgumentsParams(field.Arguments)
+	results.List = append(results.List, &ast.Field{
+		Type: ast.NewIdent("error"),
+	})
 
 	return &ast.FuncDecl{
 		Name: ast.NewIdent("extract" + string(field.Name) + "Args"),
@@ -2457,7 +2469,7 @@ func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition) ast.De
 		},
 		Type: &ast.FuncType{
 			Params:  generateNodeWalkerArgs(),
-			Results: generateArgumentsParams(field.Arguments),
+			Results: results,
 		},
 		Body: &ast.BlockStmt{
 			List: bodyStmts,
@@ -2492,31 +2504,98 @@ func generateDeclareStmts(args schema.ArgumentDefinitions) []ast.Stmt {
 	return stmts
 }
 
-func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions) []ast.Stmt {
+func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes, errReturnStmt ast.Stmt) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(args))
 
-	for _, arg := range args {
+	for i, arg := range args {
 		if arg.Default != nil {
-			stmts = append(stmts, generateAssignDefaultValueStmt(arg))
+			stmts = append(stmts, generateAssignDefaultValueStmt(arg, indexes))
+			stmts = append(stmts, generateResolveDefaultValueStmt(arg, i, errReturnStmt)...)
 		}
 	}
 
 	return stmts
 }
 
-func generateAssignDefaultValueStmt(arg *schema.ArgumentDefinition) ast.Stmt {
+func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int, errReturnStmt ast.Stmt) []ast.Stmt {
+	argExpr := &ast.SelectorExpr{
+		X: &ast.IndexExpr{
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("node"),
+				Sel: ast.NewIdent("Arguments"),
+			},
+			Index: ast.NewIdent(fmt.Sprintf("%d", index)),
+		},
+		Sel: ast.NewIdent("Value"),
+	}
+
+	ifStmt := &ast.IfStmt{
+		Cond: &ast.BinaryExpr{
+			X:  argExpr,
+			Op: token.NEQ,
+			Y:  ast.NewIdent("nil"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.AssignStmt{
+					Tok: token.DEFINE,
+					Lhs: []ast.Expr{
+						ast.NewIdent("ast"),
+						ast.NewIdent("err"),
+					},
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:  &ast.SelectorExpr{
+									X: &ast.SelectorExpr{
+										X: ast.NewIdent("r"),
+										Sel: ast.NewIdent("parser"),
+									},
+									Sel: ast.NewIdent("ValueParser"),
+								},
+								Sel: ast.NewIdent("Parse"),
+							},
+							Args: []ast.Expr{
+								argExpr,
+							},
+						},
+					},
+				},
+				&ast.IfStmt{
+					Cond: &ast.BinaryExpr{
+						X:  ast.NewIdent("err"),
+						Op: token.NEQ,
+						Y:  ast.NewIdent("nil"),
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							errReturnStmt,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ret := make([]ast.Stmt, 0)
+	ret = append(ret, ifStmt)
+	
+	return ret
+}
+
+func generateAssignDefaultValueStmt(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {
 	return &ast.AssignStmt{
 		Tok: token.ASSIGN,
 		Lhs: []ast.Expr{
 			ast.NewIdent(string(arg.Name)),
 		},
 		Rhs: []ast.Expr{
-			generateDefaultValueExpr(arg),
+			generateDefaultValueExpr(arg, indexes),
 		},
 	}
 }
 
-func generateDefaultValueExpr(arg *schema.ArgumentDefinition) ast.Expr {
+func generateDefaultValueExpr(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Expr {
 	if arg.Type.IsBoolean() {
 		if arg.Type.Nullable {
 			return generateBoolPointerAST(string(arg.Default))
@@ -2561,6 +2640,7 @@ func generateDefaultValueExpr(arg *schema.ArgumentDefinition) ast.Expr {
 		}
 	}
 
+	// TODO: implement other types like ID, Enum, etc.
 	return nil
 }
 
