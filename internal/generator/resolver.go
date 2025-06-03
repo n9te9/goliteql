@@ -2438,10 +2438,10 @@ func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexe
 
 	errReturnStmt := generateArgumentReturnStmt(field.Arguments)
 	errReturnStmt.Results = append(errReturnStmt.Results, ast.NewIdent("err"))
-	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments, indexes, errReturnStmt)...)
-
 	okReturnStmt := generateArgumentReturnStmt(field.Arguments)
 	okReturnStmt.Results = append(okReturnStmt.Results, ast.NewIdent("nil"))
+
+	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments, indexes, okReturnStmt, errReturnStmt)...)
 	bodyStmts = append(bodyStmts, okReturnStmt)
 
 	results := generateArgumentsParams(field.Arguments)
@@ -2477,6 +2477,97 @@ func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexe
 	}
 }
 
+func generateArgumentFieldExtractStmts(arg *schema.ArgumentDefinition) ast.Stmt {
+	caseStmts := make([]ast.Stmt, 0)
+	if arg.Type.IsBoolean() {
+		caseStmts = append(caseStmts, generateBoolCaseStmt(arg))
+	}
+
+	switchStmt := &ast.TypeSwitchStmt{
+		Assign: &ast.AssignStmt{
+			Tok: token.DEFINE,
+			Lhs: []ast.Expr{
+				ast.NewIdent("val"),
+			},
+			Rhs: []ast.Expr{
+				&ast.TypeAssertExpr{
+					X:    ast.NewIdent("ast"),
+					Type: ast.NewIdent("type"),
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: caseStmts,
+		},
+	}
+
+	return switchStmt
+}
+
+func generateBoolCaseStmt(arg *schema.ArgumentDefinition) ast.Stmt {
+	var assignStmt ast.Stmt
+	assignStmt = &ast.AssignStmt{
+		Tok: token.ASSIGN,
+		Lhs: []ast.Expr{
+			ast.NewIdent(string(arg.Name)),
+		},
+		Rhs: []ast.Expr{
+			ast.NewIdent("boolValue"),
+		},
+	}
+	if arg.Type.Nullable {
+		assignStmt = &ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
+			Rhs: []ast.Expr{
+				&ast.UnaryExpr{
+					Op: token.AND,
+					X:  ast.NewIdent("boolValue"),
+				},
+			},
+		}
+	}
+
+	return &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.StarExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("goliteql"),
+					Sel: ast.NewIdent("ValueParserLiteral"),
+				},
+			},
+		},
+		Body: []ast.Stmt{
+			&ast.IfStmt{
+				Cond: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("val"),
+						Sel: ast.NewIdent("IsBool"),
+					},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Tok: token.DEFINE,
+							Lhs: []ast.Expr{ast.NewIdent("boolValue")},
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("val"),
+										Sel: ast.NewIdent("BoolValue"),
+									},
+									Args: []ast.Expr{},
+								},
+							},
+						},
+						assignStmt,
+					},
+				},
+			},
+		},
+	}
+}
+
 func generateArgumentsParams(args schema.ArgumentDefinitions) *ast.FieldList {
 	fields := make([]*ast.Field, 0, len(args))
 
@@ -2504,20 +2595,40 @@ func generateDeclareStmts(args schema.ArgumentDefinitions) []ast.Stmt {
 	return stmts
 }
 
-func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes, errReturnStmt ast.Stmt) []ast.Stmt {
+func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes, okReturnStmt, errReturnStmt ast.Stmt) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(args))
 
 	for i, arg := range args {
 		if arg.Default != nil {
 			stmts = append(stmts, generateAssignDefaultValueStmt(arg, indexes))
-			stmts = append(stmts, generateResolveDefaultValueStmt(arg, i, errReturnStmt)...)
+			stmts = append(stmts, &ast.IfStmt{
+				Cond: &ast.BinaryExpr{
+					X: &ast.CallExpr{
+						Fun: ast.NewIdent("len"),
+						Args: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("node"),
+								Sel: ast.NewIdent("Arguments"),
+							},
+						},
+					},
+					Op: token.EQL,
+					Y:  ast.NewIdent(fmt.Sprintf("%d", i)),
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						okReturnStmt,
+					},
+				},
+			})
+			stmts = append(stmts, generateResolveDefaultValueStmt(arg, i, okReturnStmt, errReturnStmt)...)
 		}
 	}
 
 	return stmts
 }
 
-func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int, errReturnStmt ast.Stmt) []ast.Stmt {
+func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int, okReturnStmt, errReturnStmt ast.Stmt) []ast.Stmt {
 	argExpr := &ast.SelectorExpr{
 		X: &ast.IndexExpr{
 			X: &ast.SelectorExpr{
@@ -2546,9 +2657,9 @@ func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int, 
 					Rhs: []ast.Expr{
 						&ast.CallExpr{
 							Fun: &ast.SelectorExpr{
-								X:  &ast.SelectorExpr{
+								X: &ast.SelectorExpr{
 									X: &ast.SelectorExpr{
-										X: ast.NewIdent("r"),
+										X:   ast.NewIdent("r"),
 										Sel: ast.NewIdent("parser"),
 									},
 									Sel: ast.NewIdent("ValueParser"),
@@ -2561,6 +2672,7 @@ func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int, 
 						},
 					},
 				},
+				generateArgumentFieldExtractStmts(arg),
 				&ast.IfStmt{
 					Cond: &ast.BinaryExpr{
 						X:  ast.NewIdent("err"),
@@ -2578,8 +2690,9 @@ func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int, 
 	}
 
 	ret := make([]ast.Stmt, 0)
+
 	ret = append(ret, ifStmt)
-	
+
 	return ret
 }
 

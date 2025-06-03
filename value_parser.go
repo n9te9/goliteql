@@ -39,16 +39,36 @@ func (v *ValueParserLiteral) IsString() bool {
 	return v.TokenType == STRING
 }
 
+func (v *ValueParserLiteral) StringValue() string {
+	return string(v.Value)
+}
+
 func (v *ValueParserLiteral) IsInt() bool {
 	return v.TokenType == INT
+}
+
+func (v *ValueParserLiteral) IntValue() int {
+	var value int
+	fmt.Sscanf(string(v.Value), "%d", &value)
+	return value
 }
 
 func (v *ValueParserLiteral) IsFloat() bool {
 	return v.TokenType == FLOAT
 }
 
+func (v *ValueParserLiteral) FloatValue() float64 {
+	var value float64
+	fmt.Sscanf(string(v.Value), "%f", &value)
+	return value
+}
+
 func (v *ValueParserLiteral) IsBool() bool {
 	return v.TokenType == BOOL
+}
+
+func (v *ValueParserLiteral) BoolValue() bool {
+	return string(v.Value) == "true"
 }
 
 func (v *ValueParserLiteral) IsNull() bool {

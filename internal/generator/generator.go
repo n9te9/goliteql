@@ -383,6 +383,12 @@ func (g *Generator) generateResolver() error {
 					Value: `"github.com/n9te9/goliteql/executor"`,
 				},
 			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"github.com/n9te9/goliteql"`,
+				},
+			},
 		}
 
 		importSpecs = append(importSpecs, generateResolverImport().Specs...)
