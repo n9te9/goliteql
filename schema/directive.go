@@ -17,6 +17,17 @@ type Directive struct {
 	Locations []*Location
 }
 
+type Directives []*Directive
+
+func (d *Directives) Get(name []byte) *Directive {
+	for _, directive := range *d {
+		if bytes.Equal(directive.Name, name) {
+			return directive
+		}
+	}
+	return nil
+}
+
 type DirectiveArgument struct {
 	Name  []byte
 	Value []byte

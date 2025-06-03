@@ -677,7 +677,7 @@ func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefiniti
 		ret := make([]ast.Stmt, 0, len(t.Fields))
 
 		for i, field := range t.Fields {
-			ret = append(ret, &ast.AssignStmt{
+			assignStmt := &ast.AssignStmt{
 				Lhs: []ast.Expr{
 					&ast.SelectorExpr{
 						X: &ast.IndexExpr{
@@ -697,7 +697,19 @@ func generateIntrospectionTypeFieldsDecls(typeDefinitions []*schema.TypeDefiniti
 						Value: fmt.Sprintf(`"%s"`, string(field.Name)),
 					},
 				},
-			})
+			}
+			if field.Directives.Get([]byte("deprecated")) != nil {
+				ret = append(ret, &ast.IfStmt{
+					Cond: ast.NewIdent("includeDeprecated"),
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							assignStmt,
+						},
+					},
+				})
+			} else {
+				ret = append(ret, assignStmt)
+			}
 		}
 
 		return ret
@@ -1947,7 +1959,7 @@ func generateIntrospectionFieldTypeBodyStmt(attributeName string, fields schema.
 			ast.NewIdent("nil"),
 		}))
 
-		stmts = append(stmts, &ast.AssignStmt{
+		assignStmt := &ast.AssignStmt{
 			Lhs: []ast.Expr{
 				&ast.SelectorExpr{
 					X: &ast.IndexExpr{
@@ -1964,7 +1976,20 @@ func generateIntrospectionFieldTypeBodyStmt(attributeName string, fields schema.
 			Rhs: []ast.Expr{
 				ast.NewIdent(string(fmt.Sprintf("t%d", i))),
 			},
-		})
+		}
+
+		if field.Directives.Get([]byte("deprecated")) != nil {
+			stmts = append(stmts, &ast.IfStmt{
+				Cond: ast.NewIdent("includeDeprecated"),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						assignStmt,
+					},
+				},
+			})
+		} else {
+			stmts = append(stmts, assignStmt)
+		}
 	}
 
 	return stmts

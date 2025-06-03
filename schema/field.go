@@ -4,7 +4,7 @@ type FieldDefinition struct {
 	Name       []byte
 	Arguments  []*ArgumentDefinition
 	Type       *FieldType
-	Directives []*Directive
+	Directives Directives
 	Default    []byte
 	Location   *Location
 }
