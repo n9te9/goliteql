@@ -3,10 +3,11 @@ package introspection
 import "github.com/n9te9/goliteql/schema"
 
 type FieldType struct {
-	Name    []byte
-	NonNull bool
-	IsList  bool
-	Child   *FieldType
+	Name            []byte
+	NonNull         bool
+	IsList          bool
+	SchemaFieldType *schema.FieldType
+	Child           *FieldType
 }
 
 func (f *FieldType) IsPrimitive() bool {
@@ -17,6 +18,10 @@ func (f *FieldType) IsPrimitive() bool {
 func (f *FieldType) IsObject() bool {
 	name := string(f.Name)
 	return name != ""
+}
+
+func (f *FieldType) IsObjectType() bool {
+	return f.IsObject() && !f.IsPrimitive()
 }
 
 func ExpandType(fieldType *schema.FieldType) *FieldType {
@@ -43,10 +48,11 @@ func expandType(fieldType *schema.FieldType, isExpandedNonNull bool) *FieldType 
 	}
 
 	return &FieldType{
-		Name:    fieldType.Name,
-		NonNull: fieldType.Nullable,
-		IsList:  false,
-		Child:   nil,
+		Name:            fieldType.Name,
+		NonNull:         fieldType.Nullable,
+		SchemaFieldType: fieldType,
+		IsList:          false,
+		Child:           nil,
 	}
 }
 
