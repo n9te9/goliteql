@@ -81,6 +81,18 @@ func generateResolverImport() *ast.GenDecl {
 					Value: `"encoding/json"`,
 				},
 			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"sync"`,
+				},
+			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"time"`,
+				},
+			},
 		},
 	}
 }
@@ -1998,14 +2010,132 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								},
 
 								&ast.AssignStmt{
+									Lhs: []ast.Expr{
+										ast.NewIdent("cacheMap"),
+									},
+									Tok: token.DEFINE,
+									Rhs: []ast.Expr{
+										&ast.TypeAssertExpr{
+											X: &ast.CallExpr{
+												Fun: &ast.SelectorExpr{
+													X: &ast.SelectorExpr{
+														X:   ast.NewIdent("r"),
+														Sel: ast.NewIdent("pool"),
+													},
+													Sel: ast.NewIdent("Get"),
+												},
+											},
+											Type: &ast.SelectorExpr{
+												X:   ast.NewIdent("executor"),
+												Sel: ast.NewIdent("CacheMap"),
+											},
+										},
+									},
+								},
+
+								&ast.DeferStmt{
+									Call: &ast.CallExpr{
+										Fun: &ast.FuncLit{
+											Type: &ast.FuncType{
+												Params: &ast.FieldList{
+													List: []*ast.Field{},
+												},
+											},
+											Body: &ast.BlockStmt{
+												List: []ast.Stmt{
+													&ast.ExprStmt{
+														X: &ast.CallExpr{
+															Fun: &ast.SelectorExpr{
+																X: &ast.SelectorExpr{
+																	X:   ast.NewIdent("r"),
+																	Sel: ast.NewIdent("pool"),
+																},
+																Sel: ast.NewIdent("Put"),
+															},
+															Args: []ast.Expr{
+																ast.NewIdent("cacheMap"),
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+
+								&ast.AssignStmt{
 									Tok: token.DEFINE,
 									Lhs: []ast.Expr{
 										ast.NewIdent("node"),
 									},
 									Rhs: []ast.Expr{
-										&ast.SelectorExpr{
-											X:   ast.NewIdent("executor"),
-											Sel: ast.NewIdent("PlanExecution(rootSelectionSet)"),
+										&ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   ast.NewIdent("cacheMap"),
+												Sel: ast.NewIdent("Get"),
+											},
+											Args: []ast.Expr{
+												&ast.SelectorExpr{
+													X:   ast.NewIdent("request"),
+													Sel: ast.NewIdent("Query"),
+												},
+											},
+										},
+									},
+								},
+
+								&ast.IfStmt{
+									Cond: &ast.BinaryExpr{
+										X:  ast.NewIdent("node"),
+										Op: token.EQL,
+										Y:  ast.NewIdent("nil"),
+									},
+									Body: &ast.BlockStmt{
+										List: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													ast.NewIdent("node"),
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("PlanExecution"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("rootSelectionSet"),
+														},
+													},
+												},
+											},
+
+											&ast.ExprStmt{
+												X: &ast.CallExpr{
+													Fun: &ast.SelectorExpr{
+														X:   ast.NewIdent("cacheMap"),
+														Sel: ast.NewIdent("Set"),
+													},
+													Args: []ast.Expr{
+														&ast.SelectorExpr{
+															X:   ast.NewIdent("request"),
+															Sel: ast.NewIdent("Query"),
+														},
+														ast.NewIdent("node"),
+														&ast.BinaryExpr{
+															X: &ast.SelectorExpr{
+																X:   ast.NewIdent("time"),
+																Sel: ast.NewIdent("Minute"),
+															},
+															Op: token.MUL,
+															Y: &ast.BasicLit{
+																Kind:  token.INT,
+																Value: "1",
+															},
+														},
+													},
+												},
+											},
 										},
 									},
 								},
@@ -2029,14 +2159,132 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								},
 
 								&ast.AssignStmt{
+									Lhs: []ast.Expr{
+										ast.NewIdent("cacheMap"),
+									},
+									Tok: token.DEFINE,
+									Rhs: []ast.Expr{
+										&ast.TypeAssertExpr{
+											X: &ast.CallExpr{
+												Fun: &ast.SelectorExpr{
+													X: &ast.SelectorExpr{
+														X:   ast.NewIdent("r"),
+														Sel: ast.NewIdent("pool"),
+													},
+													Sel: ast.NewIdent("Get"),
+												},
+											},
+											Type: &ast.SelectorExpr{
+												X:   ast.NewIdent("executor"),
+												Sel: ast.NewIdent("CacheMap"),
+											},
+										},
+									},
+								},
+
+								&ast.DeferStmt{
+									Call: &ast.CallExpr{
+										Fun: &ast.FuncLit{
+											Type: &ast.FuncType{
+												Params: &ast.FieldList{
+													List: []*ast.Field{},
+												},
+											},
+											Body: &ast.BlockStmt{
+												List: []ast.Stmt{
+													&ast.ExprStmt{
+														X: &ast.CallExpr{
+															Fun: &ast.SelectorExpr{
+																X: &ast.SelectorExpr{
+																	X:   ast.NewIdent("r"),
+																	Sel: ast.NewIdent("pool"),
+																},
+																Sel: ast.NewIdent("Put"),
+															},
+															Args: []ast.Expr{
+																ast.NewIdent("cacheMap"),
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+
+								&ast.AssignStmt{
 									Tok: token.DEFINE,
 									Lhs: []ast.Expr{
 										ast.NewIdent("node"),
 									},
 									Rhs: []ast.Expr{
-										&ast.SelectorExpr{
-											X:   ast.NewIdent("executor"),
-											Sel: ast.NewIdent("PlanExecution(rootSelectionSet)"),
+										&ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   ast.NewIdent("cacheMap"),
+												Sel: ast.NewIdent("Get"),
+											},
+											Args: []ast.Expr{
+												&ast.SelectorExpr{
+													X:   ast.NewIdent("request"),
+													Sel: ast.NewIdent("Query"),
+												},
+											},
+										},
+									},
+								},
+
+								&ast.IfStmt{
+									Cond: &ast.BinaryExpr{
+										X:  ast.NewIdent("node"),
+										Op: token.EQL,
+										Y:  ast.NewIdent("nil"),
+									},
+									Body: &ast.BlockStmt{
+										List: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													ast.NewIdent("node"),
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("PlanExecution"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("rootSelectionSet"),
+														},
+													},
+												},
+											},
+
+											&ast.ExprStmt{
+												X: &ast.CallExpr{
+													Fun: &ast.SelectorExpr{
+														X:   ast.NewIdent("cacheMap"),
+														Sel: ast.NewIdent("Set"),
+													},
+													Args: []ast.Expr{
+														&ast.SelectorExpr{
+															X:   ast.NewIdent("request"),
+															Sel: ast.NewIdent("Query"),
+														},
+														ast.NewIdent("node"),
+														&ast.BinaryExpr{
+															X: &ast.SelectorExpr{
+																X:   ast.NewIdent("time"),
+																Sel: ast.NewIdent("Minute"),
+															},
+															Op: token.MUL,
+															Y: &ast.BasicLit{
+																Kind:  token.INT,
+																Value: "1",
+															},
+														},
+													},
+												},
+											},
 										},
 									},
 								},
@@ -2321,6 +2569,17 @@ func generateResolverImplementationStruct() []ast.Decl {
 										},
 									},
 								},
+								{
+									Names: []*ast.Ident{
+										ast.NewIdent("pool"),
+									},
+									Type: &ast.StarExpr{
+										X: &ast.SelectorExpr{
+											X:   ast.NewIdent("sync"),
+											Sel: ast.NewIdent("Pool"),
+										},
+									},
+								},
 							},
 						},
 					},
@@ -2373,6 +2632,15 @@ func generateResolverImplementationStruct() []ast.Decl {
 										Value: &ast.SelectorExpr{
 											Sel: ast.NewIdent("NewParserWithLexer()"),
 											X:   ast.NewIdent("query"),
+										},
+									},
+									&ast.KeyValueExpr{
+										Key: ast.NewIdent("pool"),
+										Value: &ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   ast.NewIdent("executor"),
+												Sel: ast.NewIdent("NewPool"),
+											},
 										},
 									},
 								},
