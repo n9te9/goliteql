@@ -446,9 +446,11 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaQueryAST(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypesFuncDecl(g.Schema.Types))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypesFuncDecl(g.Schema.Types, g.Schema.Interfaces))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseDataModelAST())
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResponseDataModelAST())
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResponseModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionQueryTypeMethodAST(g.Schema))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeMethodDecls(g.Schema)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldTypeTypeOfDecls(g.Schema)...)
@@ -458,6 +460,8 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromTypeDefinitions(g.Schema.Types, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromInterfaces(g.Schema.Interfaces, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateExtractOperationArgumentsDecl(fieldsIntrospectionFieldDefinition, g.Schema.Indexes))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFuncDecl(g.Schema))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFuncDecls(g.Schema.Types)...)
 
 	if q := g.Schema.GetQuery(); q != nil {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(q.Name), q.Fields)...)

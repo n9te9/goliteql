@@ -1641,7 +1641,48 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 				},
 			},
 		}
-		bodyStmt = append(bodyStmt, schemaCase)
+
+		typeCase := &ast.CaseClause{
+			List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"__type\""}},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent("ret"),
+						ast.NewIdent("err"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("r"),
+								Sel: ast.NewIdent("__type"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("w"),
+								ast.NewIdent("req"),
+								ast.NewIdent("node"),
+								ast.NewIdent("parsedQuery"),
+								ast.NewIdent("variables"),
+							},
+						},
+					},
+				},
+				&ast.IfStmt{
+					Cond: &ast.BinaryExpr{
+						X:  ast.NewIdent("err"),
+						Op: token.NEQ,
+						Y:  ast.NewIdent("nil"),
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							generateTypeResponseWrite(),
+						},
+					},
+				},
+				generateTypeResponseWrite(),
+			},
+		}
+		bodyStmt = append(bodyStmt, schemaCase, typeCase)
 	}
 
 	body = append(body, &ast.SwitchStmt{
@@ -2768,7 +2809,7 @@ func generateIntPointerAST(value string) ast.Expr {
 				Elts: []ast.Expr{
 					&ast.BasicLit{
 						Kind:  token.STRING,
-						Value: fmt.Sprintf(`"%s"`, value),
+						Value: fmt.Sprintf("\\%q\\", value),
 					},
 				},
 			},
@@ -2819,7 +2860,6 @@ func generateVarSpecs(args schema.ArgumentDefinitions) []ast.Spec {
 
 func generateArgumentReturnStmt(args schema.ArgumentDefinitions) *ast.ReturnStmt {
 	results := make([]ast.Expr, 0, len(args))
-
 	for _, arg := range args {
 		results = append(results, ast.NewIdent(string(arg.Name)))
 	}
