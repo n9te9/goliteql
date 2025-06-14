@@ -12,6 +12,20 @@ func generateEnumModelAST(enums []*schema.EnumDefinition) []ast.Decl {
 	decls := make([]ast.Decl, 0, len(enums))
 
 	for _, e := range enums {
+		if string(e.Name) != "" {
+			decls = append(decls, &ast.GenDecl{
+				Tok: token.TYPE,
+				Specs: []ast.Spec{
+					&ast.TypeSpec{
+						Name: ast.NewIdent(string(e.Name)),
+						Type: &ast.Ident{
+							Name: "string",
+						},
+					},
+				},
+			})
+		}
+
 		genDecl := &ast.GenDecl{
 			Tok: token.CONST,
 		}
@@ -22,7 +36,7 @@ func generateEnumModelAST(enums []*schema.EnumDefinition) []ast.Decl {
 				Names: []*ast.Ident{
 					ast.NewIdent(string(v.Name)),
 				},
-				Type: ast.NewIdent(string(e.Type.Name)),
+				Type: ast.NewIdent(string(e.Name)),
 				Values: []ast.Expr{
 					&ast.BasicLit{
 						Kind:  token.STRING,

@@ -379,22 +379,22 @@ func generateIntrospectionInterfaceTypeFuncDecls(interfaces []*schema.InterfaceD
 																},
 															},
 														},
-														generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}),
-														&ast.AssignStmt{
-															Lhs: []ast.Expr{
-																ast.NewIdent("possibleTypes"),
-															},
-															Tok: token.ASSIGN,
-															Rhs: []ast.Expr{
-																&ast.CallExpr{
-																	Fun: ast.NewIdent("append"),
-																	Args: []ast.Expr{
-																		ast.NewIdent("possibleTypes"),
-																		ast.NewIdent(fmt.Sprintf("interfaceType%s", k)),
+															generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}),
+															&ast.AssignStmt{
+																Lhs: []ast.Expr{
+																	ast.NewIdent("possibleTypes"),
+																},
+																Tok: token.ASSIGN,
+																Rhs: []ast.Expr{
+																	&ast.CallExpr{
+																		Fun: ast.NewIdent("append"),
+																		Args: []ast.Expr{
+																			ast.NewIdent("possibleTypes"),
+																			ast.NewIdent(fmt.Sprintf("interfaceType%s", k)),
+																		},
 																	},
 																},
-															},
-														})
+															})
 													}
 												}
 											}
@@ -470,9 +470,14 @@ func generateIntrospectionInterfaceTypeFuncDecls(interfaces []*schema.InterfaceD
 	return ret
 }
 
-func generateIntrospectionTypesFuncDecl(typeDefinitions schema.TypeDefinitions, interfaceDefinitions []*schema.InterfaceDefinition) ast.Decl {
+func generateIntrospectionTypesFuncDecl(schema *schema.Schema) ast.Decl {
+	typeDefinitions := schema.Types
+	interfaceDefinitions := schema.Interfaces
+	inputDefinitions := schema.Inputs
+	scalarDefinitions := schema.Scalars
+
 	stmts := make([]ast.Stmt, 0)
-	stmts = append(stmts, generateIntrospectionTypesFieldSwitchStmts(typeDefinitions.WithoutMetaDefinition(), interfaceDefinitions)...)
+	stmts = append(stmts, generateIntrospectionTypesFieldSwitchStmts(typeDefinitions.WithoutMetaDefinition(), interfaceDefinitions, inputDefinitions, scalarDefinitions)...)
 	stmts = append(stmts, &ast.ReturnStmt{
 		Results: []ast.Expr{
 			ast.NewIdent("ret"),
@@ -515,7 +520,7 @@ func generateIntrospectionTypesFuncDecl(typeDefinitions schema.TypeDefinitions, 
 	}
 }
 
-func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDefinition, interfaceDefinitions []*schema.InterfaceDefinition) []ast.Stmt {
+func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDefinition, interfaceDefinitions []*schema.InterfaceDefinition, inputDefinitions []*schema.InputDefinition, scalarDefinitions []*schema.ScalarDefinition) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(typeDefinitions))
 
 	stmts = append(stmts, &ast.AssignStmt{
@@ -531,7 +536,7 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 						Elt: ast.NewIdent("__Type"),
 					},
 					ast.NewIdent("0"),
-					ast.NewIdent(fmt.Sprintf("%d", len(typeDefinitions) + len(interfaceDefinitions))),
+					ast.NewIdent(fmt.Sprintf("%d", len(typeDefinitions)+len(interfaceDefinitions)+len(scalarDefinitions))),
 				},
 			},
 		},
@@ -539,6 +544,29 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 
 	args := make([]ast.Expr, 0)
 	args = append(args, ast.NewIdent("ret"))
+	for _, scalarDefinition := range scalarDefinitions {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("scalar%s", scalarDefinition.Name)),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(scalarDefinition.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("node"),
+					},
+				},
+			},
+		})
+		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
+		args = append(args, ast.NewIdent(fmt.Sprintf("scalar%s", scalarDefinition.Name)))
+	}
+
 	for _, t := range typeDefinitions {
 		if t.IsIntrospection() {
 			continue
@@ -588,6 +616,28 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 		args = append(args, ast.NewIdent(fmt.Sprintf("interface%s", interfaceDefinition.Name)))
 	}
 
+	for _, inputDefinition := range inputDefinitions {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("input%s", inputDefinition.Name)),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(inputDefinition.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("node"),
+					},
+				},
+			},
+		})
+		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
+		args = append(args, ast.NewIdent(fmt.Sprintf("input%s", inputDefinition.Name)))
+	}
 
 	stmts = append(stmts, &ast.AssignStmt{
 		Lhs: []ast.Expr{
@@ -596,7 +646,7 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 		Tok: token.ASSIGN,
 		Rhs: []ast.Expr{
 			&ast.CallExpr{
-				Fun: ast.NewIdent("append"),
+				Fun:  ast.NewIdent("append"),
 				Args: args,
 			},
 		},
@@ -917,28 +967,27 @@ func generateIntrospectionFieldTypeTypeOfDecls(s *schema.Schema) []ast.Decl {
 		}
 
 		for _, field := range t.Fields {
-			if field.Type.IsList && field.Type.Nullable {
-				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", t.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0, s.Indexes)...)
-			} else {
-				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", t.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0, s.Indexes)...)
-			}
+			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", t.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0, s.Indexes)...)
+
 		}
 	}
 
 	for _, i := range s.Interfaces {
 		for _, field := range i.Fields {
-			if field.Type.IsList && field.Type.Nullable {
-				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", i.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0, s.Indexes)...)
-			} else {
-				ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", i.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0, s.Indexes)...)
-			}
+			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", i.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0, s.Indexes)...)
+		}
+	}
+
+	for _, i := range s.Inputs {
+		for _, field := range i.Fields {
+			ret = append(ret, generateIntrospectionRecursiveFieldTypeOfDecls(fmt.Sprintf("%s__%s", i.Name, field.Name), introspection.ExpandType(field.Type).Unwrap(), 0, s.Indexes)...)
 		}
 	}
 
 	return ret
 }
 
-func generateIntrospectionTypeResolverDeclsFromTypeDefinitions(typeDefinitions []*schema.TypeDefinition, indexes *schema.Indexes) []ast.Decl {
+func generateIntrospectionTypeFieldsFuncDecls(typeDefinitions []*schema.TypeDefinition, indexes *schema.Indexes) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 
 	for _, t := range typeDefinitions {
@@ -946,6 +995,81 @@ func generateIntrospectionTypeResolverDeclsFromTypeDefinitions(typeDefinitions [
 			continue
 		}
 
+		for _, field := range t.Fields {
+			ret = append(ret, &ast.FuncDecl{
+				Recv: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("r"),
+							},
+							Type: &ast.StarExpr{
+								X: ast.NewIdent("resolver"),
+							},
+						},
+					},
+				},
+				Name: ast.NewIdent(fmt.Sprintf("__schema__%s__%s__type", string(t.Name), string(field.Name))),
+				Type: &ast.FuncType{
+					Params: generateNodeWalkerArgs(),
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Type: ast.NewIdent("__Type"),
+							},
+							{
+								Type: ast.NewIdent("error"),
+							},
+						},
+					},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								ast.NewIdent("ret"),
+							},
+							Tok: token.DEFINE,
+							Rhs: []ast.Expr{
+								&ast.CompositeLit{
+									Type: ast.NewIdent("__Type"),
+									Elts: []ast.Expr{},
+								},
+							},
+						},
+						&ast.RangeStmt{
+							Key:   ast.NewIdent("_"),
+							Tok:   token.DEFINE,
+							Value: ast.NewIdent("child"),
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent("node"),
+								Sel: ast.NewIdent("Children"),
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									generateIntrospectionTypeFieldSwitchStmt(string(t.Name), field, indexes),
+								},
+							},
+						},
+						&ast.ReturnStmt{
+							Results: []ast.Expr{
+								ast.NewIdent("ret"),
+								ast.NewIdent("nil"),
+							},
+						},
+					},
+				},
+			})
+		}
+	}
+
+	return ret
+}
+
+func generateIntrospectionInputFieldsFuncDecls(typeDefinitions []*schema.InputDefinition, indexes *schema.Indexes) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	for _, t := range typeDefinitions {
 		for _, field := range t.Fields {
 			ret = append(ret, &ast.FuncDecl{
 				Recv: &ast.FieldList{
@@ -1131,6 +1255,250 @@ func generateIntrospectionInterfaceFieldsDecls(interfaces []*schema.InterfaceDef
 	}
 
 	for _, t := range interfaces {
+		args := generateNodeWalkerArgs()
+
+		args.List = append(args.List, &ast.Field{
+			Names: []*ast.Ident{
+				ast.NewIdent("includeDeprecated"),
+			},
+			Type: &ast.Ident{
+				Name: "bool",
+			},
+		})
+
+		names := make([]*ast.Ident, 0, len(t.Fields))
+		appendStmts := make([]ast.Stmt, 0, len(t.Fields))
+		for _, field := range t.Fields {
+			names = append(names, ast.NewIdent("field"+string(field.Name)))
+
+			if field.Directives.Get([]byte("deprecated")) != nil {
+				appendStmts = append(appendStmts, &ast.IfStmt{
+					Cond: ast.NewIdent("includeDeprecated"),
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Lhs: []ast.Expr{
+									ast.NewIdent("ret"),
+								},
+								Tok: token.ASSIGN,
+								Rhs: []ast.Expr{
+									&ast.CallExpr{
+										Fun: ast.NewIdent("append"),
+										Args: []ast.Expr{
+											ast.NewIdent("ret"),
+											ast.NewIdent("field" + string(field.Name)),
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+			} else {
+				appendStmts = append(appendStmts, &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent("ret"),
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: ast.NewIdent("append"),
+							Args: []ast.Expr{
+								ast.NewIdent("ret"),
+								ast.NewIdent("field" + string(field.Name)),
+							},
+						},
+					},
+				})
+			}
+		}
+
+		var varFieldDeclStmt ast.Stmt = &ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok: token.VAR,
+				Specs: []ast.Spec{
+					&ast.ValueSpec{
+						Names: names,
+						Type:  ast.NewIdent("__Field"),
+					},
+				},
+			},
+		}
+
+		var body []ast.Stmt = []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent("ret"),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("make"),
+						Args: []ast.Expr{
+							&ast.ArrayType{
+								Elt: ast.NewIdent("__Field"),
+							},
+							ast.NewIdent("0"),
+							ast.NewIdent(fmt.Sprintf("%d", len(t.Fields))),
+						},
+					},
+				},
+			},
+			varFieldDeclStmt,
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Tok:   token.DEFINE,
+				Value: ast.NewIdent("child"),
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("node"),
+					Sel: ast.NewIdent("Children"),
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.SwitchStmt{
+							Tag: &ast.CallExpr{
+								Fun: ast.NewIdent("string"),
+								Args: []ast.Expr{
+									&ast.SelectorExpr{
+										X:   ast.NewIdent("child"),
+										Sel: ast.NewIdent("Name"),
+									},
+								},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.CaseClause{
+										List: []ast.Expr{
+											&ast.BasicLit{
+												Kind:  token.STRING,
+												Value: `"name"`,
+											},
+										},
+										Body: generateIntrospectionFieldTypeAssignStmtFunc(t),
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											&ast.BasicLit{
+												Kind:  token.STRING,
+												Value: `"description"`,
+											},
+										},
+										Body: []ast.Stmt{
+											&ast.ExprStmt{
+												X: &ast.BasicLit{
+													Kind:  token.STRING,
+													Value: "// TODO",
+												},
+											},
+										},
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											&ast.BasicLit{
+												Kind:  token.STRING,
+												Value: `"type"`,
+											},
+										},
+										Body: generateIntrospectionFieldTypeBodyStmt(string(t.Name), t.Fields),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		body = append(body, appendStmts...)
+		body = append(body, &ast.ReturnStmt{
+			Results: []ast.Expr{
+				&ast.UnaryExpr{
+					Op: token.AND,
+					X:  ast.NewIdent("ret"),
+				},
+				ast.NewIdent("nil"),
+			},
+		})
+
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(t.Name))),
+			Type: &ast.FuncType{
+				Params: args,
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: &ast.StarExpr{
+								X: &ast.ArrayType{
+									Elt: ast.NewIdent("__Field"),
+								},
+							},
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: body,
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateIntrospectionInputFieldsDecls(inputDefinitions []*schema.InputDefinition) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+	generateIntrospectionFieldTypeAssignStmtFunc := func(t *schema.InputDefinition) []ast.Stmt {
+		ret := make([]ast.Stmt, 0, len(t.Fields))
+
+		for _, field := range t.Fields {
+			assignStmt := &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("field" + string(field.Name)),
+						Sel: ast.NewIdent("Name"),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf(`"%s"`, string(field.Name)),
+					},
+				},
+			}
+			if field.Directives.Get([]byte("deprecated")) != nil {
+				ret = append(ret, &ast.IfStmt{
+					Cond: ast.NewIdent("includeDeprecated"),
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							assignStmt,
+						},
+					},
+				})
+			} else {
+				ret = append(ret, assignStmt)
+			}
+		}
+
+		return ret
+	}
+
+	for _, t := range inputDefinitions {
 		args := generateNodeWalkerArgs()
 
 		args.List = append(args.List, &ast.Field{
@@ -2034,6 +2402,9 @@ func generateIntrospectionInterfacesStmts(fieldType *introspection.FieldType, in
 
 	ret := make([]ast.Stmt, 0)
 	typeDefinition := indexes.GetTypeDefinition(string(fieldType.Name))
+	if typeDefinition == nil {
+		return ret
+	}
 
 	for _, interfaceType := range typeDefinition.Interfaces {
 		ret = append(ret, &ast.AssignStmt{
@@ -3417,7 +3788,7 @@ func generateIntrospectionTypeFuncDeclBody(s *schema.Schema) []ast.Stmt {
 			},
 		})
 
-	ret = append(ret, generateIntrospectionTypeFuncDeclBodySwitchStmt(s.Types, s.Interfaces))
+	ret = append(ret, generateIntrospectionTypeFuncDeclBodySwitchStmt(s.Types, s.Interfaces, s.Inputs, s.Scalars))
 	ret = append(ret, &ast.ReturnStmt{
 		Results: []ast.Expr{
 			ast.NewIdent("nil"),
@@ -3428,7 +3799,7 @@ func generateIntrospectionTypeFuncDeclBody(s *schema.Schema) []ast.Stmt {
 	return ret
 }
 
-func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.TypeDefinitions, interfaceDefinitions []*schema.InterfaceDefinition) ast.Stmt {
+func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.TypeDefinitions, interfaceDefinitions []*schema.InterfaceDefinition, inputDefinitions []*schema.InputDefinition, scalarDefinitions []*schema.ScalarDefinition) ast.Stmt {
 	caseStmts := func(typeDefinitions schema.TypeDefinitions) []ast.Stmt {
 		stmts := make([]ast.Stmt, 0, len(typeDefinitions))
 		for _, t := range typeDefinitions {
@@ -3516,6 +3887,89 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 				},
 			})
 		}
+
+		for _, i := range inputDefinitions {
+			stmts = append(stmts, &ast.CaseClause{
+				List: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf(`"\"%s\""`, string(i.Name)),
+					},
+				},
+				Body: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent("ret"),
+							ast.NewIdent("err"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("r"),
+									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(i.Name))),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("node"),
+								},
+							},
+						},
+					},
+					generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}),
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X:  ast.NewIdent("ret"),
+							},
+							ast.NewIdent("nil"),
+						},
+					},
+				},
+			})
+		}
+
+		for _, s := range scalarDefinitions {
+			stmts = append(stmts, &ast.CaseClause{
+				List: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf(`"\"%s\""`, string(s.Name)),
+					},
+				},
+				Body: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent("ret"),
+							ast.NewIdent("err"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("r"),
+									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(s.Name))),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("node"),
+								},
+							},
+						},
+					},
+					generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}),
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X:  ast.NewIdent("ret"),
+							},
+							ast.NewIdent("nil"),
+						},
+					},
+				},
+			})
+		}
+
 		return stmts
 	}
 
@@ -3772,6 +4226,475 @@ func generateIntrospectionTypeFuncDecls(typeDefinitions schema.TypeDefinitions) 
 				Results: []ast.Expr{
 					ast.NewIdent("ret"),
 					ast.NewIdent("nil"),
+				},
+			},
+		}
+
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(t.Name))),
+			Type: &ast.FuncType{
+				Params: generateNodeWalkerArgs(),
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: ast.NewIdent("__Type"),
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: body,
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateIntrospectionInputFuncDecls(inputDefinitions []*schema.InputDefinition) []ast.Decl {
+	ret := make([]ast.Decl, 0, len(inputDefinitions))
+	for _, t := range inputDefinitions {
+		body := []ast.Stmt{
+			&ast.DeclStmt{
+				Decl: &ast.GenDecl{
+					Tok: token.VAR,
+					Specs: []ast.Spec{
+						&ast.ValueSpec{
+							Names: []*ast.Ident{
+								ast.NewIdent("ret"),
+							},
+							Type: ast.NewIdent("__Type"),
+						},
+					},
+				},
+			},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Tok:   token.DEFINE,
+				Value: ast.NewIdent("child"),
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("node"),
+					Sel: ast.NewIdent("Children"),
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.SwitchStmt{
+							Tag: &ast.CallExpr{
+								Fun: ast.NewIdent("string"),
+								Args: []ast.Expr{
+									&ast.SelectorExpr{
+										X:   ast.NewIdent("child"),
+										Sel: ast.NewIdent("Name"),
+									},
+								},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.CaseClause{
+										List: []ast.Expr{
+											&ast.BasicLit{
+												Kind:  token.STRING,
+												Value: `"kind"`,
+											},
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("Kind"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													ast.NewIdent("__TypeKind_INPUT_OBJECT"),
+												},
+											},
+										},
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"name"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("Name"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													generateStringPointerAST(string(t.Name)),
+												},
+											},
+										},
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											&ast.BasicLit{
+												Kind:  token.STRING,
+												Value: `"fields"`,
+											},
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													ast.NewIdent("includeDeprecated"),
+													ast.NewIdent("err"),
+												},
+												Tok: token.DEFINE,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("r"),
+															Sel: ast.NewIdent("extract__fieldsArgs"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("child"),
+														},
+													},
+												},
+											},
+											generateReturnErrorHandlingStmt([]ast.Expr{
+												&ast.CompositeLit{
+													Type: ast.NewIdent("__Type"),
+												},
+											}),
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													ast.NewIdent("fields"),
+													ast.NewIdent("err"),
+												},
+												Tok: token.DEFINE,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("r"),
+															Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(t.Name))),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("child"),
+															&ast.StarExpr{
+																X: ast.NewIdent("includeDeprecated"),
+															},
+														},
+													},
+												},
+											},
+											generateReturnErrorHandlingStmt([]ast.Expr{
+												&ast.CompositeLit{
+													Type: ast.NewIdent("__Type"),
+												},
+											}),
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X: &ast.Ident{
+															Name: "ret",
+														},
+														Sel: ast.NewIdent("Fields"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													ast.NewIdent("fields"),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.ReturnStmt{
+				Results: []ast.Expr{
+					ast.NewIdent("ret"),
+					ast.NewIdent("nil"),
+				},
+			},
+		}
+
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(t.Name))),
+			Type: &ast.FuncType{
+				Params: generateNodeWalkerArgs(),
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: ast.NewIdent("__Type"),
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: body,
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateIntrospectionScalarFuncDecls(scalarDefinitions []*schema.ScalarDefinition) []ast.Decl {
+	ret := make([]ast.Decl, 0, len(scalarDefinitions))
+	for _, t := range scalarDefinitions {
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(t.Name))),
+			Type: &ast.FuncType{
+				Params: generateNodeWalkerArgs(),
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: ast.NewIdent("__Type"),
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							&ast.CompositeLit{
+								Type: ast.NewIdent("__Type"),
+								Elts: []ast.Expr{
+									&ast.KeyValueExpr{
+										Key:   ast.NewIdent("Kind"),
+										Value: ast.NewIdent("__TypeKind_SCALAR"),
+									},
+									&ast.KeyValueExpr{
+										Key:   ast.NewIdent("Name"),
+										Value: generateStringPointerAST(string(t.Name)),
+									},
+									&ast.KeyValueExpr{
+										Key:   ast.NewIdent("Description"),
+										Value: ast.NewIdent("nil"),
+									},
+								},
+							},
+							ast.NewIdent("nil"),
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition) []ast.Decl {
+	ret := make([]ast.Decl, 0, len(enumDefinitions))
+
+	for _, t := range enumDefinitions {
+		body := []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent("ret"),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CompositeLit{
+						Type: ast.NewIdent("__Type"),
+						Elts: []ast.Expr{},
+					},
+				},
+			},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Tok:   token.DEFINE,
+				Value: ast.NewIdent("child"),
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("node"),
+					Sel: ast.NewIdent("Children"),
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.SwitchStmt{
+							Tag: &ast.CallExpr{
+								Fun: ast.NewIdent("string"),
+								Args: []ast.Expr{
+									&ast.SelectorExpr{
+										X:   ast.NewIdent("child"),
+										Sel: ast.NewIdent("Name"),
+									},
+								},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.CaseClause{
+										List: []ast.Expr{
+											&ast.BasicLit{
+												Kind:  token.STRING,
+												Value: `"kind"`,
+											},
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("Kind"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													ast.NewIdent("__TypeKind_ENUM"),
+												},
+											},
+										},
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"name"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("Name"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													generateStringPointerAST(string(t.Name)),
+												},
+											},
+										},
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"description"`),
+										},
+										Body: []ast.Stmt{
+											&ast.ExprStmt{
+												X: &ast.BasicLit{
+													Kind:  token.STRING,
+													Value: `// TODO`,
+												},
+											},
+										},
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"enumValues"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													ast.NewIdent("includeDeprecated"),
+													ast.NewIdent("err"),
+												},
+												Tok: token.DEFINE,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("r"),
+															Sel: ast.NewIdent("extract__fieldsArgs"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("child"),
+														},
+													},
+												},
+											},
+											generateReturnErrorHandlingStmt([]ast.Expr{
+												&ast.CompositeLit{
+													Type: ast.NewIdent("__Type"),
+													Elts: []ast.Expr{},
+												},
+											}),
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													ast.NewIdent("enumValues"),
+													ast.NewIdent("err"),
+												},
+												Tok: token.DEFINE,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("r"),
+															Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__enumValues", string(t.Name))),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("child"),
+														},
+													},
+												},
+											},
+											generateReturnErrorHandlingStmt([]ast.Expr{
+												&ast.CompositeLit{
+													Type: ast.NewIdent("__Type"),
+													Elts: []ast.Expr{},
+												},
+											}),
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("EnumValues"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													ast.NewIdent("enumValues"),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		}

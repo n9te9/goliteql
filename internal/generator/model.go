@@ -28,6 +28,11 @@ func generateModelImport() *ast.GenDecl {
 	}
 }
 
+// generateEnumImport generates an empty import declaration for enums.
+func generateEnumImport() *ast.GenDecl {
+	return &ast.GenDecl{}
+}
+
 func generateSelectionSetInput(fields schema.FieldDefinitions) []ast.Decl {
 	decls := make([]ast.Decl, 0, len(fields))
 

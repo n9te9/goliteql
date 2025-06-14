@@ -2,7 +2,6 @@ package schema
 
 import (
 	"fmt"
-
 )
 
 type Parser struct {
@@ -338,7 +337,7 @@ func (p *Parser) parseSchemaDefinition(tokens Tokens, cur int) (*SchemaDefinitio
 	return definition, cur, nil
 }
 
-func (p *Parser) parseTypeDefinition(schema *Schema,tokens Tokens, cur int) (*TypeDefinition, int, error) {
+func (p *Parser) parseTypeDefinition(schema *Schema, tokens Tokens, cur int) (*TypeDefinition, int, error) {
 	start := cur
 	definition := &TypeDefinition{
 		Fields: make([]*FieldDefinition, 0),
@@ -497,7 +496,7 @@ func (p *Parser) parseEnumElement(tokens Tokens, cur int) (*EnumElement, int, er
 	}
 
 	element := &EnumElement{
-		Name: tokens[cur].Value,
+		Name:  tokens[cur].Value,
 		Value: tokens[cur].Value,
 	}
 	cur++
@@ -665,7 +664,7 @@ func (p *Parser) parseOperationField(tokens Tokens, cur int) (*FieldDefinition, 
 		Name:      tokens[cur].Value,
 		Arguments: make([]*ArgumentDefinition, 0),
 		Type:      nil,
-		Location: &Location{Name: []byte("FIELD_DEFINITION")},
+		Location:  &Location{Name: []byte("FIELD_DEFINITION")},
 	}
 	cur++
 
@@ -931,7 +930,7 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int, isInputField bool)
 	}
 
 	definition := &FieldDefinition{
-		Name: tokens[cur].Value,
+		Name:     tokens[cur].Value,
 		Location: location,
 	}
 
@@ -947,7 +946,7 @@ func (p *Parser) parseFieldDefinition(tokens Tokens, cur int, isInputField bool)
 		cur = newCur
 	}
 
-	if tokens[cur].Type != Colon{
+	if tokens[cur].Type != Colon {
 		return nil, 0, fmt.Errorf("expected ':' or '(' but got %s", string(tokens[cur].Value))
 	}
 

@@ -205,7 +205,7 @@ func NewGenerator(config *Config) (*Generator, error) {
 			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
 		},
 		enumAST: &ast.File{
-			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
+			Name: ast.NewIdent(filepath.Base(modelPackagePath)),
 		},
 		queryResolverAST: &ast.File{
 			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
@@ -246,7 +246,7 @@ func (g *Generator) Generate() error {
 
 func (g *Generator) generateModel() error {
 	g.modelAST.Decls = append(g.modelAST.Decls, generateModelImport())
-	g.enumAST.Decls = append(g.enumAST.Decls, generateModelImport())
+	// g.enumAST.Decls = append(g.enumAST.Decls, generateEnumImport())
 
 	for _, input := range g.Schema.Inputs {
 		g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
@@ -444,9 +444,8 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetMutation())...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetSubscription())...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaQueryAST(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypesFuncDecl(g.Schema.Types, g.Schema.Interfaces))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypesFuncDecl(g.Schema))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseDataModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResponseDataModelAST())
@@ -457,11 +456,16 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsDecls(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInterfaceFieldsDecls(g.Schema.Interfaces)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInterfaceTypeFuncDecls(g.Schema.Interfaces, g.Schema.Indexes)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromTypeDefinitions(g.Schema.Types, g.Schema.Indexes)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsFuncDecls(g.Schema.Types, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromInterfaces(g.Schema.Interfaces, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateExtractOperationArgumentsDecl(fieldsIntrospectionFieldDefinition, g.Schema.Indexes))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFuncDecl(g.Schema))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFuncDecls(g.Schema.Types)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFuncDecls(g.Schema.Inputs)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFieldsDecls(g.Schema.Inputs)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFieldsFuncDecls(g.Schema.Inputs, g.Schema.Indexes)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionScalarFuncDecls(g.Schema.Scalars)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
 
 	if q := g.Schema.GetQuery(); q != nil {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(q.Name), q.Fields)...)

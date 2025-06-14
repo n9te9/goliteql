@@ -9,6 +9,10 @@ type EnumDefinition struct {
 }
 
 func (e *EnumDefinition) IsIntrospection() bool {
+	if e.Type == nil {
+		return false
+	}
+
 	return string(e.Type.Name) == "__TypeKind" ||
 		string(e.Type.Name) == "__DirectiveLocation"
 }

@@ -188,7 +188,7 @@ type Schema struct {
 	tokens     Tokens
 	Definition *SchemaDefinition
 	Operations []*OperationDefinition
-	Types      []*TypeDefinition
+	Types      TypeDefinitions
 	Enums      []*EnumDefinition
 	Unions     []*UnionDefinition
 	Interfaces []*InterfaceDefinition
@@ -224,6 +224,7 @@ func NewSchema(tokens Tokens) *Schema {
 	}
 
 	s = withTypeIntrospection(s)
+	s = withBuiltin(s)
 
 	return s
 }
@@ -552,6 +553,7 @@ func (s *Schema) Merge() (*Schema, error) {
 	newSchema.tokens = s.tokens
 	newSchema.Indexes = s.Indexes
 	newSchema.Directives = s.Directives
+	newSchema.Scalars = s.Scalars
 
 	if err := s.mergeOperation(newSchema); err != nil {
 		return nil, err
