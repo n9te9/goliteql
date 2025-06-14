@@ -456,7 +456,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldTypeTypeOfDecls(g.Schema)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsDecls(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInterfaceFieldsDecls(g.Schema.Interfaces)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInterfaceTypeFuncDecls(g.Schema.Interfaces)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInterfaceTypeFuncDecls(g.Schema.Interfaces, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromTypeDefinitions(g.Schema.Types, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromInterfaces(g.Schema.Interfaces, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateExtractOperationArgumentsDecl(fieldsIntrospectionFieldDefinition, g.Schema.Indexes))
