@@ -83,6 +83,10 @@ type Argument struct {
 	Value []byte
 }
 
+func (a *Argument) IsVariable() bool {
+	return len(a.Value) > 0 && a.Value[0] == '$'
+}
+
 type DirectiveArgument struct {
 	Name       []byte
 	Value      []byte

@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 
+	"github.com/n9te9/goliteql/internal/generator/introspection"
 	"github.com/n9te9/goliteql/schema"
 )
 
@@ -246,7 +247,7 @@ func generateQueryExecutor(query *schema.OperationDefinition) *ast.FuncDecl {
 			},
 		},
 		Type: &ast.FuncType{
-			Params:  generateOperationExecutorArgs(),
+			Params:  generateNodeWalkerArgs(),
 			Results: &ast.FieldList{},
 		},
 		Doc: &ast.CommentGroup{
@@ -275,7 +276,7 @@ func generateMutationExecutor(mutation *schema.OperationDefinition) *ast.FuncDec
 			},
 		},
 		Type: &ast.FuncType{
-			Params:  generateOperationExecutorArgs(),
+			Params:  generateNodeWalkerArgs(),
 			Results: &ast.FieldList{},
 		},
 		Doc: &ast.CommentGroup{
@@ -304,7 +305,7 @@ func generateSubscriptionExecutor(subscription *schema.OperationDefinition) *ast
 			},
 		},
 		Type: &ast.FuncType{
-			Params:  generateOperationExecutorArgs(),
+			Params:  generateNodeWalkerArgs(),
 			Results: &ast.FieldList{},
 		},
 		Doc: &ast.CommentGroup{
@@ -1526,6 +1527,31 @@ func generateWrapResponseWriterWrite(rootFieldName string, field *schema.FieldDe
 	}
 }
 
+func generateArgumentsAssignStmt(fieldName string, args schema.ArgumentDefinitions) ast.Stmt {
+	lhs := make([]ast.Expr, 0, len(args)+1)
+	for _, arg := range args {
+		lhs = append(lhs, ast.NewIdent(fmt.Sprintf("%sArg", arg.Name)))
+	}
+	lhs = append(lhs, ast.NewIdent("err"))
+
+	rhs := &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   ast.NewIdent("r"),
+			Sel: ast.NewIdent(fmt.Sprintf("extract%sArgs", fieldName)),
+		},
+		Args: []ast.Expr{
+			ast.NewIdent("node"),
+			ast.NewIdent("variables"),
+		},
+	}
+
+	return &ast.AssignStmt{
+		Tok: token.DEFINE,
+		Lhs: lhs,
+		Rhs: []ast.Expr{rhs},
+	}
+}
+
 func generateExecutorBody(op *schema.OperationDefinition, operationType string) *ast.BlockStmt {
 	body := []ast.Stmt{}
 
@@ -1535,19 +1561,16 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 		}
 	}
 
-	var methodName, executorName string
+	var executorName string
 	if operationType == "query" {
-		methodName = "GetQuery"
 		executorName = "queryExecutor"
 	}
 
 	if operationType == "mutation" {
-		methodName = "GetMutation"
 		executorName = "mutationExecutor"
 	}
 
 	if operationType == "subscription" {
-		methodName = "GetSubscription"
 		executorName = "subscriptionExecutor"
 	}
 
@@ -1555,26 +1578,20 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 	for _, field := range op.Fields {
 		caseBody := make([]ast.Stmt, 0)
 		fieldName := fmt.Sprintf("\"%s\"", field.Name)
-		caseBody = append(caseBody, generateBodyForArgument(methodName, string(fieldName))...)
-		caseBody = append(caseBody, &ast.AssignStmt{
-			Tok: token.ASSIGN,
-			Lhs: []ast.Expr{
-				ast.NewIdent("w"),
-			},
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: ast.NewIdent("new" + string(field.Name) + "Writer"),
-					Args: []ast.Expr{
-						ast.NewIdent("w"),
-						&ast.SelectorExpr{
-							X:   ast.NewIdent("node"),
-							Sel: ast.NewIdent("SelectSets"),
-						},
-						ast.NewIdent("variables"),
+		if len(field.Arguments) > 0 {
+			caseBody = append(caseBody,
+				generateArgumentsAssignStmt(string(field.Name), field.Arguments),
+				&ast.IfStmt{
+					Cond: &ast.BinaryExpr{
+						X:  ast.NewIdent("err"),
+						Op: token.NEQ,
+						Y:  ast.NewIdent("nil"),
 					},
-				},
-			},
-		})
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{},
+					},
+				})
+		}
 		caseBody = append(caseBody,
 			&ast.ExprStmt{X: &ast.CallExpr{
 				Fun: &ast.SelectorExpr{
@@ -1610,10 +1627,7 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 											Sel: ast.NewIdent(executorName),
 										},
 										Args: []ast.Expr{
-											ast.NewIdent("w"),
-											ast.NewIdent("req"),
 											ast.NewIdent("child"),
-											ast.NewIdent("parsedQuery"),
 											ast.NewIdent("variables"),
 										},
 									},
@@ -1643,10 +1657,7 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 							Sel: ast.NewIdent("__schema"),
 						},
 						Args: []ast.Expr{
-							ast.NewIdent("w"),
-							ast.NewIdent("req"),
 							ast.NewIdent("node"),
-							ast.NewIdent("parsedQuery"),
 							ast.NewIdent("variables"),
 						},
 					},
@@ -1670,10 +1681,7 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 								Sel: ast.NewIdent("__type"),
 							},
 							Args: []ast.Expr{
-								ast.NewIdent("w"),
-								ast.NewIdent("req"),
 								ast.NewIdent("node"),
-								ast.NewIdent("parsedQuery"),
 								ast.NewIdent("variables"),
 							},
 						},
@@ -1799,10 +1807,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					Sel: ast.NewIdent("queryExecutor"),
 				},
 				Args: []ast.Expr{
-					ast.NewIdent("w"),
-					ast.NewIdent("req"),
 					ast.NewIdent("node"),
-					ast.NewIdent("parsedQuery"),
 					ast.NewIdent("variables"),
 				},
 			},
@@ -1818,10 +1823,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					Sel: ast.NewIdent("mutationExecutor"),
 				},
 				Args: []ast.Expr{
-					ast.NewIdent("w"),
-					ast.NewIdent("req"),
 					ast.NewIdent("node"),
-					ast.NewIdent("parsedQuery"),
 					ast.NewIdent("variables"),
 				},
 			},
@@ -1837,10 +1839,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 					Sel: ast.NewIdent("subscriptionExecutor"),
 				},
 				Args: []ast.Expr{
-					ast.NewIdent("w"),
-					ast.NewIdent("req"),
 					ast.NewIdent("node"),
-					ast.NewIdent("parsedQuery"),
 					ast.NewIdent("variables"),
 				},
 			},
@@ -1871,7 +1870,13 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								List: []*ast.Field{
 									{Names: []*ast.Ident{ast.NewIdent("OperationName")}, Type: ast.NewIdent("string")},
 									{Names: []*ast.Ident{ast.NewIdent("Query")}, Type: ast.NewIdent("string")},
-									{Names: []*ast.Ident{ast.NewIdent("Variables")}, Type: ast.NewIdent("json.RawMessage")},
+									{Names: []*ast.Ident{ast.NewIdent("Variables")}, Type: &ast.MapType{
+										Key: ast.NewIdent("string"),
+										Value: &ast.SelectorExpr{
+											X:   ast.NewIdent("json"),
+											Sel: ast.NewIdent("RawMessage"),
+										},
+									}},
 								},
 							},
 						},
@@ -2354,51 +2359,84 @@ func generateServeHTTPArgs() *ast.FieldList {
 	}
 }
 
-func generateOperationExecutorArgs() *ast.FieldList {
-	ExecutorArgs := generateServeHTTPArgs()
+func generateTypeExprFromExpandedType(expandedType *introspection.FieldType) ast.Expr {
+	if expandedType.Child != nil {
+		if expandedType.NonNull {
+			return generateTypeExprFromExpandedType(expandedType.Child)
+		}
 
-	additionalFields := []*ast.Field{
-		{
-			Names: []*ast.Ident{
-				{
-					Name: "node",
-				},
-			},
-			Type: &ast.StarExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("executor"),
-					Sel: ast.NewIdent("Node"),
-				},
-			},
-		},
-		{
-			Names: []*ast.Ident{
-				{
-					Name: "parsedQuery",
-				},
-			},
-			Type: &ast.StarExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("query"),
-					Sel: ast.NewIdent("Document"),
-				},
-			},
-		},
-		{
-			Names: []*ast.Ident{
-				{
-					Name: "variables",
-				},
-			},
-			Type: &ast.SelectorExpr{
-				X:   ast.NewIdent("json"),
-				Sel: ast.NewIdent("RawMessage"),
-			},
-		},
+		if expandedType.IsList {
+			return &ast.ArrayType{
+				Elt: generateTypeExprFromExpandedType(expandedType.Child),
+			}
+		}
+
+		return &ast.StarExpr{
+			X: generateTypeExprFromExpandedType(expandedType.Child),
+		}
 	}
 
-	ExecutorArgs.List = append(ExecutorArgs.List, additionalFields...)
-	return ExecutorArgs
+	if expandedType.IsPrimitive() {
+		graphqlType := GraphQLType(expandedType.Name)
+		return ast.NewIdent(graphqlType.golangType())
+	}
+
+	return &ast.SelectorExpr{
+		X:   ast.NewIdent("model"),
+		Sel: ast.NewIdent(string(expandedType.Name)),
+	}
+}
+
+func generateResolverArgs(field *schema.FieldDefinition) *ast.FieldList {
+	ret := make([]*ast.Field, 0, len(field.Arguments)+1)
+	ret = append(ret, &ast.Field{
+		Names: []*ast.Ident{
+			{
+				Name: "ctx",
+			},
+		},
+		Type: &ast.SelectorExpr{
+			X:   ast.NewIdent("context"),
+			Sel: ast.NewIdent("Context"),
+		},
+	})
+
+	for _, arg := range field.Arguments {
+		// TODO refactor this to use introspection.ExpandType
+		expandedType := introspection.ExpandType(arg.Type)
+
+		ret = append(ret, &ast.Field{
+			Names: []*ast.Ident{
+				{
+					Name: string(arg.Name),
+				},
+			},
+			Type: generateTypeExprFromExpandedType(expandedType),
+		})
+	}
+
+	return &ast.FieldList{
+		List: ret,
+	}
+}
+
+func generateResolverReturns(field *schema.FieldDefinition) *ast.FieldList {
+	ret := make([]*ast.Field, 0, len(field.Arguments)+1)
+
+	expandedType := introspection.ExpandType(field.Type)
+	ret = append(ret, &ast.Field{
+		Names: []*ast.Ident{},
+		Type:  generateTypeExprFromExpandedType(expandedType),
+	})
+
+	ret = append(ret, &ast.Field{
+		Names: []*ast.Ident{},
+		Type:  ast.NewIdent("error"),
+	})
+
+	return &ast.FieldList{
+		List: ret,
+	}
 }
 
 func generateDetectOperationType() *ast.FuncDecl {
@@ -2491,8 +2529,8 @@ func generateInterfaceField(operation *schema.OperationDefinition) *ast.GenDecl 
 					},
 				},
 				Type: &ast.FuncType{
-					Params:  generateServeHTTPArgs(),
-					Results: &ast.FieldList{},
+					Params:  generateResolverArgs(f),
+					Results: generateResolverReturns(f),
 				},
 			})
 		}
@@ -2656,33 +2694,9 @@ func generateResolverImplementationStruct() []ast.Decl {
 func generateResolverImplementation(fields schema.FieldDefinitions) []ast.Decl {
 	decls := make([]ast.Decl, 0, len(fields))
 
-	recv := func(t *schema.FieldType) string {
-		if t.IsList {
-			return fmt.Sprintf("[]%s", t.ListType.Name)
-		}
-
-		graphQLType := GraphQLType(t.Name)
-		return graphQLType.golangType()
-	}
-
 	for _, f := range fields {
-		returnsStr := recv(f.Type)
-
-		if f.Type != nil {
-			decls = append(decls, generateResponseGraphQLResponseStruct(string(f.Name), f))
-		}
-
 		decls = append(decls, &ast.FuncDecl{
-			Doc: &ast.CommentGroup{
-				List: []*ast.Comment{
-					{
-						Text: fmt.Sprintf("// Read request body for %sArgs", toUpperCase(string(f.Name))),
-					},
-					{
-						Text: fmt.Sprintf("// Write response body for %s", returnsStr),
-					},
-				},
-			},
+			Doc:  &ast.CommentGroup{},
 			Name: ast.NewIdent(toUpperCase(string(f.Name))),
 			Recv: &ast.FieldList{
 				List: []*ast.Field{
@@ -2701,11 +2715,23 @@ func generateResolverImplementation(fields schema.FieldDefinitions) []ast.Decl {
 				},
 			},
 			Type: &ast.FuncType{
-				Params:  generateServeHTTPArgs(),
-				Results: &ast.FieldList{},
+				Params:  generateResolverArgs(f),
+				Results: generateResolverReturns(f),
 			},
 			Body: &ast.BlockStmt{
-				List: []ast.Stmt{},
+				List: []ast.Stmt{
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun: ast.NewIdent("panic"),
+							Args: []ast.Expr{
+								&ast.BasicLit{
+									Kind:  token.STRING,
+									Value: `"` + string(f.Name) + " resolver is not implemented" + `"`,
+								},
+							},
+						},
+					},
+				},
 			},
 		})
 	}
@@ -2740,23 +2766,53 @@ var fieldsIntrospectionFieldDefinition = &schema.FieldDefinition{
 	},
 }
 
-func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexes *schema.Indexes) ast.Decl {
+func generateOperationArgumentDecls(operation *schema.OperationDefinition, indexes *schema.Indexes) []ast.Decl {
+	decls := make([]ast.Decl, 0)
 
+	if operation == nil {
+		return decls
+	}
+
+	for _, field := range operation.Fields {
+		if len(field.Arguments) == 0 {
+			continue
+		}
+
+		decls = append(decls, generateExtractOperationArgumentsDecl(field, indexes))
+	}
+
+	return decls
+}
+
+func generateOperationReponseStruct(operation *schema.OperationDefinition) []ast.Decl {
+	decls := make([]ast.Decl, 0)
+
+	if operation == nil {
+		return decls
+	}
+
+	for _, field := range operation.Fields {
+		if field.Type == nil {
+			continue
+		}
+
+		decls = append(decls, generateResponseGraphQLResponseStruct(string(field.Name), field))
+	}
+
+	return decls
+}
+
+func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexes *schema.Indexes) ast.Decl {
 	bodyStmts := make([]ast.Stmt, 0)
 	bodyStmts = append(bodyStmts, generateDeclareStmts(field.Arguments)...)
-
-	errReturnStmt := generateArgumentReturnStmt(field.Arguments)
-	errReturnStmt.Results = append(errReturnStmt.Results, ast.NewIdent("err"))
-	okReturnStmt := generateArgumentReturnStmt(field.Arguments)
-	okReturnStmt.Results = append(okReturnStmt.Results, ast.NewIdent("nil"))
-
-	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments, indexes, okReturnStmt, errReturnStmt)...)
-	bodyStmts = append(bodyStmts, okReturnStmt)
+	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments, indexes)...)
 
 	results := generateArgumentsParams(field.Arguments)
 	results.List = append(results.List, &ast.Field{
 		Type: ast.NewIdent("error"),
 	})
+
+	paramsFieldSets := generateNodeWalkerArgs()
 
 	return &ast.FuncDecl{
 		Name: ast.NewIdent("extract" + string(field.Name) + "Args"),
@@ -2777,7 +2833,7 @@ func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexe
 			},
 		},
 		Type: &ast.FuncType{
-			Params:  generateNodeWalkerArgs(),
+			Params:  paramsFieldSets,
 			Results: results,
 		},
 		Body: &ast.BlockStmt{
@@ -2791,6 +2847,16 @@ func generateArgumentFieldExtractStmts(arg *schema.ArgumentDefinition) ast.Stmt 
 	if arg.Type.IsBoolean() {
 		caseStmts = append(caseStmts, generateBoolCaseStmt(arg))
 	}
+
+	if arg.Type.IsString() {
+		caseStmts = append(caseStmts, generateStringCaseStmt(arg))
+	}
+
+	if arg.Type.IsID() {
+		caseStmts = append(caseStmts, generateIDCaseStmt(arg))
+	}
+
+	// TODO handle other types like Int, Float, etc.
 
 	switchStmt := &ast.TypeSwitchStmt{
 		Assign: &ast.AssignStmt{
@@ -2877,6 +2943,134 @@ func generateBoolCaseStmt(arg *schema.ArgumentDefinition) ast.Stmt {
 	}
 }
 
+func generateStringCaseStmt(arg *schema.ArgumentDefinition) ast.Stmt {
+	var assignStmt ast.Stmt
+	assignStmt = &ast.AssignStmt{
+		Tok: token.ASSIGN,
+		Lhs: []ast.Expr{
+			ast.NewIdent(string(arg.Name)),
+		},
+		Rhs: []ast.Expr{
+			ast.NewIdent("stringValue"),
+		},
+	}
+	if arg.Type.Nullable {
+		assignStmt = &ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
+			Rhs: []ast.Expr{
+				&ast.UnaryExpr{
+					Op: token.AND,
+					X:  ast.NewIdent("stringValue"),
+				},
+			},
+		}
+	}
+
+	return &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.StarExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("goliteql"),
+					Sel: ast.NewIdent("ValueParserLiteral"),
+				},
+			},
+		},
+		Body: []ast.Stmt{
+			&ast.IfStmt{
+				Cond: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("val"),
+						Sel: ast.NewIdent("IsString"),
+					},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Tok: token.DEFINE,
+							Lhs: []ast.Expr{ast.NewIdent("stringValue")},
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("val"),
+										Sel: ast.NewIdent("StringValue"),
+									},
+									Args: []ast.Expr{},
+								},
+							},
+						},
+						assignStmt,
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateIDCaseStmt(arg *schema.ArgumentDefinition) ast.Stmt {
+	var assignStmt ast.Stmt
+	assignStmt = &ast.AssignStmt{
+		Tok: token.ASSIGN,
+		Lhs: []ast.Expr{
+			ast.NewIdent(string(arg.Name)),
+		},
+		Rhs: []ast.Expr{
+			ast.NewIdent("idValue"),
+		},
+	}
+	if arg.Type.Nullable {
+		assignStmt = &ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
+			Rhs: []ast.Expr{
+				&ast.UnaryExpr{
+					Op: token.AND,
+					X:  ast.NewIdent("idValue"),
+				},
+			},
+		}
+	}
+
+	return &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.StarExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("goliteql"),
+					Sel: ast.NewIdent("ValueParserLiteral"),
+				},
+			},
+		},
+		Body: []ast.Stmt{
+			&ast.IfStmt{
+				Cond: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("val"),
+						Sel: ast.NewIdent("IsString"),
+					},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Tok: token.DEFINE,
+							Lhs: []ast.Expr{ast.NewIdent("idValue")},
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("val"),
+										Sel: ast.NewIdent("StringValue"),
+									},
+									Args: []ast.Expr{},
+								},
+							},
+						},
+						assignStmt,
+					},
+				},
+			},
+		},
+	}
+}
+
 func generateArgumentsParams(args schema.ArgumentDefinitions) *ast.FieldList {
 	fields := make([]*ast.Field, 0, len(args))
 
@@ -2904,40 +3098,122 @@ func generateDeclareStmts(args schema.ArgumentDefinitions) []ast.Stmt {
 	return stmts
 }
 
-func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes, okReturnStmt, errReturnStmt ast.Stmt) []ast.Stmt {
+func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(args))
 
+	argsCaseStmts := make([]ast.Stmt, 0, len(args))
 	for i, arg := range args {
 		if arg.Default != nil {
 			stmts = append(stmts, generateAssignDefaultValueStmt(arg, indexes))
-			stmts = append(stmts, &ast.IfStmt{
-				Cond: &ast.BinaryExpr{
-					X: &ast.CallExpr{
-						Fun: ast.NewIdent("len"),
-						Args: []ast.Expr{
-							&ast.SelectorExpr{
-								X:   ast.NewIdent("node"),
-								Sel: ast.NewIdent("Arguments"),
+		}
+
+		argsCaseStmts = append(argsCaseStmts, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf("\"%s\"", string(arg.Name)),
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.IfStmt{
+					Cond: &ast.UnaryExpr{
+						Op: token.NOT,
+						X: &ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("arg"),
+								Sel: ast.NewIdent("IsVariable"),
 							},
 						},
 					},
-					Op: token.EQL,
-					Y:  ast.NewIdent(fmt.Sprintf("%d", i)),
-				},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						okReturnStmt,
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Lhs: []ast.Expr{
+									ast.NewIdent("ast"),
+									ast.NewIdent("err"),
+								},
+								Tok: token.DEFINE,
+								Rhs: []ast.Expr{
+									&ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X: &ast.SelectorExpr{
+												X: &ast.SelectorExpr{
+													X:   ast.NewIdent("r"),
+													Sel: ast.NewIdent("parser"),
+												},
+												Sel: ast.NewIdent("ValueParser"),
+											},
+											Sel: ast.NewIdent("Parse"),
+										},
+										Args: []ast.Expr{
+											ast.NewIdent("arg.Value"),
+										},
+									},
+								},
+							},
+						},
+					},
+					Else: &ast.BlockStmt{
+						List: []ast.Stmt{},
 					},
 				},
-			})
-			stmts = append(stmts, generateResolveDefaultValueStmt(arg, i, okReturnStmt, errReturnStmt)...)
-		}
+			},
+		})
+
+		stmts = append(stmts, &ast.IfStmt{
+			Cond: &ast.BinaryExpr{
+				X: &ast.CallExpr{
+					Fun: ast.NewIdent("len"),
+					Args: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("node"),
+							Sel: ast.NewIdent("Arguments"),
+						},
+					},
+				},
+				Op: token.EQL,
+				Y:  ast.NewIdent(fmt.Sprintf("%d", i)),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{},
+			},
+		})
+
+		stmts = append(stmts, &ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Value: ast.NewIdent("arg"),
+			Tok:   token.DEFINE,
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("node"),
+				Sel: ast.NewIdent("Arguments"),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.SwitchStmt{
+						Tag: &ast.CallExpr{
+							Fun: ast.NewIdent("string"),
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("arg"),
+									Sel: ast.NewIdent("Name"),
+								},
+							},
+						},
+						Body: &ast.BlockStmt{
+							List: argsCaseStmts,
+						},
+					},
+				},
+			},
+		})
+
+		stmts = append(stmts, generateResolveDefaultValueStmt(arg, i)...)
 	}
 
 	return stmts
 }
 
-func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int, okReturnStmt, errReturnStmt ast.Stmt) []ast.Stmt {
+func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int) []ast.Stmt {
 	argExpr := &ast.SelectorExpr{
 		X: &ast.IndexExpr{
 			X: &ast.SelectorExpr{
@@ -2989,9 +3265,7 @@ func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int, 
 						Y:  ast.NewIdent("nil"),
 					},
 					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							errReturnStmt,
-						},
+						List: []ast.Stmt{},
 					},
 				},
 			},
@@ -3054,6 +3328,17 @@ func generateDefaultValueExpr(arg *schema.ArgumentDefinition, indexes *schema.In
 	if arg.Type.IsFloat() {
 		if arg.Type.Nullable {
 			return generateFloatPointerAST(string(arg.Default))
+		} else {
+			return &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: string(arg.Default),
+			}
+		}
+	}
+
+	if arg.Type.IsID() {
+		if arg.Type.Nullable {
+			return generateStringPointerAST(string(arg.Default))
 		} else {
 			return &ast.BasicLit{
 				Kind:  token.STRING,

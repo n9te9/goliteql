@@ -136,30 +136,6 @@ func NewGenerator(config *Config) (*Generator, error) {
 		return nil, fmt.Errorf("error merging schema: %w", err)
 	}
 
-	importDecl := &ast.GenDecl{
-		Tok: token.IMPORT,
-		Specs: []ast.Spec{
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"net/http"`,
-				},
-			},
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: fmt.Sprintf(`"%s"`, modelPackagePath),
-				},
-			},
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"github.com/n9te9/goliteql/executor"`,
-				},
-			},
-		},
-	}
-
 	var modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, enumOutput io.Writer
 	if len(extractUserEnumDefinitions(s.Enums)) > 0 {
 		enumOutput, err = createFile(config.EnumOutputFile)
@@ -208,16 +184,12 @@ func NewGenerator(config *Config) (*Generator, error) {
 			Name: ast.NewIdent(filepath.Base(modelPackagePath)),
 		},
 		queryResolverAST: &ast.File{
-			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
-			Decls: []ast.Decl{
-				importDecl,
-			},
+			Name:  ast.NewIdent(filepath.Base(resolverPackagePath)),
+			Decls: []ast.Decl{},
 		},
 		mutationResolverAST: &ast.File{
-			Name: ast.NewIdent(filepath.Base(resolverPackagePath)),
-			Decls: []ast.Decl{
-				importDecl,
-			},
+			Name:  ast.NewIdent(filepath.Base(resolverPackagePath)),
+			Decls: []ast.Decl{},
 		},
 		modelOutput:            modelOutput,
 		modelPackagePath:       modelPackagePath,
@@ -328,6 +300,30 @@ func (g *Generator) generateModel() error {
 	return nil
 }
 
+func generateOperationImport(operation *schema.OperationDefinition, modelPackagePath string) []ast.Spec {
+	specs := make([]ast.Spec, 0)
+
+	specs = append(specs,
+		&ast.ImportSpec{
+			Path: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"context"`,
+			},
+		})
+
+	if useDefinedType(operation) {
+		specs = append(specs,
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf(`"%s"`, modelPackagePath),
+				},
+			})
+	}
+
+	return specs
+}
+
 func extractUserEnumDefinitions(enums []*schema.EnumDefinition) []*schema.EnumDefinition {
 	ret := make([]*schema.EnumDefinition, 0, len(enums))
 	for _, e := range enums {
@@ -353,12 +349,6 @@ func extractIntrospectionEnumDefinitions(enums []*schema.EnumDefinition) []*sche
 func (g *Generator) generateResolver() error {
 	if isUsedDefinedType(g.Schema.GetQuery()) || isUsedDefinedType(g.Schema.GetMutation()) || isUsedDefinedType(g.Schema.GetSubscription()) {
 		importSpecs := []ast.Spec{
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"io"`,
-				},
-			},
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
@@ -408,14 +398,16 @@ func (g *Generator) generateResolver() error {
 
 	if q := g.Schema.GetQuery(); q != nil {
 		queryFields = q.Fields
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryExecutor(g.Schema.GetQuery()))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetQuery())...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryExecutor(q))
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(q, g.Schema.Indexes)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationReponseStruct(q)...)
 	}
 
 	if m := g.Schema.GetMutation(); m != nil {
 		mutationFields = m.Fields
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateMutationExecutor(g.Schema.GetMutation()))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetMutation())...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateMutationExecutor(m))
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(m, g.Schema.Indexes)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationReponseStruct(m)...)
 	}
 
 	if s := g.Schema.GetSubscription(); s != nil {
@@ -425,10 +417,18 @@ func (g *Generator) generateResolver() error {
 	}
 
 	if g.Schema.GetQuery() != nil {
+		g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, &ast.GenDecl{
+			Tok:   token.IMPORT,
+			Specs: generateOperationImport(g.Schema.GetQuery(), g.modelPackagePath),
+		})
 		g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateInterfaceField(g.Schema.GetQuery()))
 	}
 
 	if g.Schema.GetMutation() != nil {
+		g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, &ast.GenDecl{
+			Tok:   token.IMPORT,
+			Specs: generateOperationImport(g.Schema.GetMutation(), g.modelPackagePath),
+		})
 		g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateInterfaceField(g.Schema.GetMutation()))
 	}
 
@@ -536,4 +536,32 @@ func (f FieldName) ExportedGolangFieldName() string {
 	}
 
 	panic(fmt.Sprintf("invalid field name: %s", f))
+}
+
+func useDefinedType(operationDefinition *schema.OperationDefinition) bool {
+	if operationDefinition == nil {
+		return false
+	}
+
+	for _, field := range operationDefinition.Fields {
+		for _, arg := range field.Arguments {
+			if useDefinedTypeRecursive(arg.Type) {
+				return true
+			}
+		}
+
+		if useDefinedTypeRecursive(field.Type) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func useDefinedTypeRecursive(fieldType *schema.FieldType) bool {
+	if fieldType.IsList {
+		return useDefinedTypeRecursive(fieldType.ListType)
+	}
+
+	return !fieldType.IsPrimitive()
 }

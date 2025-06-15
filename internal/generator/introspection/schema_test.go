@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/n9te9/goliteql/internal/generator/introspection"
 	"github.com/n9te9/goliteql/schema"
 )
@@ -27,19 +28,19 @@ func TestExpandType(t *testing.T) {
 				},
 			},
 			expected: &introspection.FieldType{
-				Name:    nil,
+				Name:    "",
 				NonNull: true,
 				IsList:  false,
 				Child: &introspection.FieldType{
-					Name:    nil,
+					Name:    "",
 					NonNull: false,
 					IsList:  true,
 					Child: &introspection.FieldType{
-						Name:    nil,
+						Name:    "",
 						NonNull: true,
 						IsList:  false,
 						Child: &introspection.FieldType{
-							Name:    []byte("Post"),
+							Name:    "Post",
 							NonNull: false,
 							IsList:  false,
 							Child:   nil,
@@ -56,10 +57,39 @@ func TestExpandType(t *testing.T) {
 				IsList:   false,
 			},
 			expected: &introspection.FieldType{
-				Name:    []byte("String"),
-				NonNull: true,
+				Name:    "String",
+				NonNull: false,
 				IsList:  false,
 				Child:   nil,
+			},
+		},
+		{
+			name: "non-null scalar type",
+			input: &schema.FieldType{
+				Name:     []byte("ID"),
+				Nullable: false,
+				IsList:   false,
+			},
+			expected: &introspection.FieldType{
+				Name:    "",
+				NonNull: true,
+				IsList:  false,
+				Child: &introspection.FieldType{
+					Name:    "ID",
+					NonNull: false,
+					IsList:  false,
+					Child:   nil,
+					SchemaFieldType: &schema.FieldType{
+						Name:     []byte("ID"),
+						Nullable: false,
+						IsList:   false,
+					},
+				},
+				SchemaFieldType: &schema.FieldType{
+					Name:     []byte("ID"),
+					Nullable: false,
+					IsList:   false,
+				},
 			},
 		},
 	}
@@ -68,7 +98,7 @@ func TestExpandType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := introspection.ExpandType(tt.input)
 
-			if d := cmp.Diff(tt.expected, result); d != "" {
+			if d := cmp.Diff(tt.expected, result, cmpopts.IgnoreFields(introspection.FieldType{}, "SchemaFieldType")); d != "" {
 				t.Errorf("ExpandType() mismatch (-want +got):\n%s", d)
 			}
 		})

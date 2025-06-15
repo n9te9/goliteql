@@ -1,9 +1,11 @@
 package introspection
 
-import "github.com/n9te9/goliteql/schema"
+import (
+	"github.com/n9te9/goliteql/schema"
+)
 
 type FieldType struct {
-	Name            []byte
+	Name            string
 	NonNull         bool
 	IsList          bool
 	SchemaFieldType *schema.FieldType
@@ -31,7 +33,7 @@ func ExpandType(fieldType *schema.FieldType) *FieldType {
 func expandType(fieldType *schema.FieldType, isExpandedNonNull bool) *FieldType {
 	if !fieldType.Nullable && !isExpandedNonNull {
 		return &FieldType{
-			Name:    nil,
+			Name:    "",
 			NonNull: true,
 			IsList:  false,
 			Child:   expandType(fieldType, true),
@@ -40,18 +42,18 @@ func expandType(fieldType *schema.FieldType, isExpandedNonNull bool) *FieldType 
 
 	if fieldType.IsList {
 		return &FieldType{
-			Name:    nil,
-			NonNull: fieldType.Nullable,
+			Name:    "",
+			NonNull: false,
 			IsList:  true,
 			Child:   expandType(fieldType.ListType, false),
 		}
 	}
 
 	return &FieldType{
-		Name:            fieldType.Name,
-		NonNull:         fieldType.Nullable,
-		SchemaFieldType: fieldType,
+		Name:            string(fieldType.Name),
+		NonNull:         false,
 		IsList:          false,
+		SchemaFieldType: fieldType,
 		Child:           nil,
 	}
 }

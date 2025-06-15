@@ -832,6 +832,17 @@ func generateNodeWalkerArgs() *ast.FieldList {
 						Sel: ast.NewIdent("Node"),
 					},
 				},
+			}, {
+				Names: []*ast.Ident{
+					ast.NewIdent("variables"),
+				},
+				Type: &ast.MapType{
+					Key: ast.NewIdent("string"),
+					Value: &ast.SelectorExpr{
+						X:   ast.NewIdent("json"),
+						Sel: ast.NewIdent("RawMessage"),
+					},
+				},
 			},
 		},
 	}
@@ -3324,7 +3335,7 @@ func generateIntrospectionSchemaQueryAST(s *schema.Schema) ast.Decl {
 	})
 
 	body = append(body, generateSchemaResponseWrite())
-	params := generateOperationExecutorArgs()
+	params := generateNodeWalkerArgs()
 
 	return &ast.FuncDecl{
 		Recv: &ast.FieldList{
@@ -3673,7 +3684,7 @@ func generateIntrospectionTypeFuncDecl(s *schema.Schema) ast.Decl {
 		},
 		Name: ast.NewIdent("__type"),
 		Type: &ast.FuncType{
-			Params: generateOperationExecutorArgs(),
+			Params: generateNodeWalkerArgs(),
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
