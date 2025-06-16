@@ -426,8 +426,6 @@ func generateApplyQueryResponseFuncDecls(operationDefinition *schema.OperationDe
 }
 
 func generateRetAssignStmt(fieldType *schema.FieldType) ast.Stmt {
-	expandedFieldType := introspection.ExpandType(fieldType)
-
 	if fieldType.IsList {
 		return &ast.AssignStmt{
 			Lhs: []ast.Expr{
@@ -438,7 +436,7 @@ func generateRetAssignStmt(fieldType *schema.FieldType) ast.Stmt {
 				&ast.CallExpr{
 					Fun: ast.NewIdent("make"),
 					Args: []ast.Expr{
-						generateTypeExprFromExpandedType(expandedFieldType),
+						generateTypeExprFromFieldType(fieldType),
 						&ast.CallExpr{
 							Fun: ast.NewIdent("len"),
 							Args: []ast.Expr{
@@ -451,17 +449,70 @@ func generateRetAssignStmt(fieldType *schema.FieldType) ast.Stmt {
 		}
 	}
 
+	if fieldType.IsPrimitive() {
+		if fieldType.Nullable {
+			return &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent("ret"),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("new"),
+						Args: []ast.Expr{
+							ast.NewIdent(GraphQLType(fieldType.Name).golangType()),
+						},
+					},
+				},
+			}
+		}
+
+		return &ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok: token.VAR,
+				Specs: []ast.Spec{
+					&ast.ValueSpec{
+						Names: []*ast.Ident{
+							ast.NewIdent("ret"),
+						},
+						Type: ast.NewIdent(GraphQLType(fieldType.Name).golangType()),
+					},
+				},
+			},
+		}
+	}
+
+	rhs := []ast.Expr{
+		&ast.CompositeLit{
+			Type: &ast.SelectorExpr{
+				X:   ast.NewIdent("model"),
+				Sel: ast.NewIdent(string(fieldType.Name)),
+			},
+			Elts: []ast.Expr{},
+		},
+	}
+
+	if fieldType.Nullable {
+		rhs = []ast.Expr{
+			&ast.UnaryExpr{
+				Op: token.AND,
+				X: &ast.CompositeLit{
+					Type: &ast.SelectorExpr{
+						X:   ast.NewIdent("model"),
+						Sel: ast.NewIdent(string(fieldType.Name)),
+					},
+					Elts: []ast.Expr{},
+				},
+			},
+		}
+	}
+
 	return &ast.AssignStmt{
 		Lhs: []ast.Expr{
 			ast.NewIdent("ret"),
 		},
 		Tok: token.DEFINE,
-		Rhs: []ast.Expr{
-			&ast.CompositeLit{
-				Type: generateTypeExprFromFieldType(fieldType),
-				Elts: []ast.Expr{},
-			},
-		},
+		Rhs: rhs,
 	}
 }
 
@@ -2853,16 +2904,13 @@ func generateResolverArgs(field *schema.FieldDefinition) *ast.FieldList {
 	})
 
 	for _, arg := range field.Arguments {
-		// TODO refactor this to use introspection.ExpandType
-		expandedType := introspection.ExpandType(arg.Type)
-
 		ret = append(ret, &ast.Field{
 			Names: []*ast.Ident{
 				{
 					Name: string(arg.Name),
 				},
 			},
-			Type: generateTypeExprFromExpandedType(expandedType),
+			Type: generateTypeExprFromFieldType(arg.Type),
 		})
 	}
 
@@ -2874,10 +2922,9 @@ func generateResolverArgs(field *schema.FieldDefinition) *ast.FieldList {
 func generateResolverReturns(field *schema.FieldDefinition) *ast.FieldList {
 	ret := make([]*ast.Field, 0, len(field.Arguments)+1)
 
-	expandedType := introspection.ExpandType(field.Type)
 	ret = append(ret, &ast.Field{
 		Names: []*ast.Ident{},
-		Type:  generateTypeExprFromExpandedType(expandedType),
+		Type:  generateTypeExprFromFieldType(field.Type),
 	})
 
 	ret = append(ret, &ast.Field{

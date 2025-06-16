@@ -2476,13 +2476,7 @@ func generateIntrospectionInterfacesStmts(fieldType *introspection.FieldType, in
 			},
 		})
 
-		var prefixExpr ast.Expr = ast.NewIdent("nil")
-		if fieldType.NonNull {
-			prefixExpr = &ast.CompositeLit{
-				Type: ast.NewIdent("__Type"),
-				Elts: []ast.Expr{},
-			}
-		}
+		var prefixExpr ast.Expr = ast.NewIdent("ret")
 
 		ret = append(ret, generateReturnErrorHandlingStmt([]ast.Expr{
 			prefixExpr,
