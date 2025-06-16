@@ -12,7 +12,8 @@ type Node struct {
 	Children   []*Node
 }
 
-func PlanExecution(selections []query.Selection) *Node {
+func PlanExecution(selections []query.Selection) []*Node {
+	ret := make([]*Node, 0, len(selections))
 	for _, sel := range selections {
 		switch s := sel.(type) {
 		case *query.Field:
@@ -31,11 +32,11 @@ func PlanExecution(selections []query.Selection) *Node {
 				}
 			}
 
-			return node
+			ret = append(ret, node)
 		}
 	}
 
-	return nil
+	return ret
 }
 
 func digExecution(selectSet query.Selection) *Node {

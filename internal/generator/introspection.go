@@ -284,6 +284,7 @@ func generateIntrospectionInterfaceTypeFuncDecls(interfaces []*schema.InterfaceD
 														},
 														Args: []ast.Expr{
 															ast.NewIdent("child"),
+															ast.NewIdent("variables"),
 														},
 													},
 												},
@@ -306,7 +307,9 @@ func generateIntrospectionInterfaceTypeFuncDecls(interfaces []*schema.InterfaceD
 															Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(i.Name))),
 														},
 														Args: []ast.Expr{
+															ast.NewIdent("ctx"),
 															ast.NewIdent("child"),
+															ast.NewIdent("variables"),
 															&ast.StarExpr{
 																X: ast.NewIdent("includeDeprecated"),
 															},
@@ -374,7 +377,9 @@ func generateIntrospectionInterfaceTypeFuncDecls(interfaces []*schema.InterfaceD
 																		Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(typeDefinition.Name))),
 																	},
 																	Args: []ast.Expr{
+																		ast.NewIdent("ctx"),
 																		ast.NewIdent("child"),
+																		ast.NewIdent("variables"),
 																	},
 																},
 															},
@@ -558,7 +563,9 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(scalarDefinition.Name))),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("node"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -584,7 +591,9 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(t.Name))),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("node"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -607,7 +616,9 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(interfaceDefinition.Name))),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("node"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -630,7 +641,9 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(inputDefinition.Name))),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("node"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -688,7 +701,9 @@ func generateIntrospectionTypeFieldInterfacesCallStmts(interfaces []*schema.Inte
 						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(interfaceDefinition.Name))),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -754,7 +769,9 @@ func generateIntrospectionModelFieldCaseAST(s *schema.Schema, field *schema.Fiel
 						Sel: ast.NewIdent("__schema_queryType"),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -773,7 +790,9 @@ func generateIntrospectionModelFieldCaseAST(s *schema.Schema, field *schema.Fiel
 						Sel: ast.NewIdent("__schema_types"),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -790,7 +809,12 @@ func generateIntrospectionModelFieldCaseAST(s *schema.Schema, field *schema.Fiel
 			},
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{
-					generateSchemaErrorResponseWrite(),
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							ast.NewIdent("nil"),
+							ast.NewIdent("err"),
+						},
+					},
 				},
 			},
 		})
@@ -823,6 +847,14 @@ func generateNodeWalkerArgs() *ast.FieldList {
 	return &ast.FieldList{
 		List: []*ast.Field{
 			{
+				Names: []*ast.Ident{
+					ast.NewIdent("ctx"),
+				},
+				Type: &ast.SelectorExpr{
+					X:   ast.NewIdent("context"),
+					Sel: ast.NewIdent("Context"),
+				},
+			}, {
 				Names: []*ast.Ident{
 					ast.NewIdent("node"),
 				},
@@ -2103,6 +2135,7 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 					},
 					Args: []ast.Expr{
 						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -2123,7 +2156,9 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 						Sel: ast.NewIdent("__schema__" + string(f.Name) + "__fields"),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 						&ast.StarExpr{
 							X: ast.NewIdent("includeDeprecated"),
 						},
@@ -2193,7 +2228,9 @@ func generateIntrospectionTypeOfSwitchStmt(f *introspection.FieldType, callTypeO
 							Sel: ast.NewIdent(callTypeOfFuncName),
 						},
 						Args: []ast.Expr{
+							ast.NewIdent("ctx"),
 							ast.NewIdent("child"),
+							ast.NewIdent("variables"),
 						},
 					},
 				},
@@ -2431,7 +2468,9 @@ func generateIntrospectionInterfacesStmts(fieldType *introspection.FieldType, in
 						Sel: ast.NewIdent("__schema__" + string(interfaceType.Name) + "__type"),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -2541,7 +2580,9 @@ func generateIntrospectionTypeFieldSwitchStmt(typeName string, f *schema.FieldDe
 							Sel: ast.NewIdent(fmt.Sprintf("__schema%s__%s__typeof", typeName, string(f.Name))),
 						},
 						Args: []ast.Expr{
+							ast.NewIdent("ctx"),
 							ast.NewIdent("child"),
+							ast.NewIdent("variables"),
 						},
 					},
 				},
@@ -2868,7 +2909,9 @@ func generateIntrospectionOperationFieldsAST(fieldDefinitions *schema.OperationD
 					Sel: ast.NewIdent("__schema_fields"),
 				},
 				Args: []ast.Expr{
+					ast.NewIdent("ctx"),
 					ast.NewIdent("child"),
+					ast.NewIdent("variables"),
 				},
 			},
 		},
@@ -3120,7 +3163,9 @@ func generateIntrospectionSchemaFieldTypeBodyStmt(attributeName string, fields s
 						Sel: ast.NewIdent(fmt.Sprintf("%s__type", prefix)),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -3187,7 +3232,9 @@ func generateIntrospectionFieldTypeBodyStmt(attributeName string, fields schema.
 						Sel: ast.NewIdent(fmt.Sprintf("%s__type", prefix)),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -3240,6 +3287,46 @@ func generateStringPointerAST(value string) ast.Expr {
 						Kind:  token.STRING,
 						Value: fmt.Sprintf(`"%s"`, value),
 					},
+				},
+			},
+			Index: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: "0",
+			},
+		},
+	}
+}
+
+func generateStringPointerExpr(value ast.Expr) ast.Expr {
+	return &ast.UnaryExpr{
+		Op: token.AND,
+		X: &ast.IndexExpr{
+			X: &ast.CompositeLit{
+				Type: &ast.ArrayType{
+					Elt: ast.NewIdent("string"),
+				},
+				Elts: []ast.Expr{
+					value,
+				},
+			},
+			Index: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: "0",
+			},
+		},
+	}
+}
+
+func generateBoolPointerExpr(value ast.Expr) ast.Expr {
+	return &ast.UnaryExpr{
+		Op: token.AND,
+		X: &ast.IndexExpr{
+			X: &ast.CompositeLit{
+				Type: &ast.ArrayType{
+					Elt: ast.NewIdent("bool"),
+				},
+				Elts: []ast.Expr{
+					value,
 				},
 			},
 			Index: &ast.BasicLit{
@@ -3334,7 +3421,12 @@ func generateIntrospectionSchemaQueryAST(s *schema.Schema) ast.Decl {
 		},
 	})
 
-	body = append(body, generateSchemaResponseWrite())
+	body = append(body, &ast.ReturnStmt{
+		Results: []ast.Expr{
+			ast.NewIdent("ret"),
+			ast.NewIdent("nil"),
+		},
+	})
 	params := generateNodeWalkerArgs()
 
 	return &ast.FuncDecl{
@@ -3353,6 +3445,17 @@ func generateIntrospectionSchemaQueryAST(s *schema.Schema) ast.Decl {
 		Name: ast.NewIdent("__schema"),
 		Type: &ast.FuncType{
 			Params: params,
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("__Schema"),
+						},
+					}, {
+						Type: ast.NewIdent("error"),
+					},
+				},
+			},
 		},
 		Body: &ast.BlockStmt{
 			List: body,
@@ -3839,7 +3942,9 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(t.Name))),
 								},
 								Args: []ast.Expr{
+									ast.NewIdent("ctx"),
 									ast.NewIdent("node"),
+									ast.NewIdent("variables"),
 								},
 							},
 						},
@@ -3880,7 +3985,9 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(i.Name))),
 								},
 								Args: []ast.Expr{
+									ast.NewIdent("ctx"),
 									ast.NewIdent("node"),
+									ast.NewIdent("variables"),
 								},
 							},
 						},
@@ -3921,7 +4028,9 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(i.Name))),
 								},
 								Args: []ast.Expr{
+									ast.NewIdent("ctx"),
 									ast.NewIdent("node"),
+									ast.NewIdent("variables"),
 								},
 							},
 						},
@@ -3962,7 +4071,9 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(s.Name))),
 								},
 								Args: []ast.Expr{
+									ast.NewIdent("ctx"),
 									ast.NewIdent("node"),
+									ast.NewIdent("variables"),
 								},
 							},
 						},
@@ -4167,6 +4278,7 @@ func generateIntrospectionTypeFuncDecls(typeDefinitions schema.TypeDefinitions) 
 														},
 														Args: []ast.Expr{
 															ast.NewIdent("child"),
+															ast.NewIdent("variables"),
 														},
 													},
 												},
@@ -4189,7 +4301,9 @@ func generateIntrospectionTypeFuncDecls(typeDefinitions schema.TypeDefinitions) 
 															Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(t.Name))),
 														},
 														Args: []ast.Expr{
+															ast.NewIdent("ctx"),
 															ast.NewIdent("child"),
+															ast.NewIdent("variables"),
 															&ast.StarExpr{
 																X: ast.NewIdent("includeDeprecated"),
 															},
@@ -4379,6 +4493,7 @@ func generateIntrospectionInputFuncDecls(inputDefinitions []*schema.InputDefinit
 														},
 														Args: []ast.Expr{
 															ast.NewIdent("child"),
+															ast.NewIdent("variables"),
 														},
 													},
 												},
@@ -4401,7 +4516,9 @@ func generateIntrospectionInputFuncDecls(inputDefinitions []*schema.InputDefinit
 															Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(t.Name))),
 														},
 														Args: []ast.Expr{
+															ast.NewIdent("ctx"),
 															ast.NewIdent("child"),
+															ast.NewIdent("variables"),
 															&ast.StarExpr{
 																X: ast.NewIdent("includeDeprecated"),
 															},
@@ -4653,6 +4770,7 @@ func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition
 															Sel: ast.NewIdent("extract__fieldsArgs"),
 														},
 														Args: []ast.Expr{
+															ast.NewIdent("ctx"),
 															ast.NewIdent("child"),
 														},
 													},
@@ -4677,6 +4795,7 @@ func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition
 															Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__enumValues", string(t.Name))),
 														},
 														Args: []ast.Expr{
+															ast.NewIdent("ctx"),
 															ast.NewIdent("child"),
 														},
 													},

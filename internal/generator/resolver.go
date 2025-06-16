@@ -67,6 +67,12 @@ func generateResolverImport() *ast.GenDecl {
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
+					Value: `"strconv"`,
+				},
+			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
 					Value: `"fmt"`,
 				},
 			},
@@ -92,6 +98,12 @@ func generateResolverImport() *ast.GenDecl {
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
 					Value: `"time"`,
+				},
+			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"context"`,
 				},
 			},
 		},
@@ -235,6 +247,224 @@ func generateResponseGraphQLResponseStruct(operationName string, fieldDefinition
 	}
 }
 
+func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, nestCount int) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	if typeDefinition == nil {
+		return ret
+	}
+
+	for _, field := range typeDefinition.Fields {
+		lhs := []ast.Expr{
+			&ast.SelectorExpr{
+				X:   generateIndexExprFromNestCount(nestCount - 1),
+				Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+			},
+		}
+
+		rhs := []ast.Expr{
+			&ast.SelectorExpr{
+				X:   ast.NewIdent("resolverRet"),
+				Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+			},
+		}
+
+		if nestCount > 0 {
+			rhs = []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent(fmt.Sprintf("v%d", nestCount-1)),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				},
+			}
+		}
+
+		ret = append(ret, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf(`"%s"`, string(field.Name)),
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: lhs,
+					Tok: token.ASSIGN,
+					Rhs: rhs,
+				},
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateApplyLoopStmtForQueryResponse(fieldDefinition *schema.FieldDefinition, fieldType *schema.FieldType, indexes *schema.Indexes, nestCount int) ast.Stmt {
+	if fieldType.IsList {
+		return &ast.RangeStmt{
+			Key:   ast.NewIdent(fmt.Sprintf("k%d", nestCount)),
+			Value: ast.NewIdent(fmt.Sprintf("v%d", nestCount)),
+			X:     ast.NewIdent("resolverRet"),
+			Tok:   token.DEFINE,
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					generateApplyLoopStmtForQueryResponse(fieldDefinition, fieldType.ListType, indexes, nestCount+1),
+				},
+			},
+		}
+	}
+
+	return generateApplySwitchStmtForQueryResponse(fieldDefinition, indexes, nestCount)
+}
+
+func generateApplySwitchStmtForQueryResponse(field *schema.FieldDefinition, indexes *schema.Indexes, nestCount int) ast.Stmt {
+	rootType := field.Type.GetRootType()
+	typeDefinition := indexes.TypeIndex[string(rootType.Name)]
+
+	return &ast.RangeStmt{
+		Key:   ast.NewIdent("_"),
+		Value: ast.NewIdent("child"),
+		X: &ast.SelectorExpr{
+			X:   ast.NewIdent("node"),
+			Sel: ast.NewIdent("Children"),
+		},
+		Tok: token.DEFINE,
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.SwitchStmt{
+					Tag: &ast.CallExpr{
+						Fun: ast.NewIdent("string"),
+						Args: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("child"),
+								Sel: ast.NewIdent("Name"),
+							},
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: generateApplyQueryResponseCaseStmts(typeDefinition, nestCount),
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateIndexExprFromNestCount(nestCount int) ast.Expr {
+	if nestCount < 0 {
+		return ast.NewIdent("resolverRet")
+	}
+
+	return &ast.IndexExpr{
+		X:     ast.NewIdent("resolverRet"),
+		Index: ast.NewIdent(fmt.Sprintf("k%d", nestCount)),
+	}
+}
+
+func generateApplyQueryResponseFuncDecls(operationDefinition *schema.OperationDefinition, indexes *schema.Indexes, nestCount int) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	for _, field := range operationDefinition.Fields {
+		ret = append(ret, &ast.FuncDecl{
+			Name: ast.NewIdent("apply" + string(field.Name) + "QueryResponse"),
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{ast.NewIdent("r")},
+						Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					generateRetAssignStmt(field.Type),
+					generateApplyLoopStmtForQueryResponse(field, field.Type, indexes, nestCount),
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							ast.NewIdent("ret"),
+							ast.NewIdent("nil"),
+						},
+					},
+				},
+			},
+			Type: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("resolverRet"),
+							},
+							Type: generateTypeExprFromFieldType(field.Type),
+						},
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("node"),
+							},
+							Type: &ast.StarExpr{
+								X: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("Node"),
+								},
+							},
+						},
+					},
+				},
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: generateTypeExprFromFieldType(field.Type),
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateRetAssignStmt(fieldType *schema.FieldType) ast.Stmt {
+	expandedFieldType := introspection.ExpandType(fieldType)
+
+	if fieldType.IsList {
+		return &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("ret"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("make"),
+					Args: []ast.Expr{
+						generateTypeExprFromExpandedType(expandedFieldType),
+						&ast.CallExpr{
+							Fun: ast.NewIdent("len"),
+							Args: []ast.Expr{
+								ast.NewIdent("resolverRet"),
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	return &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("ret"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CompositeLit{
+				Type: generateTypeExprFromFieldType(fieldType),
+				Elts: []ast.Expr{},
+			},
+		},
+	}
+}
+
 func generateQueryExecutor(query *schema.OperationDefinition) *ast.FuncDecl {
 	return &ast.FuncDecl{
 		Name: ast.NewIdent("queryExecutor"),
@@ -247,8 +477,17 @@ func generateQueryExecutor(query *schema.OperationDefinition) *ast.FuncDecl {
 			},
 		},
 		Type: &ast.FuncType{
-			Params:  generateNodeWalkerArgs(),
-			Results: &ast.FieldList{},
+			Params: generateNodeWalkerArgs(),
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: ast.NewIdent("any"),
+					},
+					{
+						Type: ast.NewIdent("error"),
+					},
+				},
+			},
 		},
 		Doc: &ast.CommentGroup{
 			List: []*ast.Comment{
@@ -276,8 +515,17 @@ func generateMutationExecutor(mutation *schema.OperationDefinition) *ast.FuncDec
 			},
 		},
 		Type: &ast.FuncType{
-			Params:  generateNodeWalkerArgs(),
-			Results: &ast.FieldList{},
+			Params: generateNodeWalkerArgs(),
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: ast.NewIdent("any"),
+					},
+					{
+						Type: ast.NewIdent("error"),
+					},
+				},
+			},
 		},
 		Doc: &ast.CommentGroup{
 			List: []*ast.Comment{
@@ -474,26 +722,6 @@ func extractWillDeclTypeDefinition(typeIndex map[string]*schema.TypeDefinition, 
 	}
 
 	return typeDefinition
-}
-
-func generateResponseStructForWrapResponseWriter(typeIndex map[string]*schema.TypeDefinition, operation *schema.OperationDefinition) []ast.Decl {
-	if operation == nil {
-		return nil
-	}
-
-	decls := make([]ast.Decl, 0)
-
-	for _, field := range operation.Fields {
-		if field == nil {
-			continue
-		}
-
-		t := extractWillDeclTypeDefinition(typeIndex, field.Type)
-
-		decls = append(decls, generateResponseStructDeclsForWrapResponseWriter(string(field.Name), field, t, typeIndex)...)
-	}
-
-	return decls
 }
 
 func generateResponseStructArrayType(nestCount int, responseStructName, prefix string) ast.Expr {
@@ -962,209 +1190,6 @@ func generateWrapResponseWriterResponseFieldArgType(structName string, fieldType
 	}
 }
 
-func generateWrapResponseWriterResponseFieldWalker(operationName string, field *schema.FieldDefinition, typeDefinition *schema.TypeDefinition) ast.Decl {
-	methodSufix := string(field.Name)
-
-	responseStructName := operationName + string(typeDefinition.Name) + "Response"
-
-	var resultType ast.Expr = &ast.StarExpr{
-		X: ast.NewIdent(responseStructName),
-	}
-
-	if field.Type.IsList {
-		resultType = generateWrapResponseWriterResponseFieldArgType(responseStructName, field.Type)
-	}
-
-	return &ast.FuncDecl{
-		Name: ast.NewIdent("walk" + methodSufix),
-		Recv: &ast.FieldList{
-			List: []*ast.Field{
-				{
-					Names: []*ast.Ident{ast.NewIdent("w")},
-					Type: &ast.StarExpr{
-						X: &ast.Ident{
-							Name: "Wrap" + string(operationName) + "ResponseWriter",
-						},
-					},
-				},
-			},
-		},
-		Type: &ast.FuncType{
-			Params: &ast.FieldList{
-				List: []*ast.Field{
-					{
-						Names: []*ast.Ident{ast.NewIdent("selections")},
-						Type: &ast.ArrayType{
-							Elt: &ast.SelectorExpr{
-								X:   ast.NewIdent("query"),
-								Sel: ast.NewIdent("Selection"),
-							},
-						},
-					},
-					{
-						Names: []*ast.Ident{ast.NewIdent("baseResp")},
-						Type:  generateTypeExprFromFieldType(field.Type),
-					},
-				},
-			},
-			Results: &ast.FieldList{
-				List: []*ast.Field{
-					{
-						Type: resultType,
-					},
-				},
-			},
-		},
-		Body: generateWrapResponseWriterResponseFieldWalkerBody(responseStructName, field, typeDefinition),
-	}
-}
-
-func generateResponseStructDeclsForWrapResponseWriter(rootFieldName string, field *schema.FieldDefinition, typeDefinition *schema.TypeDefinition, index map[string]*schema.TypeDefinition) []ast.Decl {
-	fields := make([]*ast.Field, 0, len(typeDefinition.Fields))
-	operationName := rootFieldName
-	structPrefix := operationName + string(typeDefinition.Name)
-
-	ret := make([]ast.Decl, 0)
-	for _, field := range typeDefinition.Fields {
-		graphqlType := GraphQLType(field.Type.Name)
-
-		var typeExpr ast.Expr
-		typeExpr = &ast.StarExpr{
-			X: ast.NewIdent(string(graphqlType.golangType())),
-		}
-
-		targetField := field
-		if !graphqlType.IsPrimitive() && field.Type.IsList {
-			ft := field.Type
-			for ft.IsList {
-				ft = ft.ListType
-			}
-			td := index[string(ft.Name)]
-
-			typeExpr = generateWrapResponseWriterResponseFieldArgType(rootFieldName+string(td.Name)+"Response", field.Type)
-
-			graphqlType = GraphQLType(td.TypeName())
-			if graphqlType == "" {
-				panic("unknown type")
-			}
-
-			ret = append(ret, generateResponseStructDeclsForWrapResponseWriter(rootFieldName, field, td, index)...)
-		}
-
-		if !graphqlType.IsPrimitive() && !field.Type.IsList {
-			graphqlType = GraphQLType(field.Type.Name)
-			if isLowerCase(string(graphqlType.golangType())) {
-				graphqlType = GraphQLType(toUpperCase(string(graphqlType.golangType())))
-			}
-
-			typeExpr = &ast.StarExpr{
-				X: ast.NewIdent(rootFieldName + graphqlType.golangType() + "Response"),
-			}
-		}
-
-		fieldName := FieldName(targetField.Name)
-		tag := fmt.Sprintf("`json:\"%s,omitempty\"`", string(targetField.Name))
-		// TODO: implment validation
-		// if !targetField.Type.Nullable {
-		// 	tag = fmt.Sprintf("`json:\"%s\"`", string(targetField.Name))
-		// }
-		fields = append(fields, &ast.Field{
-			Tag: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: tag,
-			},
-			Names: []*ast.Ident{ast.NewIdent(fieldName.ExportedGolangFieldName())},
-			Type:  typeExpr,
-		})
-	}
-
-	structDecl := &ast.GenDecl{
-		Tok: token.TYPE,
-		Specs: []ast.Spec{
-			&ast.TypeSpec{
-				Name: ast.NewIdent(structPrefix + "Response"),
-				Type: &ast.StructType{
-					Fields: &ast.FieldList{
-						List: fields,
-					},
-				},
-			},
-		},
-	}
-
-	typeFieldName := FieldName(typeDefinition.TypeName())
-	fieldName := FieldName(string(rootFieldName) + string(typeFieldName))
-
-	typeExpr := generateWrapResponseWriterResponseTypeExprBasedTypeName(rootFieldName+typeFieldName.ExportedGolangFieldName()+"Response", field.Type)
-	if !field.Type.IsList && !field.IsPrimitive() {
-		typeExpr = &ast.StarExpr{
-			X: typeExpr,
-		}
-	}
-
-	wrapStructDecl := &ast.GenDecl{
-		Tok: token.TYPE,
-		Specs: []ast.Spec{
-			&ast.TypeSpec{
-				Name: ast.NewIdent("wrap" + fieldName.ExportedGolangFieldName() + "Response"),
-				Type: &ast.StructType{
-					Fields: &ast.FieldList{
-						List: []*ast.Field{
-							{
-								Names: []*ast.Ident{ast.NewIdent(fieldName.ExportedGolangFieldName() + "Response")},
-								Tag: &ast.BasicLit{
-									Kind:  token.STRING,
-									Value: fmt.Sprintf("`json:\"%s\"`", string(rootFieldName)),
-								},
-								Type: typeExpr,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	ret = append(ret, structDecl)
-	ret = append(ret, wrapStructDecl)
-	ret = append(ret, generateWrapResponseWriterResponseFieldWalker(rootFieldName, field, typeDefinition))
-
-	for _, field := range typeDefinition.Fields {
-		if field.IsPrimitive() {
-			continue
-		}
-
-		typeDefinition := index[string(field.Type.Name)]
-		if typeDefinition == nil {
-			continue
-		}
-
-		ret = append(ret, generateResponseStructDeclsForWrapResponseWriter(rootFieldName, field, typeDefinition, index)...)
-	}
-
-	return ret
-}
-
-func generateWrapResponseWriterResponseTypeExprBasedTypeName(basedTypeName string, fieldType *schema.FieldType) ast.Expr {
-	graphqlType := GraphQLType(fieldType.Name)
-
-	if fieldType.IsList {
-		return &ast.ArrayType{
-			Elt: generateWrapResponseWriterResponseTypeExprBasedTypeName(basedTypeName, fieldType.ListType),
-		}
-	}
-
-	if graphqlType == "" {
-		return &ast.Ident{
-			Name: "interface{}",
-		}
-	}
-
-	return &ast.Ident{
-		Name: basedTypeName,
-	}
-}
-
 func extractRootGraphQLType(fieldType *schema.FieldType) GraphQLType {
 	if fieldType.IsList {
 		return extractRootGraphQLType(fieldType.ListType)
@@ -1530,7 +1555,7 @@ func generateWrapResponseWriterWrite(rootFieldName string, field *schema.FieldDe
 func generateArgumentsAssignStmt(fieldName string, args schema.ArgumentDefinitions) ast.Stmt {
 	lhs := make([]ast.Expr, 0, len(args)+1)
 	for _, arg := range args {
-		lhs = append(lhs, ast.NewIdent(fmt.Sprintf("%sArg", arg.Name)))
+		lhs = append(lhs, ast.NewIdent(string(arg.Name)))
 	}
 	lhs = append(lhs, ast.NewIdent("err"))
 
@@ -1561,19 +1586,6 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 		}
 	}
 
-	var executorName string
-	if operationType == "query" {
-		executorName = "queryExecutor"
-	}
-
-	if operationType == "mutation" {
-		executorName = "mutationExecutor"
-	}
-
-	if operationType == "subscription" {
-		executorName = "subscriptionExecutor"
-	}
-
 	bodyStmt := make([]ast.Stmt, 0)
 	for _, field := range op.Fields {
 		caseBody := make([]ast.Stmt, 0)
@@ -1593,49 +1605,51 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 				})
 		}
 		caseBody = append(caseBody,
-			&ast.ExprStmt{X: &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent("r"),
-					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent("resolverRet"),
+					ast.NewIdent("err"),
 				},
-				Args: []ast.Expr{
-					ast.NewIdent("w"),
-					ast.NewIdent("req"),
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("r"),
+							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+						},
+						Args: generateFieldArguments(field.Arguments),
+					},
 				},
-			}},
-			&ast.RangeStmt{
-				Value: ast.NewIdent("child"),
-				Tok:   token.DEFINE,
-				Key:   ast.NewIdent("_"),
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("node"),
-					Sel: ast.NewIdent("Children"),
+			},
+			generateReturnErrorHandlingStmt([]ast.Expr{
+				ast.NewIdent("nil"),
+			}),
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent("ret"),
+					ast.NewIdent("err"),
 				},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.IfStmt{
-							Cond: &ast.BinaryExpr{
-								X:  ast.NewIdent("child.SelectSets"),
-								Op: token.NEQ,
-								Y:  ast.NewIdent("nil"),
-							},
-							Body: &ast.BlockStmt{
-								List: []ast.Stmt{
-									&ast.ExprStmt{X: &ast.CallExpr{
-										Fun: &ast.SelectorExpr{
-											X:   ast.NewIdent("r"),
-											Sel: ast.NewIdent(executorName),
-										},
-										Args: []ast.Expr{
-											ast.NewIdent("child"),
-											ast.NewIdent("variables"),
-										},
-									},
-									},
-								},
-							},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("r"),
+							Sel: ast.NewIdent(fmt.Sprintf("apply%sQueryResponse", field.Name)),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("resolverRet"),
+							ast.NewIdent("node"),
 						},
 					},
+				},
+			},
+			generateReturnErrorHandlingStmt([]ast.Expr{
+				ast.NewIdent("nil"),
+			}),
+			&ast.ReturnStmt{
+				Results: []ast.Expr{
+					ast.NewIdent("ret"),
+					ast.NewIdent("nil"),
 				},
 			},
 		)
@@ -1650,16 +1664,47 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 		schemaCase := &ast.CaseClause{
 			List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"__schema\""}},
 			Body: []ast.Stmt{
-				&ast.ExprStmt{
-					X: &ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("r"),
-							Sel: ast.NewIdent("__schema"),
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent("ret"),
+						ast.NewIdent("err"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("r"),
+								Sel: ast.NewIdent("__schema"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("ctx"),
+								ast.NewIdent("node"),
+								ast.NewIdent("variables"),
+							},
 						},
-						Args: []ast.Expr{
-							ast.NewIdent("node"),
-							ast.NewIdent("variables"),
+					},
+				},
+				&ast.IfStmt{
+					Cond: &ast.BinaryExpr{
+						X:  ast.NewIdent("err"),
+						Op: token.NEQ,
+						Y:  ast.NewIdent("nil"),
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.ReturnStmt{
+								Results: []ast.Expr{
+									ast.NewIdent("nil"),
+									ast.NewIdent("err"),
+								},
+							},
 						},
+					},
+				},
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent("ret"),
+						ast.NewIdent("nil"),
 					},
 				},
 			},
@@ -1681,6 +1726,7 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 								Sel: ast.NewIdent("__type"),
 							},
 							Args: []ast.Expr{
+								ast.NewIdent("ctx"),
 								ast.NewIdent("node"),
 								ast.NewIdent("variables"),
 							},
@@ -1695,26 +1741,55 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 					},
 					Body: &ast.BlockStmt{
 						List: []ast.Stmt{
-							generateTypeResponseWrite(),
+							&ast.ReturnStmt{
+								Results: []ast.Expr{
+									ast.NewIdent("nil"),
+									ast.NewIdent("err"),
+								},
+							},
 						},
 					},
 				},
-				generateTypeResponseWrite(),
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent("ret"),
+						ast.NewIdent("nil"),
+					},
+				},
 			},
 		}
 		bodyStmt = append(bodyStmt, schemaCase, typeCase)
 	}
 
+	stmts := []ast.Stmt{}
+	stmts = append(stmts, bodyStmt...)
+
 	body = append(body, &ast.SwitchStmt{
 		Tag: ast.NewIdent("string(node.Name)"),
 		Body: &ast.BlockStmt{
-			List: bodyStmt,
+			List: stmts,
+		},
+	}, &ast.ReturnStmt{
+		Results: []ast.Expr{
+			ast.NewIdent("nil"),
+			ast.NewIdent("nil"),
 		},
 	})
 
 	return &ast.BlockStmt{
 		List: body,
 	}
+}
+
+func generateFieldArguments(arguments schema.ArgumentDefinitions) []ast.Expr {
+	args := make([]ast.Expr, 0, len(arguments)+1)
+	args = append(args, ast.NewIdent("ctx"))
+
+	for _, arg := range arguments {
+		args = append(args, ast.NewIdent(string(arg.Name)))
+	}
+
+	return args
 }
 
 func generateBodyForArgument(operationMethodName, fieldName string) []ast.Stmt {
@@ -1800,50 +1875,360 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 	// req.Body = io.NopCloser(strings.NewReader(string(request.Variables)))
 
 	if query != nil {
-		querySwitchCases = append(querySwitchCases, &ast.ExprStmt{
-			X: &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent("r"),
-					Sel: ast.NewIdent("queryExecutor"),
+		querySwitchCases = append(querySwitchCases,
+			&ast.AssignStmt{
+				Tok: token.DEFINE,
+				Lhs: []ast.Expr{
+					ast.NewIdent("data"),
 				},
-				Args: []ast.Expr{
-					ast.NewIdent("node"),
-					ast.NewIdent("variables"),
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("make"),
+						Args: []ast.Expr{
+							&ast.MapType{
+								Key:   &ast.Ident{Name: "string"},
+								Value: ast.NewIdent("any"),
+							},
+						},
+					},
 				},
 			},
-		})
+			&ast.AssignStmt{
+				Tok: token.DEFINE,
+				Lhs: []ast.Expr{
+					ast.NewIdent("graphqlErrors"),
+				},
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("make"),
+						Args: []ast.Expr{
+							&ast.ArrayType{
+								Elt: ast.NewIdent("error"),
+							},
+							ast.NewIdent("0"),
+						},
+					},
+				},
+			},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Tok:   token.DEFINE,
+				Value: ast.NewIdent("node"),
+				X:     ast.NewIdent("nodes"),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Tok: token.DEFINE,
+							Lhs: []ast.Expr{
+								ast.NewIdent("ret"),
+								ast.NewIdent("err"),
+							},
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("r"),
+										Sel: ast.NewIdent("queryExecutor"),
+									},
+									Args: []ast.Expr{
+										&ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   ast.NewIdent("req"),
+												Sel: ast.NewIdent("Context"),
+											},
+										},
+										ast.NewIdent("node"),
+										ast.NewIdent("variables"),
+									},
+								},
+							},
+						},
+						&ast.IfStmt{
+							Cond: &ast.BinaryExpr{
+								X:  ast.NewIdent("err"),
+								Op: token.NEQ,
+								Y:  ast.NewIdent("nil"),
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.AssignStmt{
+										Lhs: []ast.Expr{
+											ast.NewIdent("graphqlErrors"),
+										},
+										Tok: token.ASSIGN,
+										Rhs: []ast.Expr{
+											&ast.CallExpr{
+												Fun: ast.NewIdent("append"),
+												Args: []ast.Expr{
+													ast.NewIdent("graphqlErrors"),
+													ast.NewIdent("err"),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						&ast.AssignStmt{
+							Tok: token.ASSIGN,
+							Lhs: []ast.Expr{
+								&ast.IndexExpr{
+									X: ast.NewIdent("data"),
+									Index: &ast.CallExpr{
+										Fun: ast.NewIdent("string"),
+										Args: []ast.Expr{
+											&ast.SelectorExpr{
+												X:   ast.NewIdent("node"),
+												Sel: ast.NewIdent("Name"),
+											},
+										},
+									},
+								},
+							},
+							Rhs: []ast.Expr{
+								ast.NewIdent("ret"),
+							},
+						},
+					},
+				},
+			}, generateResponseWrite())
 	}
 
 	mutationSwitchCases := []ast.Stmt{}
 	if mutation != nil {
-		mutationSwitchCases = append(mutationSwitchCases, &ast.ExprStmt{
-			X: &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent("r"),
-					Sel: ast.NewIdent("mutationExecutor"),
-				},
-				Args: []ast.Expr{
-					ast.NewIdent("node"),
-					ast.NewIdent("variables"),
+		mutationSwitchCases = append(mutationSwitchCases, &ast.AssignStmt{
+			Tok: token.DEFINE,
+			Lhs: []ast.Expr{
+				ast.NewIdent("data"),
+			},
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("make"),
+					Args: []ast.Expr{
+						&ast.MapType{
+							Key:   &ast.Ident{Name: "string"},
+							Value: ast.NewIdent("any"),
+						},
+					},
 				},
 			},
-		})
+		},
+			&ast.AssignStmt{
+				Tok: token.DEFINE,
+				Lhs: []ast.Expr{
+					ast.NewIdent("graphqlErrors"),
+				},
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("make"),
+						Args: []ast.Expr{
+							&ast.ArrayType{
+								Elt: ast.NewIdent("error"),
+							},
+							ast.NewIdent("0"),
+						},
+					},
+				},
+			},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Tok:   token.DEFINE,
+				Value: ast.NewIdent("node"),
+				X:     ast.NewIdent("nodes"),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Tok: token.DEFINE,
+							Lhs: []ast.Expr{
+								ast.NewIdent("ret"),
+								ast.NewIdent("err"),
+							},
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("r"),
+										Sel: ast.NewIdent("mutationExecutor"),
+									},
+									Args: []ast.Expr{
+										&ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   ast.NewIdent("req"),
+												Sel: ast.NewIdent("Context"),
+											},
+										},
+										ast.NewIdent("node"),
+										ast.NewIdent("variables"),
+									},
+								},
+							},
+						},
+						&ast.IfStmt{
+							Cond: &ast.BinaryExpr{
+								X:  ast.NewIdent("err"),
+								Op: token.NEQ,
+								Y:  ast.NewIdent("nil"),
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.AssignStmt{
+										Lhs: []ast.Expr{
+											ast.NewIdent("graphqlErrors"),
+										},
+										Tok: token.ASSIGN,
+										Rhs: []ast.Expr{
+											&ast.CallExpr{
+												Fun: ast.NewIdent("append"),
+												Args: []ast.Expr{
+													ast.NewIdent("graphqlErrors"),
+													ast.NewIdent("err"),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						&ast.AssignStmt{
+							Tok: token.ASSIGN,
+							Lhs: []ast.Expr{
+								&ast.IndexExpr{
+									X: ast.NewIdent("data"),
+									Index: &ast.CallExpr{
+										Fun: ast.NewIdent("string"),
+										Args: []ast.Expr{
+											&ast.SelectorExpr{
+												X:   ast.NewIdent("node"),
+												Sel: ast.NewIdent("Name"),
+											},
+										},
+									},
+								},
+							},
+							Rhs: []ast.Expr{
+								ast.NewIdent("ret"),
+							},
+						},
+					},
+				},
+			}, generateResponseWrite())
 	}
 
 	subscriptionSwitchCases := []ast.Stmt{}
 	if subscription != nil {
-		subscriptionSwitchCases = append(subscriptionSwitchCases, &ast.ExprStmt{
-			X: &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent("r"),
-					Sel: ast.NewIdent("subscriptionExecutor"),
-				},
-				Args: []ast.Expr{
-					ast.NewIdent("node"),
-					ast.NewIdent("variables"),
+		subscriptionSwitchCases = append(subscriptionSwitchCases, &ast.AssignStmt{
+			Tok: token.DEFINE,
+			Lhs: []ast.Expr{
+				ast.NewIdent("data"),
+			},
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("make"),
+					Args: []ast.Expr{
+						&ast.MapType{
+							Key:   &ast.Ident{Name: "string"},
+							Value: ast.NewIdent("any"),
+						},
+					},
 				},
 			},
-		})
+		},
+			&ast.AssignStmt{
+				Tok: token.DEFINE,
+				Lhs: []ast.Expr{
+					ast.NewIdent("graphqlErrors"),
+				},
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("make"),
+						Args: []ast.Expr{
+							&ast.ArrayType{
+								Elt: ast.NewIdent("error"),
+							},
+							ast.NewIdent("0"),
+						},
+					},
+				},
+			},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Tok:   token.DEFINE,
+				Value: ast.NewIdent("node"),
+				X:     ast.NewIdent("nodes"),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Tok: token.DEFINE,
+							Lhs: []ast.Expr{
+								ast.NewIdent("ret"),
+								ast.NewIdent("err"),
+							},
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("r"),
+										Sel: ast.NewIdent("subscriptionExecutor"),
+									},
+									Args: []ast.Expr{
+										&ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   ast.NewIdent("req"),
+												Sel: ast.NewIdent("Context"),
+											},
+										},
+										ast.NewIdent("node"),
+										ast.NewIdent("variables"),
+									},
+								},
+							},
+						},
+						&ast.IfStmt{
+							Cond: &ast.BinaryExpr{
+								X:  ast.NewIdent("err"),
+								Op: token.NEQ,
+								Y:  ast.NewIdent("nil"),
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.AssignStmt{
+										Lhs: []ast.Expr{
+											ast.NewIdent("graphqlErrors"),
+										},
+										Tok: token.ASSIGN,
+										Rhs: []ast.Expr{
+											&ast.CallExpr{
+												Fun: ast.NewIdent("append"),
+												Args: []ast.Expr{
+													ast.NewIdent("graphqlErrors"),
+													ast.NewIdent("err"),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						&ast.AssignStmt{
+							Tok: token.ASSIGN,
+							Lhs: []ast.Expr{
+								&ast.IndexExpr{
+									X: ast.NewIdent("data"),
+									Index: &ast.CallExpr{
+										Fun: ast.NewIdent("string"),
+										Args: []ast.Expr{
+											&ast.SelectorExpr{
+												X:   ast.NewIdent("node"),
+												Sel: ast.NewIdent("Name"),
+											},
+										},
+									},
+								},
+							},
+							Rhs: []ast.Expr{
+								ast.NewIdent("ret"),
+							},
+						},
+					},
+				},
+			}, generateResponseWrite())
 	}
 
 	return &ast.BlockStmt{
@@ -2071,7 +2456,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								&ast.AssignStmt{
 									Tok: token.DEFINE,
 									Lhs: []ast.Expr{
-										ast.NewIdent("node"),
+										ast.NewIdent("nodes"),
 									},
 									Rhs: []ast.Expr{
 										&ast.CallExpr{
@@ -2091,7 +2476,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 
 								&ast.IfStmt{
 									Cond: &ast.BinaryExpr{
-										X:  ast.NewIdent("node"),
+										X:  ast.NewIdent("nodes"),
 										Op: token.EQL,
 										Y:  ast.NewIdent("nil"),
 									},
@@ -2099,7 +2484,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 										List: []ast.Stmt{
 											&ast.AssignStmt{
 												Lhs: []ast.Expr{
-													ast.NewIdent("node"),
+													ast.NewIdent("nodes"),
 												},
 												Tok: token.ASSIGN,
 												Rhs: []ast.Expr{
@@ -2126,7 +2511,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 															X:   ast.NewIdent("request"),
 															Sel: ast.NewIdent("Query"),
 														},
-														ast.NewIdent("node"),
+														ast.NewIdent("nodes"),
 														&ast.BinaryExpr{
 															X: &ast.SelectorExpr{
 																X:   ast.NewIdent("time"),
@@ -2220,7 +2605,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								&ast.AssignStmt{
 									Tok: token.DEFINE,
 									Lhs: []ast.Expr{
-										ast.NewIdent("node"),
+										ast.NewIdent("nodes"),
 									},
 									Rhs: []ast.Expr{
 										&ast.CallExpr{
@@ -2240,7 +2625,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 
 								&ast.IfStmt{
 									Cond: &ast.BinaryExpr{
-										X:  ast.NewIdent("node"),
+										X:  ast.NewIdent("nodes"),
 										Op: token.EQL,
 										Y:  ast.NewIdent("nil"),
 									},
@@ -2248,7 +2633,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 										List: []ast.Stmt{
 											&ast.AssignStmt{
 												Lhs: []ast.Expr{
-													ast.NewIdent("node"),
+													ast.NewIdent("nodes"),
 												},
 												Tok: token.ASSIGN,
 												Rhs: []ast.Expr{
@@ -2275,7 +2660,7 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 															X:   ast.NewIdent("request"),
 															Sel: ast.NewIdent("Query"),
 														},
-														ast.NewIdent("node"),
+														ast.NewIdent("nodes"),
 														&ast.BinaryExpr{
 															X: &ast.SelectorExpr{
 																X:   ast.NewIdent("time"),
@@ -2318,6 +2703,72 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 									},
 								},
 							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateResponseWrite() ast.Stmt {
+	return &ast.IfStmt{
+		Init: &ast.AssignStmt{
+			Lhs: []ast.Expr{ast.NewIdent("err")},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X: &ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("NewEncoder"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("w"),
+							},
+						},
+						Sel: ast.NewIdent("Encode"),
+					},
+					Args: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X: &ast.CompositeLit{
+								Type: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("GraphQLResponse"),
+								},
+								Elts: []ast.Expr{
+									&ast.KeyValueExpr{
+										Key:   ast.NewIdent("Data"),
+										Value: ast.NewIdent("data"),
+									},
+									&ast.KeyValueExpr{
+										Key:   ast.NewIdent("Errors"),
+										Value: ast.NewIdent("graphqlErrors"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Cond: &ast.BinaryExpr{
+			X:  ast.NewIdent("err"),
+			Op: token.NEQ,
+			Y:  ast.NewIdent("nil"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("w"),
+							Sel: ast.NewIdent("WriteHeader"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("http.StatusInternalServerError"),
 						},
 					},
 				},
@@ -2784,24 +3235,6 @@ func generateOperationArgumentDecls(operation *schema.OperationDefinition, index
 	return decls
 }
 
-func generateOperationReponseStruct(operation *schema.OperationDefinition) []ast.Decl {
-	decls := make([]ast.Decl, 0)
-
-	if operation == nil {
-		return decls
-	}
-
-	for _, field := range operation.Fields {
-		if field.Type == nil {
-			continue
-		}
-
-		decls = append(decls, generateResponseGraphQLResponseStruct(string(field.Name), field))
-	}
-
-	return decls
-}
-
 func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexes *schema.Indexes) ast.Decl {
 	bodyStmts := make([]ast.Stmt, 0)
 	bodyStmts = append(bodyStmts, generateDeclareStmts(field.Arguments)...)
@@ -2812,10 +3245,8 @@ func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexe
 		Type: ast.NewIdent("error"),
 	})
 
-	paramsFieldSets := generateNodeWalkerArgs()
-
 	return &ast.FuncDecl{
-		Name: ast.NewIdent("extract" + string(field.Name) + "Args"),
+		Name: ast.NewIdent(fmt.Sprintf("extract%sArgs", string(field.Name))),
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
 				{
@@ -2833,7 +3264,33 @@ func generateExtractOperationArgumentsDecl(field *schema.FieldDefinition, indexe
 			},
 		},
 		Type: &ast.FuncType{
-			Params:  paramsFieldSets,
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("node"),
+						},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("Node"),
+							},
+						},
+					},
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("variables"),
+						},
+						Type: &ast.MapType{
+							Key: ast.NewIdent("string"),
+							Value: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("RawMessage"),
+							},
+						},
+					},
+				},
+			},
 			Results: results,
 		},
 		Body: &ast.BlockStmt{
@@ -3098,13 +3555,263 @@ func generateDeclareStmts(args schema.ArgumentDefinitions) []ast.Stmt {
 	return stmts
 }
 
+func generateValueCaseAssignStmt(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {
+	caseSelector := "ValueParserLiteral"
+	var rhs ast.Expr = &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   ast.NewIdent("val"),
+			Sel: ast.NewIdent("StringValue"),
+		},
+	}
+
+	if arg.Type.Nullable {
+		rhs = generateStringPointerExpr(rhs)
+	}
+
+	if arg.Type.IsBoolean() {
+		rhs = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("val"),
+				Sel: ast.NewIdent("BoolValue"),
+			},
+		}
+
+		if arg.Type.Nullable {
+			rhs = generateBoolPointerExpr(rhs)
+		}
+	}
+
+	if arg.Type.IsInt() {
+		rhs = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("val"),
+				Sel: ast.NewIdent("IntValue"),
+			},
+		}
+	}
+
+	if arg.Type.IsFloat() {
+		rhs = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("val"),
+				Sel: ast.NewIdent("FloatValue"),
+			},
+		}
+	}
+
+	if !arg.Type.IsID() && !arg.Type.IsString() && !arg.Type.IsBoolean() && !arg.Type.IsInt() && !arg.Type.IsFloat() {
+		caseSelector = "ValueParserObject"
+		rhs = generateObjectArgumentRhsType(arg, indexes)
+	}
+
+	return &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.StarExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("goliteql"),
+					Sel: ast.NewIdent(caseSelector),
+				},
+			},
+		},
+		Body: []ast.Stmt{
+			&ast.AssignStmt{
+				Tok: token.ASSIGN,
+				Lhs: []ast.Expr{
+					ast.NewIdent(string(arg.Name)),
+				},
+				Rhs: []ast.Expr{
+					rhs,
+				},
+			},
+		},
+	}
+}
+
+func generateObjectArgumentRhsType(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Expr {
+	expandedType := introspection.ExpandType(arg.Type)
+	return &ast.CompositeLit{
+		Type: generateTypeExprFromExpandedType(expandedType),
+		Elts: generateObjectArgumentElements(arg, indexes),
+	}
+}
+
+func generateObjectArgumentElements(arg *schema.ArgumentDefinition, indexes *schema.Indexes) []ast.Expr {
+	ret := make([]ast.Expr, 0)
+
+	typeDefinition := indexes.TypeIndex[string(arg.Type.Name)]
+	if typeDefinition != nil {
+		for _, field := range typeDefinition.Fields {
+			ret = append(ret, generateArgumentValue(field))
+		}
+	}
+
+	inputDefinition := indexes.InputIndex[string(arg.Type.Name)]
+	if inputDefinition != nil {
+		for _, field := range inputDefinition.Fields {
+			ret = append(ret, generateArgumentValue(field))
+		}
+	}
+
+	return ret
+}
+
+func generateArgumentValue(field *schema.FieldDefinition) ast.Expr {
+	// TODO: support object, list
+	if !field.IsPrimitive() {
+		return &ast.BasicLit{}
+	}
+
+	var v ast.Expr = &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X: &ast.TypeAssertExpr{
+				X: &ast.IndexExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("val"),
+						Sel: ast.NewIdent("Fields"),
+					},
+					Index: &ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf("\"%s\"", string(field.Name)),
+					},
+				},
+				Type: &ast.StarExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("goliteql"),
+						Sel: ast.NewIdent("ValueParserLiteral"),
+					},
+				},
+			},
+			Sel: ast.NewIdent(fmt.Sprintf("%sValue", string(field.Type.Name))),
+		},
+	}
+
+	if field.Type.Nullable {
+		v = generateStringPointerExpr(v)
+	}
+
+	return &ast.KeyValueExpr{
+		Key:   ast.NewIdent(toUpperCase(string(field.Name))),
+		Value: v,
+	}
+}
+
 func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(args))
 
 	argsCaseStmts := make([]ast.Stmt, 0, len(args))
+
+	returns := make([]ast.Expr, 0, len(args))
 	for i, arg := range args {
+		returns = append(returns, ast.NewIdent(string(arg.Name)))
 		if arg.Default != nil {
 			stmts = append(stmts, generateAssignDefaultValueStmt(arg, indexes))
+		}
+
+		// default is object
+		var bindStmt ast.Stmt = &ast.IfStmt{
+			Init: &ast.AssignStmt{
+				Tok: token.DEFINE,
+				Lhs: []ast.Expr{
+					ast.NewIdent("err"),
+				},
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("json"),
+							Sel: ast.NewIdent("Unmarshal"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("rawJSONValue"),
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X:  ast.NewIdent(string(arg.Name)),
+							},
+						},
+					},
+				},
+			},
+			Cond: &ast.BinaryExpr{
+				X:  ast.NewIdent("err"),
+				Op: token.NEQ,
+				Y:  ast.NewIdent("nil"),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							ast.NewIdent(string(arg.Name)),
+							ast.NewIdent("err"),
+						},
+					},
+				},
+			},
+		}
+
+		if arg.Type.IsBoolean() {
+			var rh ast.Expr = &ast.BinaryExpr{
+				X: &ast.CallExpr{
+					Fun: ast.NewIdent("string"),
+					Args: []ast.Expr{
+						ast.NewIdent("rawJSONValue"),
+					},
+				},
+				Op: token.EQL,
+				Y: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"true"`,
+				},
+			}
+
+			rh = generateBoolPointerExpr(rh)
+
+			bindStmt = &ast.AssignStmt{
+				Tok: token.ASSIGN,
+				Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
+				Rhs: []ast.Expr{
+					rh,
+				},
+			}
+		}
+
+		if arg.Type.IsString() || arg.Type.IsID() {
+			bindStmt = &ast.AssignStmt{
+				Tok: token.ASSIGN,
+				Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("string"),
+						Args: []ast.Expr{
+							ast.NewIdent("rawJSONValue"),
+						},
+					},
+				},
+			}
+		}
+
+		if arg.Type.IsInt() {
+			bindStmt = &ast.AssignStmt{
+				Tok: token.ASSIGN,
+				Lhs: []ast.Expr{
+					ast.NewIdent(string(arg.Name)),
+					ast.NewIdent("_"),
+				},
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("strconv"),
+							Sel: ast.NewIdent("Atoi"),
+						},
+						Args: []ast.Expr{
+							&ast.CallExpr{
+								Fun: ast.NewIdent("string"),
+								Args: []ast.Expr{
+									ast.NewIdent("rawJSONValue"),
+								},
+							},
+						},
+					},
+				},
+			}
 		}
 
 		argsCaseStmts = append(argsCaseStmts, &ast.CaseClause{
@@ -3151,10 +3858,93 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 									},
 								},
 							},
+							&ast.IfStmt{
+								Cond: &ast.BinaryExpr{
+									X:  ast.NewIdent("err"),
+									Op: token.NEQ,
+									Y:  ast.NewIdent("nil"),
+								},
+								Body: &ast.BlockStmt{
+									List: []ast.Stmt{
+										&ast.ReturnStmt{
+											Results: []ast.Expr{
+												ast.NewIdent(string(arg.Name)),
+												ast.NewIdent("err"),
+											},
+										},
+									},
+								},
+							},
+							&ast.TypeSwitchStmt{
+								Assign: &ast.AssignStmt{
+									Tok: token.DEFINE,
+									Lhs: []ast.Expr{
+										ast.NewIdent("val"),
+									},
+									Rhs: []ast.Expr{
+										&ast.TypeAssertExpr{
+											X:    ast.NewIdent("ast"),
+											Type: ast.NewIdent("type"),
+										},
+									},
+								},
+								Body: &ast.BlockStmt{
+									List: []ast.Stmt{
+										generateValueCaseAssignStmt(arg, indexes),
+									},
+								},
+							},
 						},
 					},
 					Else: &ast.BlockStmt{
-						List: []ast.Stmt{},
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Tok: token.DEFINE,
+								Lhs: []ast.Expr{
+									ast.NewIdent("rawJSONValue"),
+									ast.NewIdent("ok"),
+								},
+								Rhs: []ast.Expr{
+									&ast.IndexExpr{
+										X: ast.NewIdent("variables"),
+										Index: &ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   ast.NewIdent("arg"),
+												Sel: ast.NewIdent("VariableAnnotation"),
+											},
+										},
+									},
+								},
+							},
+							&ast.IfStmt{
+								Cond: &ast.UnaryExpr{
+									Op: token.NOT,
+									X:  ast.NewIdent("ok"),
+								},
+								Body: &ast.BlockStmt{
+									List: []ast.Stmt{
+										&ast.ReturnStmt{
+											Results: []ast.Expr{
+												ast.NewIdent(string(arg.Name)),
+												&ast.CallExpr{
+													Fun: &ast.SelectorExpr{
+														X:   ast.NewIdent("fmt"),
+														Sel: ast.NewIdent("Errorf"),
+													},
+													Args: []ast.Expr{
+														&ast.BasicLit{
+															Kind:  token.STRING,
+															Value: fmt.Sprintf(`"argument %s is not provided"`, string(arg.Name)),
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+							bindStmt,
+						},
 					},
 				},
 			},
@@ -3206,77 +3996,15 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 				},
 			},
 		})
-
-		stmts = append(stmts, generateResolveDefaultValueStmt(arg, i)...)
 	}
+
+	returns = append(returns, ast.NewIdent("nil"))
+
+	stmts = append(stmts, &ast.ReturnStmt{
+		Results: returns,
+	})
 
 	return stmts
-}
-
-func generateResolveDefaultValueStmt(arg *schema.ArgumentDefinition, index int) []ast.Stmt {
-	argExpr := &ast.SelectorExpr{
-		X: &ast.IndexExpr{
-			X: &ast.SelectorExpr{
-				X:   ast.NewIdent("node"),
-				Sel: ast.NewIdent("Arguments"),
-			},
-			Index: ast.NewIdent(fmt.Sprintf("%d", index)),
-		},
-		Sel: ast.NewIdent("Value"),
-	}
-
-	ifStmt := &ast.IfStmt{
-		Cond: &ast.BinaryExpr{
-			X:  argExpr,
-			Op: token.NEQ,
-			Y:  ast.NewIdent("nil"),
-		},
-		Body: &ast.BlockStmt{
-			List: []ast.Stmt{
-				&ast.AssignStmt{
-					Tok: token.DEFINE,
-					Lhs: []ast.Expr{
-						ast.NewIdent("ast"),
-						ast.NewIdent("err"),
-					},
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X: &ast.SelectorExpr{
-									X: &ast.SelectorExpr{
-										X:   ast.NewIdent("r"),
-										Sel: ast.NewIdent("parser"),
-									},
-									Sel: ast.NewIdent("ValueParser"),
-								},
-								Sel: ast.NewIdent("Parse"),
-							},
-							Args: []ast.Expr{
-								argExpr,
-							},
-						},
-					},
-				},
-				generateArgumentFieldExtractStmts(arg),
-				&ast.IfStmt{
-					Cond: &ast.BinaryExpr{
-						X:  ast.NewIdent("err"),
-						Op: token.NEQ,
-						Y:  ast.NewIdent("nil"),
-					},
-					Body: &ast.BlockStmt{
-						List: []ast.Stmt{},
-					},
-				},
-			},
-		},
-	}
-
-	ret := make([]ast.Stmt, 0)
-
-	ret = append(ret, ifStmt)
-
-	return ret
 }
 
 func generateAssignDefaultValueStmt(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {

@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -12,23 +13,27 @@ import (
 	"regexp"
 
 	"github.com/n9te9/goliteql/schema"
+	"golang.org/x/tools/imports"
 )
 
 type Generator struct {
-	Schema              *schema.Schema
-	queryAST            *ast.File
-	mutationAST         *ast.File
-	subscriptionAST     *ast.File
-	modelAST            *ast.File
-	modelPackagePath    string
-	resolverPackagePath string
+	Schema                     *schema.Schema
+	queryAST                   *ast.File
+	mutationAST                *ast.File
+	subscriptionAST            *ast.File
+	modelAST                   *ast.File
+	modelPackagePath           string
+	resolverPackagePath        string
+	rootResolverOutputFilePath string
 
-	modelOutput         io.Writer
-	queryResolverOutput io.Writer
-	queryResolverAST    *ast.File
+	modelOutput                 io.Writer
+	queryResolverOutput         io.Writer
+	queryResolverAST            *ast.File
+	queryResolverOutputFilePath string
 
-	mutationResolverOutput io.Writer
-	mutationResolverAST    *ast.File
+	mutationResolverOutput         io.Writer
+	mutationResolverAST            *ast.File
+	mutationResolverOutputFilePath string
 
 	rootResolverOutput io.Writer
 	resolverAST        *ast.File
@@ -191,13 +196,16 @@ func NewGenerator(config *Config) (*Generator, error) {
 			Name:  ast.NewIdent(filepath.Base(resolverPackagePath)),
 			Decls: []ast.Decl{},
 		},
-		modelOutput:            modelOutput,
-		modelPackagePath:       modelPackagePath,
-		queryResolverOutput:    queryResolverOutput,
-		mutationResolverOutput: mutationResolverOutput,
-		rootResolverOutput:     rootResolverOutput,
-		enumOutput:             enumOutput,
-		resolverPackagePath:    resolverPackagePath,
+		modelOutput:                    modelOutput,
+		modelPackagePath:               modelPackagePath,
+		queryResolverOutput:            queryResolverOutput,
+		mutationResolverOutput:         mutationResolverOutput,
+		rootResolverOutput:             rootResolverOutput,
+		enumOutput:                     enumOutput,
+		resolverPackagePath:            resolverPackagePath,
+		queryResolverOutputFilePath:    config.QueryResolverOutputFile,
+		mutationResolverOutputFilePath: config.MutationResolverOutputFile,
+		rootResolverOutputFilePath:     config.RootResolverOutputFile,
 	}
 
 	return g, nil
@@ -399,15 +407,15 @@ func (g *Generator) generateResolver() error {
 	if q := g.Schema.GetQuery(); q != nil {
 		queryFields = q.Fields
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryExecutor(q))
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateApplyQueryResponseFuncDecls(q, g.Schema.Indexes, 0)...)
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(q, g.Schema.Indexes)...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationReponseStruct(q)...)
 	}
 
 	if m := g.Schema.GetMutation(); m != nil {
 		mutationFields = m.Fields
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateMutationExecutor(m))
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateApplyQueryResponseFuncDecls(m, g.Schema.Indexes, 0)...)
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(m, g.Schema.Indexes)...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationReponseStruct(m)...)
 	}
 
 	if s := g.Schema.GetSubscription(); s != nil {
@@ -440,9 +448,6 @@ func (g *Generator) generateResolver() error {
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetQuery())...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetMutation())...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResponseStructForWrapResponseWriter(g.Schema.Indexes.TypeIndex, g.Schema.GetSubscription())...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaQueryAST(g.Schema))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypesFuncDecl(g.Schema))
@@ -471,16 +476,41 @@ func (g *Generator) generateResolver() error {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(q.Name), q.Fields)...)
 	}
 
-	if err := format.Node(g.rootResolverOutput, token.NewFileSet(), g.resolverAST); err != nil {
+	var rootResolverBuffer bytes.Buffer
+	if err := format.Node(&rootResolverBuffer, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)
 	}
 
-	if err := format.Node(g.queryResolverOutput, token.NewFileSet(), g.queryResolverAST); err != nil {
+	var queryResolverBuffer bytes.Buffer
+	if err := format.Node(&queryResolverBuffer, token.NewFileSet(), g.queryResolverAST); err != nil {
 		return fmt.Errorf("error formatting query resolver: %w", err)
 	}
 
-	if err := format.Node(g.mutationResolverOutput, token.NewFileSet(), g.mutationResolverAST); err != nil {
+	var mutationResolverBuffer bytes.Buffer
+	if err := format.Node(&mutationResolverBuffer, token.NewFileSet(), g.mutationResolverAST); err != nil {
 		return fmt.Errorf("error formatting mutation resolver: %w", err)
+	}
+
+	fixed, err := imports.Process(g.rootResolverOutputFilePath, rootResolverBuffer.Bytes(), nil)
+	if err != nil {
+		return fmt.Errorf("error processing root resolver imports: %w", err)
+	}
+	if _, err := g.rootResolverOutput.Write(fixed); err != nil {
+		return fmt.Errorf("error writing root resolver output: %w", err)
+	}
+	fixed, err = imports.Process(g.queryResolverOutputFilePath, queryResolverBuffer.Bytes(), nil)
+	if err != nil {
+		return fmt.Errorf("error processing query resolver imports: %w", err)
+	}
+	if _, err := g.queryResolverOutput.Write(fixed); err != nil {
+		return fmt.Errorf("error writing query resolver output: %w", err)
+	}
+	fixed, err = imports.Process(g.mutationResolverOutputFilePath, mutationResolverBuffer.Bytes(), nil)
+	if err != nil {
+		return fmt.Errorf("error processing mutation resolver imports: %w", err)
+	}
+	if _, err := g.mutationResolverOutput.Write(fixed); err != nil {
+		return fmt.Errorf("error writing mutation resolver output: %w", err)
 	}
 
 	return nil

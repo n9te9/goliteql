@@ -6,32 +6,32 @@ import (
 )
 
 type Cache struct {
-	Root *Node
-	Exp  time.Time
+	Nodes []*Node
+	Exp   time.Time
 }
 
 type CacheMap map[string]*Cache
 
-func (c CacheMap) Get(key string) *Node {
+func (c CacheMap) Get(key string) []*Node {
 	cache, exists := c[key]
 	if !exists || time.Now().After(cache.Exp) {
 		return nil
 	}
 
-	return cache.Root
+	return cache.Nodes
 }
 
-func (c CacheMap) Set(key string, root *Node, duration time.Duration) {
+func (c CacheMap) Set(key string, nodes []*Node, duration time.Duration) {
 	c[key] = &Cache{
-		Root: root,
-		Exp:  time.Now().Add(duration),
+		Nodes: nodes,
+		Exp:   time.Now().Add(duration),
 	}
 }
 
-func NewCache(node *Node, duration time.Duration) *Cache {
+func NewCache(node []*Node, duration time.Duration) *Cache {
 	return &Cache{
-		Root: node,
-		Exp:  time.Now().Add(duration),
+		Nodes: node,
+		Exp:   time.Now().Add(duration),
 	}
 }
 

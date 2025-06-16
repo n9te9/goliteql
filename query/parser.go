@@ -87,6 +87,13 @@ func (a *Argument) IsVariable() bool {
 	return len(a.Value) > 0 && a.Value[0] == '$'
 }
 
+func (a *Argument) VariableAnnotation() string {
+	if a.IsVariable() {
+		return string(a.Value[1:])
+	}
+	return ""
+}
+
 type DirectiveArgument struct {
 	Name       []byte
 	Value      []byte

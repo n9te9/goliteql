@@ -29,8 +29,8 @@ func ExcludeSelectFields(resp map[string]json.RawMessage, selectSets []query.Sel
 }
 
 type GraphQLError struct {
-	Message string `json:"message"`
-	Path 	[]string `json:"path,omitempty"`
+	Message    string         `json:"message"`
+	Path       []string       `json:"path,omitempty"`
 	Extensions map[string]any `json:"extensions,omitempty"`
 }
 
@@ -39,11 +39,11 @@ func (e GraphQLError) Error() string {
 }
 
 type GraphQLResponse struct {
-	Data   any `json:"data"`
-	Errors []error `json:"errors,omitempty"`
+	Data   map[string]any `json:"data"`
+	Errors []error        `json:"errors,omitempty"`
 }
 
-func  MatchGraphQLResponse[T map[string]json.RawMessage | json.RawMessage | any](resp map[string]T) error {
+func MatchGraphQLResponse[T map[string]json.RawMessage | json.RawMessage | any](resp map[string]T) error {
 	if _, ok := resp["errors"]; ok {
 		var gqlErrors []GraphQLError
 		if err := json.Unmarshal(any(resp["errors"]).(json.RawMessage), &gqlErrors); err != nil {
