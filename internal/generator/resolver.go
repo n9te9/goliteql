@@ -351,11 +351,11 @@ func generateApplySwitchStmtForQueryResponse(field *schema.FieldDefinition, inde
 
 func generateIndexExprFromNestCount(nestCount int) ast.Expr {
 	if nestCount < 0 {
-		return ast.NewIdent("resolverRet")
+		return ast.NewIdent("ret")
 	}
 
 	return &ast.IndexExpr{
-		X:     ast.NewIdent("resolverRet"),
+		X:     ast.NewIdent("ret"),
 		Index: ast.NewIdent(fmt.Sprintf("k%d", nestCount)),
 	}
 }
