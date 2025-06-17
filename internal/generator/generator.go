@@ -404,18 +404,20 @@ func (g *Generator) generateResolver() error {
 	mutationFields := make(schema.FieldDefinitions, 0)
 	fields := make(schema.FieldDefinitions, 0)
 
+	modelPrefix := filepath.Base(g.modelPackagePath)
+
 	if q := g.Schema.GetQuery(); q != nil {
 		queryFields = q.Fields
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryExecutor(q))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateApplyQueryResponseFuncDecls(q, g.Schema.Indexes, 0)...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(q, g.Schema.Indexes)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateApplyQueryResponseFuncDecls(q, g.Schema.Indexes, 0, modelPrefix)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(modelPrefix, q, g.Schema.Indexes)...)
 	}
 
 	if m := g.Schema.GetMutation(); m != nil {
 		mutationFields = m.Fields
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateMutationExecutor(m))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateApplyQueryResponseFuncDecls(m, g.Schema.Indexes, 0)...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(m, g.Schema.Indexes)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateApplyQueryResponseFuncDecls(m, g.Schema.Indexes, 0, modelPrefix)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(modelPrefix, m, g.Schema.Indexes)...)
 	}
 
 	if s := g.Schema.GetSubscription(); s != nil {
@@ -429,7 +431,7 @@ func (g *Generator) generateResolver() error {
 			Tok:   token.IMPORT,
 			Specs: generateOperationImport(g.Schema.GetQuery(), g.modelPackagePath),
 		})
-		g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateInterfaceField(g.Schema.GetQuery()))
+		g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateInterfaceField(modelPrefix, g.Schema.GetQuery()))
 	}
 
 	if g.Schema.GetMutation() != nil {
@@ -437,14 +439,14 @@ func (g *Generator) generateResolver() error {
 			Tok:   token.IMPORT,
 			Specs: generateOperationImport(g.Schema.GetMutation(), g.modelPackagePath),
 		})
-		g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateInterfaceField(g.Schema.GetMutation()))
+		g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateInterfaceField(modelPrefix, g.Schema.GetMutation()))
 	}
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementationStruct()...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(fields)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(modelPrefix, fields)...)
 
-	g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateResolverImplementation(queryFields)...)
-	g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateResolverImplementation(mutationFields)...)
+	g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateResolverImplementation(modelPrefix, queryFields)...)
+	g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateResolverImplementation(modelPrefix, mutationFields)...)
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
@@ -463,7 +465,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInterfaceTypeFuncDecls(g.Schema.Interfaces, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsFuncDecls(g.Schema.Types, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromInterfaces(g.Schema.Interfaces, g.Schema.Indexes)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateExtractOperationArgumentsDecl(fieldsIntrospectionFieldDefinition, g.Schema.Indexes))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateExtractOperationArgumentsDecl(modelPrefix, fieldsIntrospectionFieldDefinition, g.Schema.Indexes))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFuncDecl(g.Schema))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFuncDecls(g.Schema.Types)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFuncDecls(g.Schema.Inputs)...)
@@ -471,6 +473,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFieldsFuncDecls(g.Schema.Inputs, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionScalarFuncDecls(g.Schema.Scalars)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationResponseStructDecls(g.Schema)...)
 
 	if q := g.Schema.GetQuery(); q != nil {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(q.Name), q.Fields)...)
