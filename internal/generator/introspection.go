@@ -4593,6 +4593,7 @@ func generateIntrospectionInputFuncDecls(inputDefinitions []*schema.InputDefinit
 
 func generateIntrospectionScalarFuncDecls(scalarDefinitions []*schema.ScalarDefinition) []ast.Decl {
 	ret := make([]ast.Decl, 0, len(scalarDefinitions))
+
 	for _, t := range scalarDefinitions {
 		ret = append(ret, &ast.FuncDecl{
 			Recv: &ast.FieldList{
@@ -4623,25 +4624,90 @@ func generateIntrospectionScalarFuncDecls(scalarDefinitions []*schema.ScalarDefi
 			},
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{
-					&ast.ReturnStmt{
-						Results: []ast.Expr{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent("ret"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
 							&ast.CompositeLit{
 								Type: ast.NewIdent("__Type"),
-								Elts: []ast.Expr{
-									&ast.KeyValueExpr{
-										Key:   ast.NewIdent("Kind"),
-										Value: ast.NewIdent("__TypeKind_SCALAR"),
+								Elts: []ast.Expr{},
+							},
+						},
+					},
+					&ast.RangeStmt{
+						Key:   ast.NewIdent("_"),
+						Tok:   token.DEFINE,
+						Value: ast.NewIdent("child"),
+						X: &ast.SelectorExpr{
+							X:   ast.NewIdent("node"),
+							Sel: ast.NewIdent("Children"),
+						},
+						Body: &ast.BlockStmt{
+							List: []ast.Stmt{
+								&ast.SwitchStmt{
+									Tag: &ast.CallExpr{
+										Fun: ast.NewIdent("string"),
+										Args: []ast.Expr{
+											&ast.SelectorExpr{
+												X:   ast.NewIdent("child"),
+												Sel: ast.NewIdent("Name"),
+											},
+										},
 									},
-									&ast.KeyValueExpr{
-										Key:   ast.NewIdent("Name"),
-										Value: generateStringPointerAST(string(t.Name)),
-									},
-									&ast.KeyValueExpr{
-										Key:   ast.NewIdent("Description"),
-										Value: ast.NewIdent("nil"),
+									Body: &ast.BlockStmt{
+										List: []ast.Stmt{
+											&ast.CaseClause{
+												List: []ast.Expr{
+													&ast.BasicLit{
+														Kind:  token.STRING,
+														Value: `"kind"`,
+													},
+												},
+												Body: []ast.Stmt{
+													&ast.AssignStmt{
+														Lhs: []ast.Expr{
+															&ast.SelectorExpr{
+																X:   ast.NewIdent("ret"),
+																Sel: ast.NewIdent("Kind"),
+															},
+														},
+														Tok: token.ASSIGN,
+														Rhs: []ast.Expr{
+															ast.NewIdent("__TypeKind_SCALAR"),
+														},
+													},
+												},
+											},
+											&ast.CaseClause{
+												List: []ast.Expr{
+													ast.NewIdent(`"name"`),
+												},
+												Body: []ast.Stmt{
+													&ast.AssignStmt{
+														Lhs: []ast.Expr{
+															&ast.SelectorExpr{
+																X:   ast.NewIdent("ret"),
+																Sel: ast.NewIdent("Name"),
+															},
+														},
+														Tok: token.ASSIGN,
+														Rhs: []ast.Expr{
+															generateStringPointerAST(string(t.Name)),
+														},
+													},
+												},
+											},
+										},
 									},
 								},
 							},
+						},
+					},
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							ast.NewIdent("ret"),
 							ast.NewIdent("nil"),
 						},
 					},

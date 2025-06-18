@@ -210,7 +210,37 @@ func generateTypeExprFromFieldType(typePrefix string, fieldType *schema.FieldTyp
 	return baseTypeExpr
 }
 
-func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, nestCount int) []ast.Stmt {
+func generateTypeExprFromFieldTypeForResponse(typePrefix string, fieldType *schema.FieldType) ast.Expr {
+	if fieldType.IsList {
+		return &ast.ArrayType{
+			Elt: generateTypeExprFromFieldType(typePrefix, fieldType.ListType),
+		}
+	}
+
+	graphQLType := GraphQLType(fieldType.Name)
+
+	var baseTypeExpr ast.Expr = ast.NewIdent(graphQLType.golangType())
+	if !graphQLType.IsPrimitive() {
+		if typePrefix != "" {
+			baseTypeExpr = &ast.SelectorExpr{
+				X:   ast.NewIdent(typePrefix),
+				Sel: ast.NewIdent(graphQLType.golangType()),
+			}
+		} else {
+			baseTypeExpr = ast.NewIdent(graphQLType.golangType() + "Response")
+		}
+	}
+
+	if fieldType.Nullable {
+		return &ast.StarExpr{
+			X: baseTypeExpr,
+		}
+	}
+
+	return baseTypeExpr
+}
+
+func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, nestCount int, fieldName string) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
 	if typeDefinition == nil {
@@ -235,6 +265,8 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 			valueName = fmt.Sprintf("v%d", nestCount-1)
 		}
 
+		caseBody := make([]ast.Stmt, 0)
+
 		var rh ast.Expr = &ast.SelectorExpr{
 			X:   ast.NewIdent(valueName),
 			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
@@ -250,9 +282,51 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 			} else if field.Type.IsFloat() {
 				rh = generateFloatPointerExpr(rh)
 			} else {
-				rh = generateObjectPointerExpr(string(field.Type.Name), rh)
+				retName := fmt.Sprintf("ret%s", field.Name)
+				fieldRetAssignStmt := &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent(retName),
+						ast.NewIdent("err"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("r"),
+								Sel: ast.NewIdent(fmt.Sprintf("apply%s%sQueryResponse", fieldName, string(field.Name))),
+							},
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent(valueName),
+									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+								},
+								ast.NewIdent("child"),
+							},
+						},
+					},
+				}
+				caseBody = append(caseBody, fieldRetAssignStmt)
+				caseBody = append(caseBody, generateReturnErrorHandlingStmt([]ast.Expr{
+					ast.NewIdent("nil"),
+				}))
+
+				var elmExpr ast.Expr = ast.NewIdent(retName)
+				if !field.Type.Nullable {
+					elmExpr = &ast.StarExpr{
+						X: ast.NewIdent(retName),
+					}
+				}
+				rh = generateObjectPointerExpr(string(field.Type.Name)+"Response", elmExpr)
 			}
 		}
+
+		caseBody = append(caseBody, &ast.AssignStmt{
+			Lhs: lhs,
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rh,
+			},
+		})
 
 		ret = append(ret, &ast.CaseClause{
 			List: []ast.Expr{
@@ -261,15 +335,7 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 					Value: fmt.Sprintf(`"%s"`, string(field.Name)),
 				},
 			},
-			Body: []ast.Stmt{
-				&ast.AssignStmt{
-					Lhs: lhs,
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{
-						rh,
-					},
-				},
-			},
+			Body: caseBody,
 		})
 	}
 
@@ -356,7 +422,7 @@ func generateApplySwitchStmtForQueryResponse(field *schema.FieldDefinition, inde
 						},
 					},
 					Body: &ast.BlockStmt{
-						List: generateApplyQueryResponseCaseStmts(typeDefinition, nestCount),
+						List: generateApplyQueryResponseCaseStmts(typeDefinition, nestCount, string(field.Name)),
 					},
 				},
 			},
@@ -364,77 +430,93 @@ func generateApplySwitchStmtForQueryResponse(field *schema.FieldDefinition, inde
 	}
 }
 
-func generateIndexExprFromNestCount(nestCount int) ast.Expr {
-	if nestCount < 0 {
-		return ast.NewIdent("ret")
-	}
-
-	return &ast.IndexExpr{
-		X:     ast.NewIdent("ret"),
-		Index: ast.NewIdent(fmt.Sprintf("k%d", nestCount)),
-	}
-}
-
 func generateApplyQueryResponseFuncDecls(operationDefinition *schema.OperationDefinition, indexes *schema.Indexes, nestCount int, typePrefix string) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 
 	for _, field := range operationDefinition.Fields {
-		ret = append(ret, &ast.FuncDecl{
-			Name: ast.NewIdent("apply" + string(field.Name) + "QueryResponse"),
-			Recv: &ast.FieldList{
+		ret = append(ret, generateApplyQueryResponseFuncDeclFromField(field, indexes, nestCount, typePrefix, ""))
+
+		ret = append(ret, generateApplyNestedFieldQueryResponseFuncDecls(field.Type, indexes, typePrefix, string(field.Name))...)
+	}
+
+	return ret
+}
+
+func generateApplyQueryResponseFuncDeclFromField(field *schema.FieldDefinition, indexes *schema.Indexes, nestCount int, typePrefix, operationPrefix string) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent(fmt.Sprintf("apply%s%sQueryResponse", operationPrefix, string(field.Name))),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{ast.NewIdent("r")},
+					Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				generateRetAssignStmt("", generateFieldTypeForResponse(field.Type)),
+				generateApplyLoopStmtForQueryResponse(field, field.Type, indexes, nestCount),
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent("ret"),
+						ast.NewIdent("nil"),
+					},
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Names: []*ast.Ident{ast.NewIdent("r")},
-						Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
-					},
-				},
-			},
-			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-					generateRetAssignStmt("", generateFieldTypeForResponse(field.Type)),
-					generateApplyLoopStmtForQueryResponse(field, field.Type, indexes, nestCount),
-					&ast.ReturnStmt{
-						Results: []ast.Expr{
-							ast.NewIdent("ret"),
-							ast.NewIdent("nil"),
+						Names: []*ast.Ident{
+							ast.NewIdent("resolverRet"),
 						},
+						Type: generateTypeExprFromFieldType(typePrefix, field.Type),
 					},
-				},
-			},
-			Type: &ast.FuncType{
-				Params: &ast.FieldList{
-					List: []*ast.Field{
-						{
-							Names: []*ast.Ident{
-								ast.NewIdent("resolverRet"),
-							},
-							Type: generateTypeExprFromFieldType(typePrefix, field.Type),
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("node"),
 						},
-						{
-							Names: []*ast.Ident{
-								ast.NewIdent("node"),
-							},
-							Type: &ast.StarExpr{
-								X: &ast.SelectorExpr{
-									X:   ast.NewIdent("executor"),
-									Sel: ast.NewIdent("Node"),
-								},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("Node"),
 							},
 						},
 					},
 				},
-				Results: &ast.FieldList{
-					List: []*ast.Field{
-						{
-							Type: generateTypeExprFromFieldType("", generateFieldTypeForResponse(field.Type)),
-						},
-						{
-							Type: ast.NewIdent("error"),
-						},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: generateTypeExprFromFieldType("", generateFieldTypeForResponse(field.Type)),
+					},
+					{
+						Type: ast.NewIdent("error"),
 					},
 				},
 			},
-		})
+		},
+	}
+}
+
+func generateApplyNestedFieldQueryResponseFuncDecls(fieldType *schema.FieldType, indexes *schema.Indexes, typePrefix, operationPrefix string) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	rootType := fieldType.GetRootType()
+
+	fieldDefinition := indexes.TypeIndex[string(rootType.Name)]
+	if fieldDefinition == nil {
+		return ret
+	}
+
+	for _, field := range fieldDefinition.Fields {
+		if field.IsPrimitive() {
+			continue
+		}
+
+		ret = append(ret, generateApplyQueryResponseFuncDeclFromField(field, indexes, 0, typePrefix, operationPrefix))
 	}
 
 	return ret
@@ -3356,235 +3438,6 @@ func generateExtractOperationArgumentsDecl(typePrefix string, field *schema.Fiel
 	}
 }
 
-func generateArgumentFieldExtractStmts(arg *schema.ArgumentDefinition) ast.Stmt {
-	caseStmts := make([]ast.Stmt, 0)
-	if arg.Type.IsBoolean() {
-		caseStmts = append(caseStmts, generateBoolCaseStmt(arg))
-	}
-
-	if arg.Type.IsString() {
-		caseStmts = append(caseStmts, generateStringCaseStmt(arg))
-	}
-
-	if arg.Type.IsID() {
-		caseStmts = append(caseStmts, generateIDCaseStmt(arg))
-	}
-
-	// TODO handle other types like Int, Float, etc.
-
-	switchStmt := &ast.TypeSwitchStmt{
-		Assign: &ast.AssignStmt{
-			Tok: token.DEFINE,
-			Lhs: []ast.Expr{
-				ast.NewIdent("val"),
-			},
-			Rhs: []ast.Expr{
-				&ast.TypeAssertExpr{
-					X:    ast.NewIdent("ast"),
-					Type: ast.NewIdent("type"),
-				},
-			},
-		},
-		Body: &ast.BlockStmt{
-			List: caseStmts,
-		},
-	}
-
-	return switchStmt
-}
-
-func generateBoolCaseStmt(arg *schema.ArgumentDefinition) ast.Stmt {
-	var assignStmt ast.Stmt
-	assignStmt = &ast.AssignStmt{
-		Tok: token.ASSIGN,
-		Lhs: []ast.Expr{
-			ast.NewIdent(string(arg.Name)),
-		},
-		Rhs: []ast.Expr{
-			ast.NewIdent("boolValue"),
-		},
-	}
-	if arg.Type.Nullable {
-		assignStmt = &ast.AssignStmt{
-			Tok: token.ASSIGN,
-			Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
-			Rhs: []ast.Expr{
-				&ast.UnaryExpr{
-					Op: token.AND,
-					X:  ast.NewIdent("boolValue"),
-				},
-			},
-		}
-	}
-
-	return &ast.CaseClause{
-		List: []ast.Expr{
-			&ast.StarExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("goliteql"),
-					Sel: ast.NewIdent("ValueParserLiteral"),
-				},
-			},
-		},
-		Body: []ast.Stmt{
-			&ast.IfStmt{
-				Cond: &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("val"),
-						Sel: ast.NewIdent("IsBool"),
-					},
-				},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.AssignStmt{
-							Tok: token.DEFINE,
-							Lhs: []ast.Expr{ast.NewIdent("boolValue")},
-							Rhs: []ast.Expr{
-								&ast.CallExpr{
-									Fun: &ast.SelectorExpr{
-										X:   ast.NewIdent("val"),
-										Sel: ast.NewIdent("BoolValue"),
-									},
-									Args: []ast.Expr{},
-								},
-							},
-						},
-						assignStmt,
-					},
-				},
-			},
-		},
-	}
-}
-
-func generateStringCaseStmt(arg *schema.ArgumentDefinition) ast.Stmt {
-	var assignStmt ast.Stmt
-	assignStmt = &ast.AssignStmt{
-		Tok: token.ASSIGN,
-		Lhs: []ast.Expr{
-			ast.NewIdent(string(arg.Name)),
-		},
-		Rhs: []ast.Expr{
-			ast.NewIdent("stringValue"),
-		},
-	}
-	if arg.Type.Nullable {
-		assignStmt = &ast.AssignStmt{
-			Tok: token.ASSIGN,
-			Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
-			Rhs: []ast.Expr{
-				&ast.UnaryExpr{
-					Op: token.AND,
-					X:  ast.NewIdent("stringValue"),
-				},
-			},
-		}
-	}
-
-	return &ast.CaseClause{
-		List: []ast.Expr{
-			&ast.StarExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("goliteql"),
-					Sel: ast.NewIdent("ValueParserLiteral"),
-				},
-			},
-		},
-		Body: []ast.Stmt{
-			&ast.IfStmt{
-				Cond: &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("val"),
-						Sel: ast.NewIdent("IsString"),
-					},
-				},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.AssignStmt{
-							Tok: token.DEFINE,
-							Lhs: []ast.Expr{ast.NewIdent("stringValue")},
-							Rhs: []ast.Expr{
-								&ast.CallExpr{
-									Fun: &ast.SelectorExpr{
-										X:   ast.NewIdent("val"),
-										Sel: ast.NewIdent("StringValue"),
-									},
-									Args: []ast.Expr{},
-								},
-							},
-						},
-						assignStmt,
-					},
-				},
-			},
-		},
-	}
-}
-
-func generateIDCaseStmt(arg *schema.ArgumentDefinition) ast.Stmt {
-	var assignStmt ast.Stmt
-	assignStmt = &ast.AssignStmt{
-		Tok: token.ASSIGN,
-		Lhs: []ast.Expr{
-			ast.NewIdent(string(arg.Name)),
-		},
-		Rhs: []ast.Expr{
-			ast.NewIdent("idValue"),
-		},
-	}
-	if arg.Type.Nullable {
-		assignStmt = &ast.AssignStmt{
-			Tok: token.ASSIGN,
-			Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
-			Rhs: []ast.Expr{
-				&ast.UnaryExpr{
-					Op: token.AND,
-					X:  ast.NewIdent("idValue"),
-				},
-			},
-		}
-	}
-
-	return &ast.CaseClause{
-		List: []ast.Expr{
-			&ast.StarExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("goliteql"),
-					Sel: ast.NewIdent("ValueParserLiteral"),
-				},
-			},
-		},
-		Body: []ast.Stmt{
-			&ast.IfStmt{
-				Cond: &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("val"),
-						Sel: ast.NewIdent("IsString"),
-					},
-				},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.AssignStmt{
-							Tok: token.DEFINE,
-							Lhs: []ast.Expr{ast.NewIdent("idValue")},
-							Rhs: []ast.Expr{
-								&ast.CallExpr{
-									Fun: &ast.SelectorExpr{
-										X:   ast.NewIdent("val"),
-										Sel: ast.NewIdent("StringValue"),
-									},
-									Args: []ast.Expr{},
-								},
-							},
-						},
-						assignStmt,
-					},
-				},
-			},
-		},
-	}
-}
-
 func generateArgumentsParams(typePrefix string, args schema.ArgumentDefinitions) *ast.FieldList {
 	fields := make([]*ast.Field, 0, len(args))
 
@@ -4256,17 +4109,6 @@ func generateVarSpecs(typePrefix string, args schema.ArgumentDefinitions) []ast.
 	return specs
 }
 
-func generateArgumentReturnStmt(args schema.ArgumentDefinitions) *ast.ReturnStmt {
-	results := make([]ast.Expr, 0, len(args))
-	for _, arg := range args {
-		results = append(results, ast.NewIdent(string(arg.Name)))
-	}
-
-	return &ast.ReturnStmt{
-		Results: results,
-	}
-}
-
 func generateOperationResponseStructDecls(schema *schema.Schema) []ast.Decl {
 	var decls []ast.Decl
 
@@ -4306,11 +4148,11 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 
 	for _, field := range typeDefinition.Fields {
 		var typeExpr ast.Expr = &ast.StarExpr{
-			X: generateTypeExprFromFieldType("", field.Type),
+			X: generateTypeExprFromFieldTypeForResponse("", field.Type),
 		}
 
 		if field.Type.Nullable {
-			typeExpr = generateTypeExprFromFieldType("", field.Type)
+			typeExpr = generateTypeExprFromFieldTypeForResponse("", field.Type)
 		}
 
 		fields = append(fields, &ast.Field{
