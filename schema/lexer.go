@@ -20,7 +20,7 @@ const (
 	Input     Type = "INPUT"
 	Interface Type = "INTERFACE"
 	Union     Type = "UNION"
-	Comment Type = "COMMENT"
+	Comment   Type = "COMMENT"
 
 	Value Type = "VALUE"
 
@@ -30,8 +30,8 @@ const (
 	EOF          Type = "EOF"
 
 	DirectiveLocation Type = "DIRECTIVE_LOCATION"
-	Repeatable				Type = "REPEATABLE"
-	Implements 		 Type = "IMPLEMENTS"
+	Repeatable        Type = "REPEATABLE"
+	Implements        Type = "IMPLEMENTS"
 
 	CurlyOpen    Type = "CURLY_OPEN"    // '{'
 	CurlyClose   Type = "CURLY_CLOSE"   // '}'
@@ -46,7 +46,7 @@ const (
 	Exclamation  Type = "EXCLAMATION"   // '!'
 	Pipe         Type = "PIPE"          // '|'
 	On           Type = "ON"            // 'on'
-	And 				Type = "AND"           // 'and'
+	And          Type = "AND"           // 'and'
 )
 
 type Token struct {
@@ -166,7 +166,6 @@ func newDirectiveArgumentTokens(input []byte, cur, col, line int) (Tokens, int) 
 
 	return tokens, cur
 }
-
 
 func newDirectiveDeclearationArgumentTokens(input []byte, cur, col, line int) (Tokens, int) {
 	tokens := make(Tokens, 0)
@@ -363,7 +362,6 @@ func newDirectiveLocationTokens(input []byte, cur, col, line int) (Tokens, int) 
 			continue
 		}
 
-		
 		switch input[cur] {
 		case '|':
 			token, cur = newPunctuatorToken(input, Pipe, cur, col, line)
@@ -371,7 +369,7 @@ func newDirectiveLocationTokens(input []byte, cur, col, line int) (Tokens, int) 
 			col++
 			continue
 		}
-		
+
 		if token != nil && token.Type != Pipe {
 			break
 		}
@@ -531,7 +529,7 @@ func (t Tokens) isTopLevel() bool {
 		}
 
 		if token.Type == CurlyClose && stack[len(stack)-1] == CurlyOpen {
-			if stack[len(stack)-1] != CurlyOpen{
+			if stack[len(stack)-1] != CurlyOpen {
 				return false
 			}
 
@@ -543,7 +541,7 @@ func (t Tokens) isTopLevel() bool {
 		}
 
 		if token.Type == ParenClose && stack[len(stack)-1] == ParenOpen {
-			if stack[len(stack)-1] != ParenOpen{
+			if stack[len(stack)-1] != ParenOpen {
 				return false
 			}
 
@@ -555,7 +553,7 @@ func (t Tokens) isTopLevel() bool {
 		}
 
 		if token.Type == BracketClose && stack[len(stack)-1] == BracketOpen {
-			if stack[len(stack)-1] != BracketOpen{
+			if stack[len(stack)-1] != BracketOpen {
 				return false
 			}
 
@@ -619,8 +617,8 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 		}
 
 		if input[cur] == '"' {
-			if len(input) > cur + 2 {
-				if input[cur + 1] == '"' && input[cur + 2] == '"' {
+			if len(input) > cur+2 {
+				if input[cur+1] == '"' && input[cur+2] == '"' {
 					comment, newCur := newComment(input, cur, col, line)
 					tokens = append(tokens, comment)
 					col = 1
@@ -656,7 +654,7 @@ func (l *Lexer) Lex(input []byte) ([]*Token, error) {
 			col += len(token.Value)
 			continue
 		}
-		
+
 		if tokens.isDirectiveArgument() && tokens.isDirectiveDeclearation() {
 			newTokens, newCur := newDirectiveDeclearationArgumentTokens(input, cur, col, line)
 			tokens = append(tokens, newTokens...)
@@ -757,15 +755,15 @@ func (k keyword) String() string {
 }
 
 var keywords = map[keyword]Type{
-	"type":      ReservedType,
-	"schema":    ReservedSchema,
-	"directive": ReservedDirective,
-	"extend":    Extend,
-	"scalar":    Scalar,
-	"enum":      Enum,
-	"input":     Input,
-	"interface": Interface,
-	"union":     Union,
+	"type":       ReservedType,
+	"schema":     ReservedSchema,
+	"directive":  ReservedDirective,
+	"extend":     Extend,
+	"scalar":     Scalar,
+	"enum":       Enum,
+	"input":      Input,
+	"interface":  Interface,
+	"union":      Union,
 	"implements": Implements,
 }
 
@@ -815,7 +813,7 @@ func defaultArgumentKeywordEnd(input []byte, cur int) int {
 			stack = stack[:len(stack)-1]
 		}
 
-		if input[cur] == '{'{
+		if input[cur] == '{' {
 			stack = append(stack, '{')
 		}
 
@@ -823,7 +821,7 @@ func defaultArgumentKeywordEnd(input []byte, cur int) int {
 			if stack[len(stack)-1] != '{' {
 				panic("unexpected character")
 			}
-			
+
 			stack = stack[:len(stack)-1]
 		}
 

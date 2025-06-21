@@ -4830,8 +4830,8 @@ func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition
 															Sel: ast.NewIdent("extract__fieldsArgs"),
 														},
 														Args: []ast.Expr{
-															ast.NewIdent("ctx"),
 															ast.NewIdent("child"),
+															ast.NewIdent("variables"),
 														},
 													},
 												},
@@ -4918,6 +4918,201 @@ func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition
 			},
 			Body: &ast.BlockStmt{
 				List: body,
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateIntrospectionEnumValuesFuncDecl(enums schema.EnumDefinitions) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	for _, enum := range enums {
+		ret = append(ret, generateIntrospectionEnumValuesFieldFuncDecls(enum)...)
+
+		bodyStmt := make([]ast.Stmt, 0)
+		bodyStmt = append(bodyStmt, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("ret"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("make"),
+					Args: []ast.Expr{
+						&ast.ArrayType{
+							Elt: ast.NewIdent("__EnumValue"),
+						},
+						ast.NewIdent("0"),
+						ast.NewIdent(fmt.Sprintf("%d", len(enum.Values))),
+					},
+				},
+			},
+		})
+
+		assignStmts := make([]ast.Stmt, 0)
+		for _, value := range enum.Values {
+			assignStmts = append(assignStmts, &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent(fmt.Sprintf("%sRet", value.Name)),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("r"),
+							Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__%s__enumValue", enum.Name, value.Name)),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("ctx"),
+							ast.NewIdent("child"),
+						},
+					},
+				},
+			}, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
+		}
+
+		bodyStmt = append(bodyStmt, &ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Value: ast.NewIdent("child"),
+			Tok:   token.DEFINE,
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("node"),
+				Sel: ast.NewIdent("Children"),
+			},
+			Body: &ast.BlockStmt{
+				List: assignStmts,
+			},
+		}, &ast.ReturnStmt{
+			Results: []ast.Expr{
+				&ast.UnaryExpr{
+					Op: token.AND,
+					X:  ast.NewIdent("ret"),
+				},
+				ast.NewIdent("nil"),
+			},
+		})
+
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__enumValues", enum.Name)),
+			Body: &ast.BlockStmt{
+				List: bodyStmt,
+			},
+			Type: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("ctx"),
+							},
+							Type: &ast.SelectorExpr{
+								X:   ast.NewIdent("context"),
+								Sel: ast.NewIdent("Context"),
+							},
+						},
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("node"),
+							},
+							Type: &ast.StarExpr{
+								X: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("Node"),
+								},
+							},
+						},
+					},
+				},
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: &ast.StarExpr{
+								X: &ast.ArrayType{
+									Elt: ast.NewIdent("__EnumValue"),
+								},
+							},
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateIntrospectionEnumValuesFieldFuncDecls(enum *schema.EnumDefinition) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	for _, elm := range enum.Values {
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__%s__enumValue", enum.Name, elm.Name)),
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{},
+			},
+			Type: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("ctx"),
+							},
+							Type: &ast.SelectorExpr{
+								X:   ast.NewIdent("context"),
+								Sel: ast.NewIdent("Context"),
+							},
+						},
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("node"),
+							},
+							Type: &ast.StarExpr{
+								X: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("Node"),
+								},
+							},
+						},
+					},
+				},
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: ast.NewIdent("__EnumValue"),
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
 			},
 		})
 	}

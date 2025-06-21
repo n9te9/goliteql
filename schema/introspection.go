@@ -446,7 +446,7 @@ var (
 
 	typeKindIntrospectionFields = []*EnumDefinition{
 		{
-			Name: nil,
+			Name: []byte("__TypeKind"),
 			Type: &FieldType{
 				Name:     []byte("__TypeKind"),
 				IsList:   false,
@@ -493,7 +493,7 @@ var (
 	}
 	directiveLocationIntrospectionFields = []*EnumDefinition{
 		{
-			Name: nil,
+			Name: []byte("__DirectiveLocation"),
 			Type: &FieldType{
 				Name:     []byte("__DirectiveLocation"),
 				IsList:   false,
@@ -639,26 +639,26 @@ func withTypeIntrospection(schema *Schema) *Schema {
 		Directives: nil,
 		Extentions: nil,
 	})
-	schema.Types = append(schema.Types, &TypeDefinition{
-		Name:              []byte("__DirectiveLocation"),
-		Fields:            nil,
-		Required:          make(map[*FieldDefinition]struct{}),
-		tokens:            schema.tokens,
-		PrimitiveTypeName: []byte("string"),
-		Interfaces:        nil,
-		Directives:        nil,
-		Extentions:        nil,
-	})
-	schema.Types = append(schema.Types, &TypeDefinition{
-		Name:              []byte("__TypeKind"),
-		Fields:            nil,
-		Required:          make(map[*FieldDefinition]struct{}),
-		tokens:            schema.tokens,
-		PrimitiveTypeName: []byte("string"),
-		Interfaces:        nil,
-		Directives:        nil,
-		Extentions:        nil,
-	})
+	// schema.Types = append(schema.Types, &TypeDefinition{
+	// 	Name:              []byte("__DirectiveLocation"),
+	// 	Fields:            nil,
+	// 	Required:          make(map[*FieldDefinition]struct{}),
+	// 	tokens:            schema.tokens,
+	// 	PrimitiveTypeName: []byte("string"),
+	// 	Interfaces:        nil,
+	// 	Directives:        nil,
+	// 	Extentions:        nil,
+	// })
+	// schema.Types = append(schema.Types, &TypeDefinition{
+	// 	Name:              []byte("__TypeKind"),
+	// 	Fields:            nil,
+	// 	Required:          make(map[*FieldDefinition]struct{}),
+	// 	tokens:            schema.tokens,
+	// 	PrimitiveTypeName: []byte("string"),
+	// 	Interfaces:        nil,
+	// 	Directives:        nil,
+	// 	Extentions:        nil,
+	// })
 
 	schema.Enums = append(schema.Enums, typeKindIntrospectionFields...)
 	schema.Enums = append(schema.Enums, directiveLocationIntrospectionFields...)

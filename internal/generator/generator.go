@@ -473,6 +473,8 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFieldsFuncDecls(g.Schema.Inputs, g.Schema.Indexes)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionScalarFuncDecls(g.Schema.Scalars)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionEnumFuncDecls(g.Schema.Enums)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionEnumValuesFuncDecl(g.Schema.Enums)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationResponseStructDecls(g.Schema)...)
 
 	if q := g.Schema.GetQuery(); q != nil {
