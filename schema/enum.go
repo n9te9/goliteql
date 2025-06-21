@@ -5,7 +5,7 @@ type EnumDefinition struct {
 	Type       *FieldType
 	Values     []*EnumElement
 	Extentions []*EnumDefinition
-	Directives []*Directive
+	Directives
 }
 
 func (e *EnumDefinition) IsIntrospection() bool {
@@ -38,7 +38,7 @@ func (e EnumDefinitions) Has(name string) bool {
 type EnumElement struct {
 	Name       []byte
 	Value      []byte
-	Directives []*Directive
+	Directives Directives
 }
 
 func (e *EnumElement) Location() *Location {
