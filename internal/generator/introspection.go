@@ -4888,6 +4888,31 @@ func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition
 										Body: []ast.Stmt{
 											&ast.AssignStmt{
 												Lhs: []ast.Expr{
+													ast.NewIdent("includeDeprecated"),
+													ast.NewIdent("err"),
+												},
+												Tok: token.DEFINE,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("r"),
+															Sel: ast.NewIdent("extract__fieldsArgs"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("child"),
+															ast.NewIdent("variables"),
+														},
+													},
+												},
+											},
+											generateReturnErrorHandlingStmt([]ast.Expr{
+												&ast.CompositeLit{
+													Type: ast.NewIdent("__Type"),
+													Elts: []ast.Expr{},
+												},
+											}),
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
 													ast.NewIdent("enumValues"),
 													ast.NewIdent("err"),
 												},
@@ -4901,6 +4926,9 @@ func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition
 														Args: []ast.Expr{
 															ast.NewIdent("ctx"),
 															ast.NewIdent("child"),
+															&ast.StarExpr{
+																X: ast.NewIdent("includeDeprecated"),
+															},
 														},
 													},
 												},
@@ -5002,11 +5030,8 @@ func generateIntrospectionEnumValuesFuncDecl(enums schema.EnumDefinitions) []ast
 			},
 		})
 
-		assignStmts := make([]ast.Stmt, 0)
-		argsExpr := make([]ast.Expr, 0)
-		argsExpr = append(argsExpr, ast.NewIdent("ret"))
 		for _, value := range enum.Values {
-			assignStmts = append(assignStmts, &ast.AssignStmt{
+			bodyStmt = append(bodyStmt, &ast.AssignStmt{
 				Lhs: []ast.Expr{
 					ast.NewIdent(fmt.Sprintf("%sRet", value.Name)),
 					ast.NewIdent("err"),
@@ -5021,27 +5046,55 @@ func generateIntrospectionEnumValuesFuncDecl(enums schema.EnumDefinitions) []ast
 						Args: []ast.Expr{
 							ast.NewIdent("ctx"),
 							ast.NewIdent("node"),
+							ast.NewIdent("includeDeprecated"),
 						},
 					},
 				},
-			}, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
-			assignStmts = append(assignStmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
-			argsExpr = append(argsExpr, ast.NewIdent(fmt.Sprintf("%sRet", value.Name)))
-		}
+			}, generateReturnErrorHandlingStmt([]ast.Expr{
+				ast.NewIdent("nil"),
+			}))
 
-		bodyStmt = append(bodyStmt, assignStmts...)
-		bodyStmt = append(bodyStmt, &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				ast.NewIdent("ret"),
-			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun:  ast.NewIdent("append"),
-					Args: argsExpr,
-				},
-			},
-		})
+			if value.Directives.Get([]byte("deprecated")) != nil {
+				bodyStmt = append(bodyStmt, &ast.IfStmt{
+					Cond: ast.NewIdent("includeDeprecated"),
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Lhs: []ast.Expr{
+									ast.NewIdent("ret"),
+								},
+								Tok: token.ASSIGN,
+								Rhs: []ast.Expr{
+									&ast.CallExpr{
+										Fun: ast.NewIdent("append"),
+										Args: []ast.Expr{
+											ast.NewIdent("ret"),
+											ast.NewIdent(fmt.Sprintf("%sRet", value.Name)),
+										},
+									},
+								},
+							},
+						},
+					},
+				})
+			} else {
+				bodyStmt = append(bodyStmt, &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent("ret"),
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: ast.NewIdent("append"),
+							Args: []ast.Expr{
+								ast.NewIdent("ret"),
+								ast.NewIdent(fmt.Sprintf("%sRet", value.Name)),
+							},
+						},
+					},
+				})
+			}
+		}
 
 		bodyStmt = append(bodyStmt, &ast.ReturnStmt{
 			Results: []ast.Expr{
@@ -5092,6 +5145,12 @@ func generateIntrospectionEnumValuesFuncDecl(enums schema.EnumDefinitions) []ast
 									Sel: ast.NewIdent("Node"),
 								},
 							},
+						},
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("includeDeprecated"),
+							},
+							Type: ast.NewIdent("bool"),
 						},
 					},
 				},
@@ -5185,6 +5244,52 @@ func generateIntrospectionEnumValuesFieldFuncDecls(enum *schema.EnumDefinition) 
 			}
 		}
 
+		var nameBodyStmt ast.Stmt = &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent("Name"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf(`"%s"`, string(elm.Name))),
+			},
+		}
+
+		var descriptionStmt ast.Stmt = &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent("Description"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				ast.NewIdent("nil"),
+			},
+		}
+
+		if elm.Directives.Get([]byte("deprecated")) != nil {
+			nameBodyStmt = &ast.IfStmt{
+				Cond: ast.NewIdent("includeDeprecated"),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						nameBodyStmt,
+					},
+				},
+			}
+
+			descriptionStmt = &ast.IfStmt{
+				Cond: ast.NewIdent("includeDeprecated"),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						descriptionStmt,
+					},
+				},
+			}
+		}
+
 		ret = append(ret, &ast.FuncDecl{
 			Recv: &ast.FieldList{
 				List: []*ast.Field{
@@ -5199,6 +5304,48 @@ func generateIntrospectionEnumValuesFieldFuncDecls(enum *schema.EnumDefinition) 
 				},
 			},
 			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__%s__enumValue", enum.Name, elm.Name)),
+			Type: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("ctx"),
+							},
+							Type: &ast.SelectorExpr{
+								X:   ast.NewIdent("context"),
+								Sel: ast.NewIdent("Context"),
+							},
+						},
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("node"),
+							},
+							Type: &ast.StarExpr{
+								X: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("Node"),
+								},
+							},
+						},
+						{
+							Names: []*ast.Ident{
+								ast.NewIdent("includeDeprecated"),
+							},
+							Type: ast.NewIdent("bool"),
+						},
+					},
+				},
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: ast.NewIdent("__EnumValue"),
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
+			},
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{
 					&ast.AssignStmt{
@@ -5243,18 +5390,7 @@ func generateIntrospectionEnumValuesFieldFuncDecls(enum *schema.EnumDefinition) 
 													},
 												},
 												Body: []ast.Stmt{
-													&ast.AssignStmt{
-														Lhs: []ast.Expr{
-															&ast.SelectorExpr{
-																X:   ast.NewIdent("ret"),
-																Sel: ast.NewIdent("Name"),
-															},
-														},
-														Tok: token.ASSIGN,
-														Rhs: []ast.Expr{
-															ast.NewIdent(fmt.Sprintf(`"%s"`, string(elm.Name))),
-														},
-													},
+													nameBodyStmt,
 												},
 											}, &ast.CaseClause{
 												List: []ast.Expr{
@@ -5264,18 +5400,7 @@ func generateIntrospectionEnumValuesFieldFuncDecls(enum *schema.EnumDefinition) 
 													},
 												},
 												Body: []ast.Stmt{
-													&ast.AssignStmt{
-														Lhs: []ast.Expr{
-															&ast.SelectorExpr{
-																X:   ast.NewIdent("ret"),
-																Sel: ast.NewIdent("Description"),
-															},
-														},
-														Tok: token.ASSIGN,
-														Rhs: []ast.Expr{
-															ast.NewIdent("nil"),
-														},
-													},
+													descriptionStmt,
 												},
 											}, &ast.CaseClause{
 												List: []ast.Expr{
@@ -5289,7 +5414,7 @@ func generateIntrospectionEnumValuesFieldFuncDecls(enum *schema.EnumDefinition) 
 												List: []ast.Expr{
 													&ast.BasicLit{
 														Kind:  token.STRING,
-														Value: `"deprecatedReason"`,
+														Value: `"deprecationReason"`,
 													},
 												},
 												Body: deprecatedReasonStmts,
@@ -5303,42 +5428,6 @@ func generateIntrospectionEnumValuesFieldFuncDecls(enum *schema.EnumDefinition) 
 						Results: []ast.Expr{
 							ast.NewIdent("ret"),
 							ast.NewIdent("nil"),
-						},
-					},
-				},
-			},
-			Type: &ast.FuncType{
-				Params: &ast.FieldList{
-					List: []*ast.Field{
-						{
-							Names: []*ast.Ident{
-								ast.NewIdent("ctx"),
-							},
-							Type: &ast.SelectorExpr{
-								X:   ast.NewIdent("context"),
-								Sel: ast.NewIdent("Context"),
-							},
-						},
-						{
-							Names: []*ast.Ident{
-								ast.NewIdent("node"),
-							},
-							Type: &ast.StarExpr{
-								X: &ast.SelectorExpr{
-									X:   ast.NewIdent("executor"),
-									Sel: ast.NewIdent("Node"),
-								},
-							},
-						},
-					},
-				},
-				Results: &ast.FieldList{
-					List: []*ast.Field{
-						{
-							Type: ast.NewIdent("__EnumValue"),
-						},
-						{
-							Type: ast.NewIdent("error"),
 						},
 					},
 				},
