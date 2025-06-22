@@ -232,8 +232,9 @@ func generateTypeExprFromFieldTypeForResponse(typePrefix string, fieldType *sche
 	}
 
 	if fieldType.Nullable {
-		return &ast.StarExpr{
-			X: baseTypeExpr,
+		return &ast.SelectorExpr{
+			X:   ast.NewIdent("executor"),
+			Sel: ast.NewIdent("Nullable"),
 		}
 	}
 
@@ -266,7 +267,6 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 		}
 
 		caseBody := make([]ast.Stmt, 0)
-
 		var rh ast.Expr = &ast.SelectorExpr{
 			X:   ast.NewIdent(valueName),
 			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
@@ -317,6 +317,16 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 					}
 				}
 				rh = generateObjectPointerExpr(string(field.Type.Name)+"Response", elmExpr)
+			}
+		} else {
+			rh = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					Sel: ast.NewIdent("NewNullable"),
+					X:   ast.NewIdent("executor"),
+				},
+				Args: []ast.Expr{
+					rh,
+				},
 			}
 		}
 
@@ -4160,6 +4170,10 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 				ast.NewIdent(toUpperCase(string(field.Name))),
 			},
 			Type: typeExpr,
+			Tag: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("`json:\"%s,omitempty\"`", string(field.Name)),
+			},
 		})
 	}
 
