@@ -251,7 +251,26 @@ func (g *Generator) generateModel() error {
 			continue
 		}
 
-		g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
+		fields := generateModelField(t.Fields)
+
+		if len(t.Interfaces) > 0 {
+			fields.List = append(fields.List, &ast.Field{
+				Type: &ast.BasicLit{},
+			})
+		}
+
+		for _, iface := range t.Interfaces {
+			if iface.Name[0] >= 'a' && iface.Name[0] <= 'z' {
+				panic(fmt.Sprintf("interface name %s should start with uppercase letter", iface.Name))
+			}
+
+			fields.List = append(fields.List, &ast.Field{
+				Names: []*ast.Ident{},
+				Type:  ast.NewIdent(string(iface.Name)),
+			})
+		}
+
+		decl := &ast.GenDecl{
 			Tok: token.TYPE,
 			Specs: []ast.Spec{
 				&ast.TypeSpec{
@@ -259,11 +278,12 @@ func (g *Generator) generateModel() error {
 						Name: string(t.Name),
 					},
 					Type: &ast.StructType{
-						Fields: generateModelField(t.Fields),
+						Fields: fields,
 					},
 				},
 			},
-		})
+		}
+		g.modelAST.Decls = append(g.modelAST.Decls, decl)
 
 		if t.PrimitiveTypeName != nil {
 			g.modelAST.Decls = append(g.modelAST.Decls, &ast.GenDecl{
@@ -281,6 +301,8 @@ func (g *Generator) generateModel() error {
 			})
 		}
 	}
+
+	g.modelAST.Decls = append(g.modelAST.Decls, generateInterfaceTypeDecls(g.Schema.Interfaces)...)
 
 	userEnums := extractUserEnumDefinitions(g.Schema.Enums)
 	g.enumAST.Decls = append(g.enumAST.Decls, generateEnumModelAST(userEnums)...)
