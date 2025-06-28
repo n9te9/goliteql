@@ -135,6 +135,18 @@ type OperationDefinition struct {
 	Extentions    []*OperationDefinition
 }
 
+func (f FieldDefinitions) HasDeprecatedDirective() bool {
+	for _, field := range f {
+		for _, directive := range field.Directives {
+			if bytes.Equal(directive.Name, []byte("deprecated")) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func (o *OperationDefinition) GetFieldByName(name []byte) *FieldDefinition {
 	for _, field := range o.Fields {
 		if bytes.Equal(field.Name, name) {

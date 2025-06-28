@@ -57,7 +57,7 @@ func generateApplyQueryResponseFuncDeclFromField(field *schema.FieldDefinition, 
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Type: generateTypeExprFromFieldType("", generateFieldTypeForResponse(field.Type)),
+						Type: generateNestedArrayTypeForResponse(ast.NewIdent(fmt.Sprintf("%sResponse", field.Type.GetRootType().Name)), 0, nestCount, field.Type.GetRootType().Nullable),
 					},
 					{
 						Type: ast.NewIdent("error"),
@@ -76,18 +76,32 @@ func generateApplyQueryResponseFuncStmts(field *schema.FieldDefinition, indexes 
 	}
 
 	if currentNestCount == nestCount {
-		ret = append(ret, &ast.AssignStmt{
-			Lhs: []ast.Expr{resultLh},
-			Tok: token.DEFINE,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: ast.NewIdent("new"),
-					Args: []ast.Expr{
-						ast.NewIdent(fmt.Sprintf("%sResponse", field.Type.GetRootType().Name)),
+		rootType := field.Type.GetRootType()
+
+		if rootType.Nullable {
+			ret = append(ret, &ast.AssignStmt{
+				Lhs: []ast.Expr{resultLh},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("new"),
+						Args: []ast.Expr{
+							ast.NewIdent(fmt.Sprintf("%sResponse", field.Type.GetRootType().Name)),
+						},
 					},
 				},
-			},
-		})
+			})
+		} else {
+			ret = append(ret, &ast.AssignStmt{
+				Lhs: []ast.Expr{resultLh},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CompositeLit{
+						Type: ast.NewIdent(fmt.Sprintf("%sResponse", field.Type.GetRootType().Name)),
+					},
+				},
+			})
+		}
 
 		return append(ret, generateApplySwitchStmtForQueryResponse(field, indexes, currentNestCount, nestCount)...)
 	}
@@ -106,7 +120,7 @@ func generateApplyQueryResponseFuncStmts(field *schema.FieldDefinition, indexes 
 				&ast.CallExpr{
 					Fun: ast.NewIdent("make"),
 					Args: []ast.Expr{
-						generateNestedArrayTypeForResponse(ast.NewIdent(fmt.Sprintf("%sResponse", field.Type.GetRootType().Name)), currentNestCount, nestCount),
+						generateNestedArrayTypeForResponse(ast.NewIdent(fmt.Sprintf("%sResponse", field.Type.GetRootType().Name)), currentNestCount, nestCount, field.Type.GetRootType().Nullable),
 						ast.NewIdent("0"),
 						&ast.CallExpr{
 							Fun: ast.NewIdent("len"),
@@ -159,15 +173,20 @@ func generateApplyQueryResponseFuncStmts(field *schema.FieldDefinition, indexes 
 	return ret
 }
 
-func generateNestedArrayTypeForResponse(typeExpr ast.Expr, currentNestCount, nestCount int) ast.Expr {
+func generateNestedArrayTypeForResponse(typeExpr ast.Expr, currentNestCount, nestCount int, isNullable bool) ast.Expr {
 	if currentNestCount >= nestCount {
-		return &ast.StarExpr{
-			X: typeExpr,
+		if isNullable {
+			return &ast.SelectorExpr{
+				X:   ast.NewIdent("executor"),
+				Sel: ast.NewIdent("Nullable"),
+			}
 		}
+
+		return typeExpr
 	}
 
 	return &ast.ArrayType{
-		Elt: generateNestedArrayTypeForResponse(typeExpr, currentNestCount+1, nestCount),
+		Elt: generateNestedArrayTypeForResponse(typeExpr, currentNestCount+1, nestCount, isNullable),
 	}
 }
 
@@ -310,15 +329,7 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 				rh = generateObjectPointerExpr(string(field.Type.Name)+"Response", elmExpr)
 			}
 		} else {
-			rh = &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					Sel: ast.NewIdent("NewNullable"),
-					X:   ast.NewIdent("executor"),
-				},
-				Args: []ast.Expr{
-					rh,
-				},
-			}
+			rh = ast.NewIdent("nil")
 		}
 
 		caseBody = append(caseBody, &ast.AssignStmt{

@@ -498,9 +498,16 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionEnumFuncDecls(g.Schema.Enums)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionEnumValuesFuncDecl(g.Schema.Enums)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationResponseStructDecls(g.Schema)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionOperationFuncDecls(g.Schema)...)
 
 	if q := g.Schema.GetQuery(); q != nil {
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(q.Name), q.Fields)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(g.Schema.Definition.Query), q.Fields)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionOperationFieldFuncDecls(q)...)
+	}
+
+	if m := g.Schema.GetMutation(); m != nil {
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(g.Schema.Definition.Mutation), m.Fields)...)
+		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionOperationFieldFuncDecls(m)...)
 	}
 
 	var rootResolverBuffer bytes.Buffer

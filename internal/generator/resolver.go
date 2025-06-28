@@ -210,40 +210,10 @@ func generateTypeExprFromFieldType(typePrefix string, fieldType *schema.FieldTyp
 	return baseTypeExpr
 }
 
-func generateTypeExprFromFieldTypeForNew(typePrefix string, fieldType *schema.FieldType, nestCount int) ast.Expr {
-	if nestCount > 1 {
-		return &ast.ArrayType{
-			Elt: generateTypeExprFromFieldTypeForNew(typePrefix, fieldType, nestCount-1),
-		}
-	}
-
-	graphQLType := GraphQLType(fieldType.Name)
-
-	var baseTypeExpr ast.Expr = ast.NewIdent(graphQLType.golangType())
-	if !graphQLType.IsPrimitive() {
-		if typePrefix != "" {
-			baseTypeExpr = &ast.SelectorExpr{
-				X:   ast.NewIdent(typePrefix),
-				Sel: ast.NewIdent(graphQLType.golangType()),
-			}
-		} else {
-			baseTypeExpr = ast.NewIdent(graphQLType.golangType())
-		}
-
-		if nestCount == 1 {
-			baseTypeExpr = &ast.StarExpr{
-				X: baseTypeExpr,
-			}
-		}
-	}
-
-	return baseTypeExpr
-}
-
 func generateTypeExprFromFieldTypeForResponse(typePrefix string, fieldType *schema.FieldType) ast.Expr {
 	if fieldType.IsList {
 		return &ast.ArrayType{
-			Elt: generateTypeExprFromFieldType(typePrefix, fieldType.ListType),
+			Elt: generateTypeExprFromFieldTypeForResponse(typePrefix, fieldType.ListType),
 		}
 	}
 
@@ -310,92 +280,6 @@ func generateApplyNestedFieldQueryResponseFuncDecls(fieldType *schema.FieldType,
 	}
 
 	return ret
-}
-
-func generateRetAssignStmt(typePrefix string, fieldType *schema.FieldType) ast.Stmt {
-	if fieldType.IsList {
-		return &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				ast.NewIdent("ret"),
-			},
-			Tok: token.DEFINE,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: ast.NewIdent("make"),
-					Args: []ast.Expr{
-						generateTypeExprFromFieldType(typePrefix, fieldType),
-						ast.NewIdent("0"),
-						&ast.CallExpr{
-							Fun: ast.NewIdent("len"),
-							Args: []ast.Expr{
-								ast.NewIdent("resolverRet"),
-							},
-						},
-					},
-				},
-			},
-		}
-	}
-
-	if fieldType.IsPrimitive() {
-		if fieldType.Nullable {
-			return &ast.AssignStmt{
-				Lhs: []ast.Expr{
-					ast.NewIdent("ret"),
-				},
-				Tok: token.DEFINE,
-				Rhs: []ast.Expr{
-					&ast.CallExpr{
-						Fun: ast.NewIdent("new"),
-						Args: []ast.Expr{
-							ast.NewIdent(GraphQLType(fieldType.Name).golangType()),
-						},
-					},
-				},
-			}
-		}
-
-		return &ast.DeclStmt{
-			Decl: &ast.GenDecl{
-				Tok: token.VAR,
-				Specs: []ast.Spec{
-					&ast.ValueSpec{
-						Names: []*ast.Ident{
-							ast.NewIdent("ret"),
-						},
-						Type: ast.NewIdent(GraphQLType(fieldType.Name).golangType()),
-					},
-				},
-			},
-		}
-	}
-
-	rhs := []ast.Expr{
-		&ast.CompositeLit{
-			Type: ast.NewIdent(string(fieldType.Name)),
-			Elts: []ast.Expr{},
-		},
-	}
-
-	if fieldType.Nullable {
-		rhs = []ast.Expr{
-			&ast.UnaryExpr{
-				Op: token.AND,
-				X: &ast.CompositeLit{
-					Type: ast.NewIdent(string(fieldType.Name)),
-					Elts: []ast.Expr{},
-				},
-			},
-		}
-	}
-
-	return &ast.AssignStmt{
-		Lhs: []ast.Expr{
-			ast.NewIdent("ret"),
-		},
-		Tok: token.DEFINE,
-		Rhs: rhs,
-	}
 }
 
 func generateQueryExecutor(query *schema.OperationDefinition) *ast.FuncDecl {
@@ -3355,6 +3239,7 @@ func generateOperationResponseStructDecls(schema *schema.Schema) []ast.Decl {
 		}
 
 		decls = append(decls, generateResponseStructFromField(typeDefinition))
+		decls = append(decls, generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition))
 	}
 
 	return decls
@@ -3385,7 +3270,10 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 		}
 
 		if field.Type.Nullable {
-			typeExpr = generateTypeExprFromFieldTypeForResponse("", field.Type)
+			typeExpr = &ast.SelectorExpr{
+				X:   ast.NewIdent("executor"),
+				Sel: ast.NewIdent("Nullable"),
+			}
 		}
 
 		fields = append(fields, &ast.Field{
@@ -3412,7 +3300,7 @@ func generateFieldTypeForResponse(fieldType *schema.FieldType) *schema.FieldType
 		return &schema.FieldType{
 			Name:     fieldType.Name,
 			IsList:   true,
-			Nullable: true,
+			Nullable: fieldType.Nullable,
 			ListType: generateFieldTypeForResponse(fieldType.ListType),
 		}
 	}
@@ -3420,7 +3308,54 @@ func generateFieldTypeForResponse(fieldType *schema.FieldType) *schema.FieldType
 	return &schema.FieldType{
 		Name:     []byte(string(fieldType.Name) + "Response"),
 		IsList:   fieldType.IsList,
-		Nullable: true,
+		Nullable: fieldType.Nullable,
 		ListType: fieldType.ListType,
+	}
+}
+
+func generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition *schema.TypeDefinition) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent("MarshalJSON"),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						ast.NewIdent("o"),
+					},
+					Type: ast.NewIdent(fmt.Sprintf("%sResponse", typeDefinition.Name)),
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.ArrayType{
+							Elt: ast.NewIdent("byte"),
+						},
+					},
+					{
+						Type: ast.NewIdent("error"),
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("Marshal"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("o"),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
