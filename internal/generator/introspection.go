@@ -1064,25 +1064,6 @@ func generateIntrospectionTypeMethodDecls(s *schema.Schema) []ast.Decl {
 			},
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{
-					// TODO
-					// &ast.AssignStmt{
-					// 	Lhs: []ast.Expr{
-					// 		ast.NewIdent("fields"),
-					// 	},
-					// 	Tok: token.DEFINE,
-					// 	Rhs: []ast.Expr{
-					// 		&ast.CallExpr{
-					// 			Fun: ast.NewIdent("make"),
-					// 			Args: []ast.Expr{
-					// 				&ast.ArrayType{
-					// 					Elt: ast.NewIdent("__InputValue"),
-					// 				},
-					// 				ast.NewIdent("0"),
-					// 				ast.NewIdent(fmt.Sprintf("%d", len(q.Fields))),
-					// 			},
-					// 		},
-					// 	},
-					// },
 					&ast.AssignStmt{
 						Lhs: []ast.Expr{
 							ast.NewIdent("ret"),
@@ -3239,6 +3220,7 @@ func generateIntrospectionFieldFuncBodyStmts(attributeName string, fields schema
 							Value: `"args"`,
 						},
 					},
+					Body: generateArgsAssignStmt(fields),
 				},
 				&ast.CaseClause{
 					List: []ast.Expr{
@@ -3311,6 +3293,55 @@ func generateIntrospectionFieldFuncBodyStmts(attributeName string, fields schema
 			},
 		},
 	}
+}
+
+func generateArgsAssignStmt(fields schema.FieldDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(fields))
+	for _, field := range fields {
+		if len(field.Arguments) == 0 {
+			continue
+		}
+
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("ret" + string(field.Name) + "Args"),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__args", string(field.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
+						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
+					},
+				},
+			},
+		})
+
+		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{
+			ast.NewIdent("nil"),
+		}))
+
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret" + string(field.Name)),
+					Sel: ast.NewIdent("Args"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				ast.NewIdent("ret" + string(field.Name) + "Args"),
+			},
+		})
+	}
+
+	return stmts
 }
 
 func generateIntrospectionFieldNameBodyStmt(fields schema.FieldDefinitions) []ast.Stmt {
@@ -5489,6 +5520,57 @@ func generateIntrospectionOperationFieldFuncDecls(operationDefinition *schema.Op
 			},
 		})
 
+		if len(f.Arguments) > 0 {
+
+			caseStmts = append(caseStmts, &ast.CaseClause{
+				List: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: `"args"`,
+					},
+				},
+				Body: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent(fmt.Sprintf("%sArgs", f.Name)),
+							ast.NewIdent("err"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("r"),
+									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__args", string(f.Name))),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("ctx"),
+									ast.NewIdent("child"),
+									ast.NewIdent("variables"),
+								},
+							},
+						},
+					},
+					generateReturnErrorHandlingStmt([]ast.Expr{
+						&ast.CompositeLit{
+							Type: ast.NewIdent("__Field"),
+						},
+					}),
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("ret"),
+								Sel: ast.NewIdent("Args"),
+							},
+						},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{
+							ast.NewIdent(fmt.Sprintf("%sArgs", f.Name)),
+						},
+					},
+				},
+			})
+		}
+
 		stmts := make([]ast.Stmt, 0)
 		stmts = append(stmts, &ast.SwitchStmt{
 			Tag: &ast.CallExpr{
@@ -5569,9 +5651,254 @@ func generateIntrospectionOperationFieldFuncDecls(operationDefinition *schema.Op
 				},
 			},
 		})
+
+		if len(f.Arguments) > 0 {
+			ret = append(ret, generateIntrospectionOperationArgsFuncDecl(f))
+		}
 	}
 
 	return ret
+}
+
+func generateIntrospectionOperationArgsFuncDecl(fieldDefinition *schema.FieldDefinition) ast.Decl {
+	stmts := make([]ast.Stmt, 0)
+	stmts = append(stmts, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("ret"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: ast.NewIdent("make"),
+				Args: []ast.Expr{
+					&ast.ArrayType{
+						Elt: ast.NewIdent("__InputValue"),
+					},
+					ast.NewIdent("0"),
+					ast.NewIdent(fmt.Sprintf("%d", len(fieldDefinition.Arguments))),
+				},
+			},
+		},
+	})
+
+	appendExprs := make([]ast.Expr, 0, len(fieldDefinition.Arguments)+1)
+	appendExprs = append(appendExprs, ast.NewIdent("ret"))
+	valueSpecs := make([]ast.Spec, 0, len(fieldDefinition.Arguments))
+	nameAssignStmts := make([]ast.Stmt, 0, len(fieldDefinition.Arguments))
+	descriptionStmts := make([]ast.Stmt, 0, len(fieldDefinition.Arguments))
+	typeStmts := make([]ast.Stmt, 0, len(fieldDefinition.Arguments))
+	defaultValueStmts := make([]ast.Stmt, 0, len(fieldDefinition.Arguments))
+	for _, arg := range fieldDefinition.Arguments {
+		valueSpecs = append(valueSpecs, &ast.ValueSpec{
+			Names: []*ast.Ident{
+				ast.NewIdent(fmt.Sprintf("%sRet", string(arg.Name))),
+			},
+			Type: ast.NewIdent("__InputValue"),
+		})
+		appendExprs = append(appendExprs, ast.NewIdent(fmt.Sprintf("%sRet", string(arg.Name))))
+		nameAssignStmts = append(nameAssignStmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent(fmt.Sprintf("%sRet", string(arg.Name))),
+					Sel: ast.NewIdent("Name"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf(`"%s"`, string(arg.Name))),
+			},
+		})
+		descriptionStmts = append(descriptionStmts, &ast.ExprStmt{
+			X: ast.NewIdent("// TODO"),
+		})
+		typeStmts = append(typeStmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sType", string(arg.Name))),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(arg.Type.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
+						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
+					},
+				},
+			},
+		}, generateReturnErrorHandlingStmt([]ast.Expr{
+			ast.NewIdent("nil"),
+		}), &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent(fmt.Sprintf("%sRet", string(arg.Name))),
+					Sel: ast.NewIdent("Type"),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sType", string(arg.Name))),
+			},
+		})
+
+		if arg.Default != nil {
+			defaultValueStmts = append(defaultValueStmts, &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent(fmt.Sprintf("%sRet", string(arg.Name))),
+						Sel: ast.NewIdent("DefaultValue"),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					generateStringPointerExpr(ast.NewIdent(fmt.Sprintf(`%q`, string(arg.Default)))),
+				},
+			})
+		} else {
+			defaultValueStmts = append(defaultValueStmts, &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent(fmt.Sprintf("%sRet", string(arg.Name))),
+						Sel: ast.NewIdent("DefaultValue"),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					ast.NewIdent("nil"),
+				},
+			})
+		}
+	}
+
+	stmts = append(stmts, &ast.DeclStmt{
+		Decl: &ast.GenDecl{
+			Tok:   token.VAR,
+			Specs: valueSpecs,
+		},
+	})
+
+	stmts = append(stmts, &ast.RangeStmt{
+		Key:   ast.NewIdent("_"),
+		Tok:   token.DEFINE,
+		Value: ast.NewIdent("child"),
+		X: &ast.SelectorExpr{
+			X:   ast.NewIdent("node"),
+			Sel: ast.NewIdent("Children"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.SwitchStmt{
+					Tag: &ast.CallExpr{
+						Fun: ast.NewIdent("string"),
+						Args: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("child"),
+								Sel: ast.NewIdent("Name"),
+							},
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.CaseClause{
+								List: []ast.Expr{
+									&ast.BasicLit{
+										Kind:  token.STRING,
+										Value: `"name"`,
+									},
+								},
+								Body: nameAssignStmts,
+							},
+							&ast.CaseClause{
+								List: []ast.Expr{
+									&ast.BasicLit{
+										Kind:  token.STRING,
+										Value: `"description"`,
+									},
+								},
+								Body: descriptionStmts,
+							},
+							&ast.CaseClause{
+								List: []ast.Expr{
+									&ast.BasicLit{
+										Kind:  token.STRING,
+										Value: `"type"`,
+									},
+								},
+								Body: typeStmts,
+							},
+							&ast.CaseClause{
+								List: []ast.Expr{
+									&ast.BasicLit{
+										Kind:  token.STRING,
+										Value: `"defaultValue"`,
+									},
+								},
+								Body: defaultValueStmts,
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	stmts = append(stmts, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("ret"),
+		},
+		Tok: token.ASSIGN,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun:  ast.NewIdent("append"),
+				Args: appendExprs,
+			},
+		},
+	})
+
+	stmts = append(stmts, &ast.ReturnStmt{
+		Results: []ast.Expr{
+			ast.NewIdent("ret"),
+			ast.NewIdent("nil"),
+		},
+	})
+
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						ast.NewIdent("r"),
+					},
+					Type: &ast.StarExpr{
+						X: ast.NewIdent("resolver"),
+					},
+				},
+			},
+		},
+		Name: ast.NewIdent(fmt.Sprintf("__schema__%s__args", string(fieldDefinition.Name))),
+		Type: &ast.FuncType{
+			Params: generateNodeWalkerArgs(),
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.ArrayType{
+							Elt: ast.NewIdent("__InputValue"),
+						},
+					},
+					{
+						Type: ast.NewIdent("error"),
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: stmts,
+		},
+	}
 }
 
 func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition) []ast.Decl {
