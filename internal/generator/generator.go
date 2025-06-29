@@ -480,6 +480,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResponseDataModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResponseModelAST())
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionQueryTypeMethodAST(g.Schema))
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionMutationTypeMethodAST(g.Schema))
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeMethodDecls(g.Schema)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldTypeTypeOfDecls(g.Schema)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsDecls(g.Schema.Types)...)
@@ -499,6 +500,7 @@ func (g *Generator) generateResolver() error {
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionEnumValuesFuncDecl(g.Schema.Enums)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationResponseStructDecls(g.Schema)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionOperationFuncDecls(g.Schema)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionUnionTypeFuncDecls(g.Schema.Unions, g.Schema.Indexes)...)
 
 	if q := g.Schema.GetQuery(); q != nil {
 		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(g.Schema.Definition.Query), q.Fields)...)

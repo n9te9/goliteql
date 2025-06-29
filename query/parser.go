@@ -220,6 +220,7 @@ func (p *Parser) Parse(input []byte) (*Document, error) {
 			cur = newCur
 			doc.FragmentDefinitions = append(doc.FragmentDefinitions, fragmentDefinition)
 		}
+		fmt.Println(cur)
 
 		if tokens[cur].Type == EOF {
 			break

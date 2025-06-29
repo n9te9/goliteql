@@ -481,9 +481,10 @@ func generateIntrospectionTypesFuncDecl(schema *schema.Schema) ast.Decl {
 	inputDefinitions := schema.Inputs
 	scalarDefinitions := schema.Scalars
 	enumDefinitions := schema.Enums
+	unionDefinitions := schema.Unions
 
 	stmts := make([]ast.Stmt, 0)
-	stmts = append(stmts, generateIntrospectionTypesFieldSwitchStmts(typeDefinitions.WithoutMetaDefinition(), interfaceDefinitions, inputDefinitions, scalarDefinitions, enumDefinitions)...)
+	stmts = append(stmts, generateIntrospectionTypesFieldSwitchStmts(schema, typeDefinitions.WithoutMetaDefinition(), interfaceDefinitions, inputDefinitions, scalarDefinitions, enumDefinitions, unionDefinitions)...)
 	stmts = append(stmts, &ast.ReturnStmt{
 		Results: []ast.Expr{
 			ast.NewIdent("ret"),
@@ -526,7 +527,7 @@ func generateIntrospectionTypesFuncDecl(schema *schema.Schema) ast.Decl {
 	}
 }
 
-func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDefinition, interfaceDefinitions []*schema.InterfaceDefinition, inputDefinitions []*schema.InputDefinition, scalarDefinitions []*schema.ScalarDefinition, enumDefinitions schema.EnumDefinitions) []ast.Stmt {
+func generateIntrospectionTypesFieldSwitchStmts(schema *schema.Schema, typeDefinitions []*schema.TypeDefinition, interfaceDefinitions []*schema.InterfaceDefinition, inputDefinitions []*schema.InputDefinition, scalarDefinitions []*schema.ScalarDefinition, enumDefinitions schema.EnumDefinitions, unionDefinitions schema.UnionDefinitions) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(typeDefinitions))
 
 	stmts = append(stmts, &ast.AssignStmt{
@@ -542,7 +543,7 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 						Elt: ast.NewIdent("__Type"),
 					},
 					ast.NewIdent("0"),
-					ast.NewIdent(fmt.Sprintf("%d", len(typeDefinitions)+len(interfaceDefinitions)+len(scalarDefinitions))),
+					ast.NewIdent(fmt.Sprintf("%d", len(typeDefinitions)+len(interfaceDefinitions)+len(scalarDefinitions)+len(inputDefinitions)+len(enumDefinitions)+len(unionDefinitions)+3)),
 				},
 			},
 		},
@@ -550,6 +551,52 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 
 	args := make([]ast.Expr, 0)
 	args = append(args, ast.NewIdent("ret"))
+	if q := schema.GetQuery(); q != nil {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("queryType"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent("__schema_queryType"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
+						ast.NewIdent("node"),
+						ast.NewIdent("variables"),
+					},
+				},
+			},
+		})
+		args = append(args, ast.NewIdent("queryType"))
+	}
+
+	if m := schema.GetMutation(); m != nil {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("mutationType"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent("__schema_mutationType"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
+						ast.NewIdent("node"),
+						ast.NewIdent("variables"),
+					},
+				},
+			},
+		})
+		args = append(args, ast.NewIdent("mutationType"))
+	}
+
 	for _, scalarDefinition := range scalarDefinitions {
 		stmts = append(stmts, &ast.AssignStmt{
 			Lhs: []ast.Expr{
@@ -676,6 +723,31 @@ func generateIntrospectionTypesFieldSwitchStmts(typeDefinitions []*schema.TypeDe
 		})
 		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
 		args = append(args, ast.NewIdent(fmt.Sprintf("enum%s", enumDefinition.Name)))
+	}
+
+	for _, unionDefinition := range unionDefinitions {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("union%s", unionDefinition.Name)),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(unionDefinition.Name))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
+						ast.NewIdent("node"),
+						ast.NewIdent("variables"),
+					},
+				},
+			},
+		})
+		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
+		args = append(args, ast.NewIdent(fmt.Sprintf("union%s", unionDefinition.Name)))
 	}
 
 	stmts = append(stmts, &ast.AssignStmt{
@@ -933,6 +1005,37 @@ func generateIntrospectionQueryTypeMethodAST(s *schema.Schema) ast.Decl {
 		},
 		Body: &ast.BlockStmt{
 			List: generateIntrospectionQueryTypeMethodBodyAST(s),
+		},
+	}
+}
+
+func generateIntrospectionMutationTypeMethodAST(s *schema.Schema) ast.Decl {
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						ast.NewIdent("r"),
+					},
+					Type: &ast.StarExpr{
+						X: ast.NewIdent("resolver"),
+					},
+				},
+			},
+		},
+		Name: ast.NewIdent("__schema_mutationType"),
+		Type: &ast.FuncType{
+			Params: generateNodeWalkerArgs(),
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: ast.NewIdent("__Type"),
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: generateIntrospectionMutationTypeMethodBodyAST(s),
 		},
 	}
 }
@@ -2961,6 +3064,55 @@ func generateIntrospectionQueryTypeMethodBodyAST(s *schema.Schema) []ast.Stmt {
 	}
 }
 
+func generateIntrospectionMutationTypeMethodBodyAST(s *schema.Schema) []ast.Stmt {
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("ret"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CompositeLit{
+					Type: ast.NewIdent("__Type"),
+					Elts: []ast.Expr{},
+				},
+			},
+		},
+		&ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Tok:   token.DEFINE,
+			Value: ast.NewIdent("child"),
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("node"),
+				Sel: ast.NewIdent("Children"),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.SwitchStmt{
+						Tag: &ast.CallExpr{
+							Fun: ast.NewIdent("string"),
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("child"),
+									Sel: ast.NewIdent("Name"),
+								},
+							},
+						},
+						Body: &ast.BlockStmt{
+							List: generateMutationTypeSwitchBodyAST(s),
+						},
+					},
+				},
+			},
+		},
+		&ast.ReturnStmt{
+			Results: []ast.Expr{
+				ast.NewIdent("ret"),
+			},
+		},
+	}
+}
+
 func generateQueryTypeSwitchBodyAST(s *schema.Schema) []ast.Stmt {
 	return []ast.Stmt{
 		&ast.CaseClause{
@@ -3015,6 +3167,64 @@ func generateQueryTypeSwitchBodyAST(s *schema.Schema) []ast.Stmt {
 				},
 			},
 			Body: generateIntrospectionOperationFieldsAST(s.GetQuery(), string(s.Definition.Query)),
+		},
+	}
+}
+
+func generateMutationTypeSwitchBodyAST(s *schema.Schema) []ast.Stmt {
+	return []ast.Stmt{
+		&ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"name"`,
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("ret"),
+							Sel: ast.NewIdent("Name"),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						generateStringPointerAST(string(s.Definition.Mutation)),
+					},
+				},
+			},
+		},
+		&ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"kind"`,
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("ret"),
+							Sel: ast.NewIdent("Kind"),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						ast.NewIdent("__TypeKind_OBJECT"),
+					},
+				},
+			},
+		},
+		&ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"fields"`,
+				},
+			},
+			Body: generateIntrospectionOperationFieldsAST(s.GetMutation(), string(s.Definition.Mutation)),
 		},
 	}
 }
@@ -4138,7 +4348,7 @@ func generateIntrospectionTypeFuncDeclBody(s *schema.Schema) []ast.Stmt {
 			},
 		})
 
-	ret = append(ret, generateIntrospectionTypeFuncDeclBodySwitchStmt(s.Types, s.Interfaces, s.Inputs, s.Scalars, s.Enums))
+	ret = append(ret, generateIntrospectionTypeFuncDeclBodySwitchStmt(s.Types, s.Interfaces, s.Inputs, s.Scalars, s.Enums, s.Unions))
 	ret = append(ret, &ast.ReturnStmt{
 		Results: []ast.Expr{
 			ast.NewIdent("nil"),
@@ -4149,7 +4359,7 @@ func generateIntrospectionTypeFuncDeclBody(s *schema.Schema) []ast.Stmt {
 	return ret
 }
 
-func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.TypeDefinitions, interfaceDefinitions []*schema.InterfaceDefinition, inputDefinitions []*schema.InputDefinition, scalarDefinitions []*schema.ScalarDefinition, enumDefinitions []*schema.EnumDefinition) ast.Stmt {
+func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.TypeDefinitions, interfaceDefinitions []*schema.InterfaceDefinition, inputDefinitions []*schema.InputDefinition, scalarDefinitions []*schema.ScalarDefinition, enumDefinitions []*schema.EnumDefinition, unionDefinitions schema.UnionDefinitions) ast.Stmt {
 	caseStmts := func(typeDefinitions schema.TypeDefinitions) []ast.Stmt {
 		stmts := make([]ast.Stmt, 0)
 		stmts = append(stmts, &ast.CaseClause{
@@ -4171,6 +4381,47 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 							Fun: &ast.SelectorExpr{
 								X:   ast.NewIdent("r"),
 								Sel: ast.NewIdent("__schema__Query__type"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("ctx"),
+								ast.NewIdent("node"),
+								ast.NewIdent("variables"),
+							},
+						},
+					},
+				},
+				generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}),
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X:  ast.NewIdent("ret"),
+						},
+						ast.NewIdent("nil"),
+					},
+				},
+			},
+		})
+
+		stmts = append(stmts, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"\"Mutation\""`,
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent("ret"),
+						ast.NewIdent("err"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("r"),
+								Sel: ast.NewIdent("__schema__Mutation__type"),
 							},
 							Args: []ast.Expr{
 								ast.NewIdent("ctx"),
@@ -4389,6 +4640,49 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 								Fun: &ast.SelectorExpr{
 									X:   ast.NewIdent("r"),
 									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(s.Name))),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("ctx"),
+									ast.NewIdent("node"),
+									ast.NewIdent("variables"),
+								},
+							},
+						},
+					},
+					generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}),
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X:  ast.NewIdent("ret"),
+							},
+							ast.NewIdent("nil"),
+						},
+					},
+				},
+			})
+		}
+
+		for _, u := range unionDefinitions {
+			stmts = append(stmts, &ast.CaseClause{
+				List: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf(`"\"%s\""`, string(u.Name)),
+					},
+				},
+				Body: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent("ret"),
+							ast.NewIdent("err"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("r"),
+									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(u.Name))),
 								},
 								Args: []ast.Expr{
 									ast.NewIdent("ctx"),
@@ -6548,4 +6842,251 @@ func generateIntrospectionEnumValuesFieldFuncDecls(enum *schema.EnumDefinition) 
 	}
 
 	return ret
+}
+
+func generateIntrospectionUnionTypeFuncDecls(unionDefinitions schema.UnionDefinitions, indexes *schema.Indexes) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	for _, u := range unionDefinitions {
+		stmts := make([]ast.Stmt, 0)
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("ret"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CompositeLit{
+					Type: ast.NewIdent("__Type"),
+				},
+			},
+		})
+		stmts = append(stmts, &ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Tok:   token.DEFINE,
+			Value: ast.NewIdent("child"),
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("node"),
+				Sel: ast.NewIdent("Children"),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					generateIntrospectionUnionSwitchStmt(u, indexes),
+				},
+			},
+		})
+
+		stmts = append(stmts, &ast.ReturnStmt{
+			Results: []ast.Expr{
+				ast.NewIdent("ret"),
+				ast.NewIdent("nil"),
+			},
+		})
+
+		ret = append(ret, &ast.FuncDecl{
+			Recv: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("r"),
+						},
+						Type: &ast.StarExpr{
+							X: ast.NewIdent("resolver"),
+						},
+					},
+				},
+			},
+			Name: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(u.Name))),
+			Type: &ast.FuncType{
+				Params: generateNodeWalkerArgs(),
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Type: ast.NewIdent("__Type"),
+						},
+						{
+							Type: ast.NewIdent("error"),
+						},
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: stmts,
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateIntrospectionUnionSwitchStmt(unionDefinition *schema.UnionDefinition, indexes *schema.Indexes) *ast.SwitchStmt {
+	caseStmts := make([]ast.Stmt, 0)
+
+	// kind
+	caseStmts = append(caseStmts, &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"kind"`,
+			},
+		},
+		Body: []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("ret"),
+						Sel: ast.NewIdent("Kind"),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					ast.NewIdent("__TypeKind_UNION"),
+				},
+			},
+		},
+	})
+
+	// name
+	caseStmts = append(caseStmts, &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"name"`,
+			},
+		},
+		Body: []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("ret"),
+						Sel: ast.NewIdent("Name"),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					generateStringPointerAST(string(unionDefinition.Name)),
+				},
+			},
+		},
+	})
+
+	// description
+	caseStmts = append(caseStmts, &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"description"`,
+			},
+		},
+		Body: []ast.Stmt{
+			&ast.ExprStmt{
+				X: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `// TODO`,
+				},
+			},
+		},
+	})
+
+	// possibleTypes
+	possibleTypesStmts := make([]ast.Stmt, 0)
+	possibleTypesStmts = append(possibleTypesStmts, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("possibleTypes"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: ast.NewIdent("make"),
+				Args: []ast.Expr{
+					&ast.ArrayType{
+						Elt: ast.NewIdent("__Type"),
+					},
+					ast.NewIdent("0"),
+					ast.NewIdent(fmt.Sprintf("%d", len(unionDefinition.Types))),
+				},
+			},
+		},
+	})
+	for _, possibleType := range unionDefinition.Types {
+		possibleTypesStmts = append(possibleTypesStmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sRet", string(possibleType))),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", string(possibleType))),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
+						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
+					},
+				},
+			},
+		})
+		possibleTypesStmts = append(possibleTypesStmts, generateReturnErrorHandlingStmt([]ast.Expr{
+			&ast.CompositeLit{
+				Type: ast.NewIdent("__Type"),
+			},
+		}))
+		possibleTypesStmts = append(possibleTypesStmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("possibleTypes"),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("append"),
+					Args: []ast.Expr{
+						ast.NewIdent("possibleTypes"),
+						ast.NewIdent(fmt.Sprintf("%sRet", string(possibleType))),
+					},
+				},
+			},
+		})
+	}
+	possibleTypesStmts = append(possibleTypesStmts, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			&ast.SelectorExpr{
+				X:   ast.NewIdent("ret"),
+				Sel: ast.NewIdent("PossibleTypes"),
+			},
+		},
+		Tok: token.ASSIGN,
+		Rhs: []ast.Expr{
+			&ast.UnaryExpr{
+				Op: token.AND,
+				X:  ast.NewIdent("possibleTypes"),
+			},
+		},
+	})
+
+	caseStmts = append(caseStmts, &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"possibleTypes"`,
+			},
+		},
+		Body: possibleTypesStmts,
+	})
+
+	return &ast.SwitchStmt{
+		Tag: &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("child"),
+					Sel: ast.NewIdent("Name"),
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: caseStmts,
+		},
+	}
 }
