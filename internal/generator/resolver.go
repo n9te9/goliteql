@@ -231,7 +231,7 @@ func generateTypeExprFromFieldTypeForResponse(typePrefix string, fieldType *sche
 		}
 	}
 
-	if fieldType.Nullable {
+	if fieldType.Nullable && !fieldType.IsPrimitive() {
 		return &ast.SelectorExpr{
 			X:   ast.NewIdent("executor"),
 			Sel: ast.NewIdent("Nullable"),
@@ -3269,13 +3269,6 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 			X: generateTypeExprFromFieldTypeForResponse("", field.Type),
 		}
 
-		if field.Type.Nullable {
-			typeExpr = &ast.SelectorExpr{
-				X:   ast.NewIdent("executor"),
-				Sel: ast.NewIdent("Nullable"),
-			}
-		}
-
 		fields = append(fields, &ast.Field{
 			Names: []*ast.Ident{
 				ast.NewIdent(toUpperCase(string(field.Name))),
@@ -3289,28 +3282,6 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 	}
 
 	return fields
-}
-
-func generateFieldTypeForResponse(fieldType *schema.FieldType) *schema.FieldType {
-	if fieldType == nil {
-		return nil
-	}
-
-	if fieldType.IsList {
-		return &schema.FieldType{
-			Name:     fieldType.Name,
-			IsList:   true,
-			Nullable: fieldType.Nullable,
-			ListType: generateFieldTypeForResponse(fieldType.ListType),
-		}
-	}
-
-	return &schema.FieldType{
-		Name:     []byte(string(fieldType.Name) + "Response"),
-		IsList:   fieldType.IsList,
-		Nullable: fieldType.Nullable,
-		ListType: fieldType.ListType,
-	}
 }
 
 func generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition *schema.TypeDefinition) ast.Decl {

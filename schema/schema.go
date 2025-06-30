@@ -128,6 +128,18 @@ func (f *FieldType) IsPrimitive() bool {
 	return bytes.Equal(f.Name, []byte("String")) || bytes.Equal(f.Name, []byte("Int")) || bytes.Equal(f.Name, []byte("Float")) || bytes.Equal(f.Name, []byte("Boolean")) || bytes.Equal(f.Name, []byte("ID"))
 }
 
+func (f *FieldType) GetNestFieldType(nestCount, currentNestCount int) *FieldType {
+	if nestCount == currentNestCount {
+		return f
+	}
+
+	if f.IsList {
+		return f.ListType.GetNestFieldType(nestCount, currentNestCount+1)
+	}
+
+	return nil
+}
+
 type OperationDefinition struct {
 	OperationType OperationType
 	Name          []byte

@@ -39,7 +39,7 @@ func generateApplyQueryResponseFuncDeclFromField(field *schema.FieldDefinition, 
 						Names: []*ast.Ident{
 							ast.NewIdent("resolverRet"),
 						},
-						Type: generateTypeExprFromFieldType(typePrefix, field.Type),
+						Type: generateExprWithPrefix(typePrefix, field.Type),
 					},
 					{
 						Names: []*ast.Ident{
@@ -108,8 +108,26 @@ func generateApplyQueryResponseFuncStmts(field *schema.FieldDefinition, indexes 
 
 	if currentNestCount < nestCount {
 		var rangeXExpr ast.Expr = ast.NewIdent("resolverRet")
+		if field.Type.Nullable {
+			rangeXExpr = &ast.StarExpr{
+				X: rangeXExpr,
+			}
+		}
+
 		if currentNestCount > 0 {
-			rangeXExpr = ast.NewIdent(fmt.Sprintf("v%d", currentNestCount-1))
+			fieldType := field.Type.GetNestFieldType(currentNestCount, 0)
+
+			if fieldType.IsList {
+				if fieldType.Nullable {
+					rangeXExpr = &ast.StarExpr{
+						X: ast.NewIdent(fmt.Sprintf("v%d", currentNestCount-1)),
+					}
+				} else {
+					rangeXExpr = ast.NewIdent(fmt.Sprintf("v%d", currentNestCount-1))
+				}
+			} else {
+				rangeXExpr = ast.NewIdent(fmt.Sprintf("v%d", currentNestCount-1))
+			}
 		}
 
 		// e.g. ret = make([]*PostResponse, 0, len(v0))
@@ -316,29 +334,98 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 					},
 				}
 				caseBody = append(caseBody, fieldRetAssignStmt)
-				caseBody = append(caseBody, generateReturnErrorHandlingStmt([]ast.Expr{
-					ast.NewIdent("nil"),
-				}))
+				if rootNestCount > 0 || (rootNestCount == 0 && field.Type.Nullable) {
+					caseBody = append(caseBody, generateReturnErrorHandlingStmt([]ast.Expr{
+						ast.NewIdent("nil"),
+					}))
+				} else {
+					caseBody = append(caseBody, generateReturnErrorHandlingStmt([]ast.Expr{
+						&ast.CompositeLit{
+							Type: ast.NewIdent(string(typeDefinition.TypeName()) + "Response"),
+						},
+					}))
+				}
 
-				var elmExpr ast.Expr = ast.NewIdent(retName)
-				if !field.Type.Nullable {
-					elmExpr = &ast.StarExpr{
-						X: ast.NewIdent(retName),
+				// var elmExpr ast.Expr = ast.NewIdent(retName)
+				// if field.Type.Nullable {
+				// 	elmExpr = &ast.StarExpr{
+				// 		X: ast.NewIdent(retName),
+				// 	}
+				// }
+
+				if field.Type.IsList {
+					if field.Type.GetRootType().Nullable {
+						rh = &ast.UnaryExpr{
+							Op: token.AND,
+							X:  ast.NewIdent(retName),
+						}
+					} else {
+						rh = &ast.UnaryExpr{
+							Op: token.AND,
+							X:  ast.NewIdent(retName),
+						}
+					}
+				} else {
+					rh = &ast.UnaryExpr{
+						Op: token.AND,
+						X:  ast.NewIdent(retName),
 					}
 				}
-				rh = generateObjectPointerExpr(string(field.Type.Name)+"Response", elmExpr)
 			}
+			caseBody = append(caseBody, &ast.AssignStmt{
+				Lhs: lhs,
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					rh,
+				},
+			})
 		} else {
-			rh = ast.NewIdent("nil")
-		}
+			if !field.Type.IsPrimitive() {
+				caseBody = append(caseBody, &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
+						ast.NewIdent("err"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X: ast.NewIdent("r"),
+								Sel: ast.NewIdent(fmt.Sprintf("apply%s%sQueryResponse", fieldName,
+									string(field.Name))),
+							},
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent(valueName),
+									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+								},
+								ast.NewIdent("child"),
+							},
+						},
+					},
+				})
 
-		caseBody = append(caseBody, &ast.AssignStmt{
-			Lhs: lhs,
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				rh,
-			},
-		})
+				caseBody = append(caseBody, generateReturnErrorHandlingStmt([]ast.Expr{
+					ast.NewIdent("ret"),
+				}))
+
+				caseBody = append(caseBody, &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   assignExpr,
+							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X:  ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
+						},
+					},
+				})
+			}
+		}
 
 		ret = append(ret, &ast.CaseClause{
 			List: []ast.Expr{
