@@ -3239,6 +3239,7 @@ func generateOperationResponseStructDecls(schema *schema.Schema) []ast.Decl {
 		}
 
 		decls = append(decls, generateResponseStructFromField(typeDefinition))
+		decls = append(decls, generateResponseStructAliasFromTypeDefinition(typeDefinition))
 		decls = append(decls, generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition))
 	}
 
@@ -3285,6 +3286,8 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 }
 
 func generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition *schema.TypeDefinition) ast.Decl {
+	aliasTypeName := fmt.Sprintf("Alias%sResponse", typeDefinition.Name)
+	recvTypeName := fmt.Sprintf("%sResponse", typeDefinition.Name)
 	return &ast.FuncDecl{
 		Name: ast.NewIdent("MarshalJSON"),
 		Recv: &ast.FieldList{
@@ -3293,11 +3296,14 @@ func generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition *schema.
 					Names: []*ast.Ident{
 						ast.NewIdent("o"),
 					},
-					Type: ast.NewIdent(fmt.Sprintf("%sResponse", typeDefinition.Name)),
+					Type: &ast.StarExpr{ // レシーバは *XxxResponse 型でよいはず
+						X: ast.NewIdent(recvTypeName),
+					},
 				},
 			},
 		},
 		Type: &ast.FuncType{
+			Params: &ast.FieldList{}, // 引数なし
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
@@ -3321,11 +3327,36 @@ func generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition *schema.
 								Sel: ast.NewIdent("Marshal"),
 							},
 							Args: []ast.Expr{
-								ast.NewIdent("o"),
+								// (*AliasXxxResponse)(o)
+								&ast.CallExpr{
+									Fun: &ast.ParenExpr{
+										X: &ast.StarExpr{
+											X: ast.NewIdent(aliasTypeName),
+										},
+									},
+									Args: []ast.Expr{
+										ast.NewIdent("o"),
+									},
+								},
 							},
 						},
 					},
 				},
+			},
+		},
+	}
+}
+
+func generateResponseStructAliasFromTypeDefinition(typeDefinition *schema.TypeDefinition) ast.Decl {
+	aliasTypeName := fmt.Sprintf("Alias%sResponse", typeDefinition.Name)
+	recvTypeName := fmt.Sprintf("%sResponse", typeDefinition.Name)
+
+	return &ast.GenDecl{
+		Tok: token.TYPE,
+		Specs: []ast.Spec{
+			&ast.TypeSpec{
+				Name: ast.NewIdent(aliasTypeName),
+				Type: ast.NewIdent(recvTypeName),
 			},
 		},
 	}
