@@ -3192,26 +3192,6 @@ func generateFloatPointerExpr(value ast.Expr) ast.Expr {
 	}
 }
 
-func generateObjectPointerExpr(objectTypeName string, expr ast.Expr) ast.Expr {
-	return &ast.UnaryExpr{
-		Op: token.AND,
-		X: &ast.IndexExpr{
-			X: &ast.CompositeLit{
-				Type: &ast.ArrayType{
-					Elt: ast.NewIdent(objectTypeName),
-				},
-				Elts: []ast.Expr{
-					expr,
-				},
-			},
-			Index: &ast.BasicLit{
-				Kind:  token.INT,
-				Value: "0",
-			},
-		},
-	}
-}
-
 func generateVarSpecs(typePrefix string, args schema.ArgumentDefinitions) []ast.Spec {
 	specs := make([]ast.Spec, 0)
 	for _, arg := range args {

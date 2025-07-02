@@ -108,26 +108,14 @@ func generateApplyQueryResponseFuncStmts(field *schema.FieldDefinition, indexes 
 
 	if currentNestCount < nestCount {
 		var rangeXExpr ast.Expr = ast.NewIdent("resolverRet")
-		if field.Type.Nullable {
-			rangeXExpr = &ast.StarExpr{
-				X: rangeXExpr,
-			}
-		}
+		// if field.Type.Nullable {
+		// 	rangeXExpr = &ast.StarExpr{
+		// 		X: rangeXExpr,
+		// 	}
+		// }
 
 		if currentNestCount > 0 {
-			fieldType := field.Type.GetNestFieldType(currentNestCount, 0)
-
-			if fieldType.IsList {
-				if fieldType.Nullable {
-					rangeXExpr = &ast.StarExpr{
-						X: ast.NewIdent(fmt.Sprintf("v%d", currentNestCount-1)),
-					}
-				} else {
-					rangeXExpr = ast.NewIdent(fmt.Sprintf("v%d", currentNestCount-1))
-				}
-			} else {
-				rangeXExpr = ast.NewIdent(fmt.Sprintf("v%d", currentNestCount-1))
-			}
+			rangeXExpr = ast.NewIdent(fmt.Sprintf("v%d", currentNestCount-1))
 		}
 
 		// e.g. ret = make([]*PostResponse, 0, len(v0))

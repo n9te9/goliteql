@@ -200,10 +200,8 @@ func generateExprWithPrefix(prefix string, fieldType *schema.FieldType) ast.Expr
 			}
 		} else {
 			if fieldType.IsList {
-				return &ast.StarExpr{
-					X: &ast.ArrayType{
-						Elt: generateExprWithPrefix(prefix, fieldType.ListType),
-					},
+				return &ast.ArrayType{
+					Elt: generateExprWithPrefix(prefix, fieldType.ListType),
 				}
 			}
 
