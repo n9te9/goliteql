@@ -111,7 +111,7 @@ func generateModelFieldWithOmitempty(field schema.FieldDefinitions) *ast.FieldLi
 	fields := make([]*ast.Field, 0, len(field))
 
 	for _, f := range field {
-		fieldTypeExpr := generateExpr(f.Type)
+		fieldTypeExpr := generateExprForResponse(f.Type)
 
 		fields = append(fields, &ast.Field{
 			Names: []*ast.Ident{
@@ -169,6 +169,24 @@ func generateExpr(fieldType *schema.FieldType) ast.Expr {
 			return ast.NewIdent(graphQLType.golangType())
 		}
 	}
+}
+
+func generateExprForResponse(fieldType *schema.FieldType) ast.Expr {
+	if fieldType.IsList {
+		return &ast.ArrayType{
+			Elt: generateExprForResponse(fieldType.ListType),
+		}
+	}
+
+	if fieldType.Nullable {
+		return &ast.SelectorExpr{
+			X:   ast.NewIdent("executor"),
+			Sel: ast.NewIdent("Nullable"),
+		}
+	}
+
+	graphQLType := GraphQLType(fieldType.Name)
+	return ast.NewIdent(graphQLType.golangType())
 }
 
 func generateExprWithPrefix(prefix string, fieldType *schema.FieldType) ast.Expr {
