@@ -107,7 +107,7 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 	}
 }
 
-func generateModelFieldWithOmitempty(field schema.FieldDefinitions) *ast.FieldList {
+func generateModelFieldForResponse(field schema.FieldDefinitions) *ast.FieldList {
 	fields := make([]*ast.Field, 0, len(field))
 
 	for _, f := range field {
@@ -172,16 +172,16 @@ func generateExpr(fieldType *schema.FieldType) ast.Expr {
 }
 
 func generateExprForResponse(fieldType *schema.FieldType) ast.Expr {
-	if fieldType.IsList {
-		return &ast.ArrayType{
-			Elt: generateExprForResponse(fieldType.ListType),
-		}
-	}
-
 	if fieldType.Nullable {
 		return &ast.SelectorExpr{
 			X:   ast.NewIdent("executor"),
 			Sel: ast.NewIdent("Nullable"),
+		}
+	}
+
+	if fieldType.IsList {
+		return &ast.ArrayType{
+			Elt: generateExprForResponse(fieldType.ListType),
 		}
 	}
 

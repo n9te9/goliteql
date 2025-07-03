@@ -35,7 +35,7 @@ func generateIntrospectionModelAST(types []*schema.TypeDefinition) []ast.Decl {
 					&ast.TypeSpec{
 						Name: ast.NewIdent(string(t.Name)),
 						Type: &ast.StructType{
-							Fields: generateModelFieldWithOmitempty(t.Fields),
+							Fields: generateModelFieldForResponse(t.Fields),
 						},
 					},
 				},
@@ -342,7 +342,68 @@ func generateIntrospectionInterfaceTypeFuncDecls(interfaces []*schema.InterfaceD
 												},
 												Tok: token.ASSIGN,
 												Rhs: []ast.Expr{
-													ast.NewIdent("fields"),
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("fields"),
+														},
+													},
+												},
+											},
+										},
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"enumValues"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("EnumValues"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("nil"),
+														},
+													},
+												},
+											},
+										},
+									}, &ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"inputFields"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("InputFields"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("nil"),
+														},
+													},
 												},
 											},
 										},
@@ -422,7 +483,15 @@ func generateIntrospectionInterfaceTypeFuncDecls(interfaces []*schema.InterfaceD
 												},
 												Tok: token.ASSIGN,
 												Rhs: []ast.Expr{
-													ast.NewIdent("possibleTypes"),
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("possibleTypes"),
+														},
+													},
 												},
 											})
 
@@ -836,7 +905,15 @@ func generateIntrospectionTypeFieldInterfacesCallStmts(interfaces []*schema.Inte
 				},
 				Tok: token.ASSIGN,
 				Rhs: []ast.Expr{
-					ast.NewIdent(fmt.Sprintf("interfaces%d", i)),
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("NewNullable"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent(fmt.Sprintf("interfaces%d", i)),
+						},
+					},
 				},
 			})
 	}
@@ -2341,11 +2418,19 @@ func generateIntrospectionFieldsAssignStmts(f *introspection.FieldType, callType
 				},
 				Tok: token.ASSIGN,
 				Rhs: []ast.Expr{
-					&ast.CompositeLit{
-						Type: &ast.ArrayType{
-							Elt: ast.NewIdent("__Field"),
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("NewNullable"),
 						},
-						Elts: []ast.Expr{},
+						Args: []ast.Expr{
+							&ast.CompositeLit{
+								Type: &ast.ArrayType{
+									Elt: ast.NewIdent("__Field"),
+								},
+								Elts: []ast.Expr{},
+							},
+						},
 					},
 				},
 			},
@@ -2375,7 +2460,7 @@ func generateIntrospectionFieldsAssignStmts(f *introspection.FieldType, callType
 				ast.NewIdent("ret"),
 			}), &ast.AssignStmt{
 				Lhs: []ast.Expr{
-					ast.NewIdent("field"),
+					ast.NewIdent("fields"),
 					ast.NewIdent("err"),
 				},
 				Tok: token.DEFINE,
@@ -2395,7 +2480,11 @@ func generateIntrospectionFieldsAssignStmts(f *introspection.FieldType, callType
 						},
 					},
 				},
-			}, &ast.AssignStmt{
+			},
+			generateReturnErrorHandlingStmt([]ast.Expr{
+				ast.NewIdent("ret"),
+			}),
+			&ast.AssignStmt{
 				Lhs: []ast.Expr{
 					&ast.SelectorExpr{
 						X:   ast.NewIdent("ret"),
@@ -2404,7 +2493,15 @@ func generateIntrospectionFieldsAssignStmts(f *introspection.FieldType, callType
 				},
 				Tok: token.ASSIGN,
 				Rhs: []ast.Expr{
-					ast.NewIdent("field"),
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("NewNullable"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("fields"),
+						},
+					},
 				},
 			},
 		}
@@ -2420,11 +2517,19 @@ func generateIntrospectionFieldsAssignStmts(f *introspection.FieldType, callType
 			},
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{
-				&ast.CompositeLit{
-					Type: &ast.ArrayType{
-						Elt: ast.NewIdent("__Field"),
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
 					},
-					Elts: []ast.Expr{},
+					Args: []ast.Expr{
+						&ast.CompositeLit{
+							Type: &ast.ArrayType{
+								Elt: ast.NewIdent("__Field"),
+							},
+							Elts: []ast.Expr{},
+						},
+					},
 				},
 			},
 		},
@@ -2693,9 +2798,14 @@ func generateIntrospectionInterfacesStmts(fieldType *introspection.FieldType, in
 				},
 				Tok: token.ASSIGN,
 				Rhs: []ast.Expr{
-					&ast.BasicLit{
-						Kind:  token.STRING,
-						Value: "nil",
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("NewNullable"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("nil"),
+						},
 					},
 				},
 			},
@@ -2708,10 +2818,30 @@ func generateIntrospectionInterfacesStmts(fieldType *introspection.FieldType, in
 		return ret
 	}
 
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("interfaces"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: ast.NewIdent("make"),
+				Args: []ast.Expr{
+					&ast.ArrayType{
+						Elt: ast.NewIdent("__Type"),
+					},
+					ast.NewIdent("0"),
+					ast.NewIdent(fmt.Sprintf("%d", len(typeDefinition.Interfaces))),
+				},
+			},
+		},
+	})
+
 	for _, interfaceType := range typeDefinition.Interfaces {
+		interfaceName := fmt.Sprintf("interface%s", string(interfaceType.Name))
 		ret = append(ret, &ast.AssignStmt{
 			Lhs: []ast.Expr{
-				ast.NewIdent("interface" + string(interfaceType.Name)),
+				ast.NewIdent(interfaceName),
 				ast.NewIdent("err"),
 			},
 			Tok: token.DEFINE,
@@ -2728,36 +2858,156 @@ func generateIntrospectionInterfacesStmts(fieldType *introspection.FieldType, in
 					},
 				},
 			},
-		})
-
-		var prefixExpr ast.Expr = ast.NewIdent("ret")
-
-		ret = append(ret, generateReturnErrorHandlingStmt([]ast.Expr{
-			prefixExpr,
-		}))
-
-		ret = append(ret, &ast.AssignStmt{
+		}, generateReturnErrorHandlingStmt([]ast.Expr{
+			ast.NewIdent("ret"),
+		}), &ast.AssignStmt{
 			Lhs: []ast.Expr{
-				&ast.SelectorExpr{
-					X:   ast.NewIdent("ret"),
-					Sel: ast.NewIdent("Interfaces"),
-				},
+				ast.NewIdent("interfaces"),
 			},
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{
 				&ast.CallExpr{
 					Fun: ast.NewIdent("append"),
 					Args: []ast.Expr{
-						&ast.SelectorExpr{
-							X:   ast.NewIdent("ret"),
-							Sel: ast.NewIdent("Interfaces"),
-						},
-						ast.NewIdent("interface" + string(interfaceType.Name)),
+						ast.NewIdent("interfaces"),
+						ast.NewIdent(interfaceName),
 					},
 				},
 			},
 		})
 	}
+
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			&ast.SelectorExpr{
+				X:   ast.NewIdent("ret"),
+				Sel: ast.NewIdent("Interfaces"),
+			},
+		},
+		Tok: token.ASSIGN,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("executor"),
+					Sel: ast.NewIdent("NewNullable"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("interfaces"),
+				},
+			},
+		},
+	})
+
+	return ret
+}
+
+func generateIntrospectionTypeInterfacesCaseStmt(typeName string, indexes *schema.Indexes) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+	typeDefinition := indexes.TypeIndex[string(typeName)]
+	if typeDefinition == nil {
+		return []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("ret"),
+						Sel: ast.NewIdent("Interfaces"),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("NewNullable"),
+						},
+						Args: []ast.Expr{
+							&ast.ArrayType{
+								Elt: &ast.CompositeLit{
+									Type: ast.NewIdent("__Type"),
+									Elts: []ast.Expr{},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("interfaces"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: ast.NewIdent("make"),
+				Args: []ast.Expr{
+					&ast.ArrayType{
+						Elt: &ast.CompositeLit{
+							Type: ast.NewIdent("__Type"),
+							Elts: []ast.Expr{},
+						},
+					},
+					ast.NewIdent("0"),
+					ast.NewIdent(fmt.Sprintf("%d", len(typeDefinition.Interfaces))),
+				},
+			},
+		},
+	})
+
+	for _, interfaceType := range typeDefinition.Interfaces {
+		interfaceName := fmt.Sprintf("interface%s", string(interfaceType.Name))
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(interfaceName),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent("__schema__" + string(interfaceType.Name) + "__type"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
+						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
+					},
+				},
+			},
+		}, generateReturnErrorHandlingStmt([]ast.Expr{
+			ast.NewIdent("ret"),
+		}), &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("interfaces"),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("append"),
+					Args: []ast.Expr{
+						ast.NewIdent("interfaces"),
+						ast.NewIdent(interfaceName),
+					},
+				},
+			},
+		})
+	}
+
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			&ast.SelectorExpr{
+				X:   ast.NewIdent("ret"),
+				Sel: ast.NewIdent("Interfaces"),
+			},
+		},
+		Tok: token.ASSIGN,
+		Rhs: []ast.Expr{
+			ast.NewIdent("interfaces"),
+		},
+	})
 
 	return ret
 }
@@ -2771,6 +3021,7 @@ func generateIntrospectionTypeFieldSwitchStmt(typeName string, f *schema.FieldDe
 	} else {
 		typeName = fmt.Sprintf("__%s", typeName)
 	}
+	interfacesStmts := generateIntrospectionTypeInterfacesCaseStmt(typeName, indexes)
 
 	return &ast.SwitchStmt{
 		Tag: &ast.CallExpr{
@@ -2860,7 +3111,7 @@ func generateIntrospectionTypeFieldSwitchStmt(typeName string, f *schema.FieldDe
 							Value: `"interfaces"`,
 						},
 					},
-					Body: generateIntrospectionInterfacesStmts(introspection.ExpandType(f.Type), indexes),
+					Body: interfacesStmts,
 				},
 				&ast.CaseClause{
 					List: []ast.Expr{
@@ -2870,10 +3121,29 @@ func generateIntrospectionTypeFieldSwitchStmt(typeName string, f *schema.FieldDe
 						},
 					},
 					Body: []ast.Stmt{
-						&ast.ExprStmt{
-							X: &ast.BasicLit{
-								Kind:  token.STRING,
-								Value: "// TODO",
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("EnumValues"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										&ast.ArrayType{
+											Elt: &ast.CompositeLit{
+												Type: ast.NewIdent("__EnumValue"),
+												Elts: []ast.Expr{},
+											},
+										},
+									},
+								},
 							},
 						},
 					},
@@ -3215,7 +3485,15 @@ func generateIntrospectionOperationFieldsAST(fieldDefinitions *schema.OperationD
 		},
 		Tok: token.ASSIGN,
 		Rhs: []ast.Expr{
-			ast.NewIdent("fields"),
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("executor"),
+					Sel: ast.NewIdent("NewNullable"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("fields"),
+				},
+			},
 		},
 	})
 
@@ -4429,10 +4707,7 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 					generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}),
 					&ast.ReturnStmt{
 						Results: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X:  ast.NewIdent("ret"),
-							},
+							ast.NewIdent("ret"),
 							ast.NewIdent("nil"),
 						},
 					},
@@ -4678,7 +4953,15 @@ func generateIntrospectionTypeFuncDecls(typeDefinitions schema.TypeDefinitions) 
 												},
 												Tok: token.ASSIGN,
 												Rhs: []ast.Expr{
-													ast.NewIdent("fields"),
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("fields"),
+														},
+													},
 												},
 											},
 										},
@@ -4691,6 +4974,123 @@ func generateIntrospectionTypeFuncDecls(typeDefinitions schema.TypeDefinitions) 
 											},
 										},
 										Body: interfacesStmts,
+									},
+									&ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"enumValues"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("EnumValues"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															&ast.CompositeLit{
+																Type: &ast.ArrayType{
+																	Elt: ast.NewIdent("__EnumValue"),
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									}, &ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"inputFields"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("InputFields"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															&ast.CompositeLit{
+																Type: &ast.ArrayType{
+																	Elt: ast.NewIdent("__InputValue"),
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									}, &ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"possibleTypes"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("PossibleTypes"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															&ast.CompositeLit{
+																Type: &ast.ArrayType{
+																	Elt: ast.NewIdent("__Type"),
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									}, &ast.CaseClause{
+										List: []ast.Expr{
+											ast.NewIdent(`"ogType"`),
+										},
+										Body: []ast.Stmt{
+											&ast.AssignStmt{
+												Lhs: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   ast.NewIdent("ret"),
+														Sel: ast.NewIdent("OfType"),
+													},
+												},
+												Tok: token.ASSIGN,
+												Rhs: []ast.Expr{
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("nil"),
+														},
+													},
+												},
+											},
+										},
 									},
 								},
 							},
@@ -4901,7 +5301,15 @@ func generateIntrospectionInputFuncDecls(inputDefinitions []*schema.InputDefinit
 												},
 												Tok: token.ASSIGN,
 												Rhs: []ast.Expr{
-													ast.NewIdent("fields"),
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("fields"),
+														},
+													},
 												},
 											},
 										},
@@ -5039,6 +5447,193 @@ func generateIntrospectionScalarFuncBodySwitchStmt(t *schema.ScalarDefinition) a
 									},
 									Args: []ast.Expr{
 										ast.NewIdent(fmt.Sprintf("%q", string(t.Name))),
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						ast.NewIdent(`"fields"`),
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("Fields"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										&ast.CompositeLit{
+											Type: &ast.ArrayType{
+												Elt: ast.NewIdent("__Field"),
+											},
+											Elts: []ast.Expr{},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						ast.NewIdent(`"interfaces"`),
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("Interfaces"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										&ast.CompositeLit{
+											Type: &ast.ArrayType{
+												Elt: ast.NewIdent("__Type"),
+											},
+											Elts: []ast.Expr{},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						ast.NewIdent(`"possibleTypes"`),
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("PossibleTypes"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										&ast.CompositeLit{
+											Type: &ast.ArrayType{
+												Elt: ast.NewIdent("__Type"),
+											},
+											Elts: []ast.Expr{},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						ast.NewIdent(`"enumValues"`),
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("EnumValues"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										&ast.CompositeLit{
+											Type: &ast.ArrayType{
+												Elt: ast.NewIdent("__EnumValue"),
+											},
+											Elts: []ast.Expr{},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						ast.NewIdent(`"inputFields"`),
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("InputFields"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										&ast.CompositeLit{
+											Type: &ast.ArrayType{
+												Elt: ast.NewIdent("__InputValue"),
+											},
+											Elts: []ast.Expr{},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.CaseClause{
+					List: []ast.Expr{
+						ast.NewIdent(`"ofType"`),
+					},
+					Body: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("OfType"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										ast.NewIdent("nil"),
 									},
 								},
 							},
@@ -5210,7 +5805,15 @@ func generateIntrospectionOperationFuncDecls(s *schema.Schema) []ast.Decl {
 						},
 						Tok: token.ASSIGN,
 						Rhs: []ast.Expr{
-							ast.NewIdent("fields"),
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("NewNullable"),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("fields"),
+								},
+							},
 						},
 					},
 					&ast.ReturnStmt{
@@ -5305,7 +5908,15 @@ func generateIntrospectionOperationFuncDecls(s *schema.Schema) []ast.Decl {
 					},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						ast.NewIdent("fields"),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("NewNullable"),
+							},
+							Args: []ast.Expr{
+								ast.NewIdent("fields"),
+							},
+						},
 					},
 				},
 				&ast.ReturnStmt{
@@ -5601,7 +6212,6 @@ func generateIntrospectionOperationFieldFuncDecls(operationDefinition *schema.Op
 		})
 
 		if len(f.Arguments) > 0 {
-
 			caseStmts = append(caseStmts, &ast.CaseClause{
 				List: []ast.Expr{
 					&ast.BasicLit{
@@ -6156,7 +6766,15 @@ func generateIntrospectionEnumFuncDecls(enumDefinitions []*schema.EnumDefinition
 												},
 												Tok: token.ASSIGN,
 												Rhs: []ast.Expr{
-													ast.NewIdent("enumValues"),
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("executor"),
+															Sel: ast.NewIdent("NewNullable"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent("enumValues"),
+														},
+													},
 												},
 											},
 										},
@@ -6859,7 +7477,15 @@ func generateIntrospectionUnionSwitchStmt(unionDefinition *schema.UnionDefinitio
 		},
 		Tok: token.ASSIGN,
 		Rhs: []ast.Expr{
-			ast.NewIdent("possibleTypes"),
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("executor"),
+					Sel: ast.NewIdent("NewNullable"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("possibleTypes"),
+				},
+			},
 		},
 	})
 
