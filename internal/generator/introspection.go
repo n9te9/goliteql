@@ -2388,6 +2388,10 @@ func generateIntrospectionKindExpr(f *introspection.FieldType, indexes *schema.I
 	return ast.NewIdent("__TypeKind_UNKNOWN")
 }
 
+func generateIntrospectionTypeCaseStmts(f *introspection.FieldType, callTypeOfFuncName string, indexes *schema.Indexes) []ast.Stmt {
+
+}
+
 func generateIntrospectionNameExpr(f *introspection.FieldType) ast.Expr {
 	return &ast.CallExpr{
 		Fun: &ast.SelectorExpr{
