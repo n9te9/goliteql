@@ -2389,7 +2389,8 @@ func generateIntrospectionKindExpr(f *introspection.FieldType, indexes *schema.I
 }
 
 func generateIntrospectionTypeCaseStmts(f *introspection.FieldType, callTypeOfFuncName string, indexes *schema.Indexes) []ast.Stmt {
-
+	ret := make([]ast.Stmt, 0)
+	return ret
 }
 
 func generateIntrospectionNameExpr(f *introspection.FieldType) ast.Expr {
