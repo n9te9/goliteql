@@ -2390,6 +2390,31 @@ func generateIntrospectionKindExpr(f *introspection.FieldType, indexes *schema.I
 
 func generateIntrospectionTypeCaseStmts(f *introspection.FieldType, callTypeOfFuncName string, indexes *schema.Indexes) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
+
+	if f.NonNull || f.IsList {
+		return introspection.GenerateNonNullOrListTypeCaseStmts(callTypeOfFuncName)
+	}
+
+	if enumDefinition, ok := indexes.EnumIndex[string(f.Name)]; ok {
+		return introspection.GenerateEnumTypeCaseStmts(enumDefinition)
+	}
+
+	if unionDefinition, ok := indexes.UnionIndex[string(f.Name)]; ok {
+		return introspection.GenerateUnionTypeCaseStmts(unionDefinition)
+	}
+
+	if inputDefinition, ok := indexes.InputIndex[string(f.Name)]; ok {
+		return introspection.GenerateInputTypeCaseStmts(inputDefinition)
+	}
+
+	if interfaceDefinition, ok := indexes.InterfaceIndex[string(f.Name)]; ok {
+		return introspection.GenerateInterfaceTypeCaseStmts(interfaceDefinition, indexes)
+	}
+
+	if typeDefinition, ok := indexes.TypeIndex[string(f.Name)]; ok {
+		return introspection.GenerateTypeObjectCaseStmts(typeDefinition)
+	}
+
 	return ret
 }
 
@@ -3027,6 +3052,8 @@ func generateIntrospectionTypeFieldSwitchStmt(typeName string, f *schema.FieldDe
 		typeName = fmt.Sprintf("__%s", typeName)
 	}
 	interfacesStmts := generateIntrospectionTypeInterfacesCaseStmt(typeName, indexes)
+
+	// caseStmts := generateIntrospectionTypeCaseStmts(introspection.ExpandType(f.Type), fmt.Sprintf("__schema%s__%s__typeof", typeName, string(f.Name)), indexes)
 
 	return &ast.SwitchStmt{
 		Tag: &ast.CallExpr{
