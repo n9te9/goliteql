@@ -1754,42 +1754,6 @@ func generateIntrospectionInterfaceFieldsDecls(interfaces []*schema.InterfaceDef
 }
 
 func generateIntrospectionFieldSwitchStmt(typeName string, fieldDefinitions schema.FieldDefinitions) ast.Stmt {
-	generateIntrospectionFieldTypeAssignStmtFunc := func(fields schema.FieldDefinitions) []ast.Stmt {
-		ret := make([]ast.Stmt, 0, len(fields))
-
-		for _, field := range fields {
-			assignStmt := &ast.AssignStmt{
-				Lhs: []ast.Expr{
-					&ast.SelectorExpr{
-						X:   ast.NewIdent("field" + string(field.Name)),
-						Sel: ast.NewIdent("Name"),
-					},
-				},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					&ast.BasicLit{
-						Kind:  token.STRING,
-						Value: fmt.Sprintf(`"%s"`, string(field.Name)),
-					},
-				},
-			}
-			if field.Directives.Get([]byte("deprecated")) != nil {
-				ret = append(ret, &ast.IfStmt{
-					Cond: ast.NewIdent("includeDeprecated"),
-					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							assignStmt,
-						},
-					},
-				})
-			} else {
-				ret = append(ret, assignStmt)
-			}
-		}
-
-		return ret
-	}
-
 	return &ast.SwitchStmt{
 		Tag: &ast.CallExpr{
 			Fun: ast.NewIdent("string"),
@@ -1801,60 +1765,7 @@ func generateIntrospectionFieldSwitchStmt(typeName string, fieldDefinitions sche
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: []ast.Stmt{
-				&ast.CaseClause{
-					List: []ast.Expr{
-						&ast.BasicLit{
-							Kind:  token.STRING,
-							Value: `"name"`,
-						},
-					},
-					Body: generateIntrospectionFieldTypeAssignStmtFunc(fieldDefinitions),
-				},
-				&ast.CaseClause{
-					List: []ast.Expr{
-						&ast.BasicLit{
-							Kind:  token.STRING,
-							Value: `"description"`,
-						},
-					},
-					Body: []ast.Stmt{
-						&ast.ExprStmt{
-							X: &ast.BasicLit{
-								Kind:  token.STRING,
-								Value: "// TODO",
-							},
-						},
-					},
-				},
-				&ast.CaseClause{
-					List: []ast.Expr{
-						&ast.BasicLit{
-							Kind:  token.STRING,
-							Value: `"isDeprecated"`,
-						},
-					},
-					Body: generateIntrospectionIsDeprecatedFieldStmts(fieldDefinitions),
-				},
-				&ast.CaseClause{
-					List: []ast.Expr{
-						&ast.BasicLit{
-							Kind:  token.STRING,
-							Value: `"deprecationReason"`,
-						},
-					},
-					Body: generateIntrospectionDeprecationReasonFieldStmts(fieldDefinitions),
-				},
-				&ast.CaseClause{
-					List: []ast.Expr{
-						&ast.BasicLit{
-							Kind:  token.STRING,
-							Value: `"type"`,
-						},
-					},
-					Body: generateIntrospectionFieldTypeBodyStmt(typeName, fieldDefinitions),
-				},
-			},
+			List: introspection.GenerateFieldsCaseStmts(fieldDefinitions),
 		},
 	}
 }
@@ -2374,6 +2285,10 @@ func generateIntrospectionTypeCaseStmts(f *introspection.FieldType, callTypeOfFu
 
 	if interfaceDefinition, ok := indexes.InterfaceIndex[string(f.Name)]; ok {
 		return introspection.GenerateInterfaceTypeCaseStmts(interfaceDefinition, indexes)
+	}
+
+	if typeDefinition, ok := indexes.TypeIndex[string(f.Name)]; ok {
+		return introspection.GenerateTypeObjectCaseStmts(typeDefinition)
 	}
 
 	return introspection.GenerateScalarCaseStmts(f)

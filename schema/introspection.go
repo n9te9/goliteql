@@ -239,6 +239,32 @@ var (
 				ListType: nil,
 			},
 		},
+		{
+			Name:      []byte("specifiedByURL"),
+			Arguments: nil,
+			Type: &FieldType{
+				Name:     []byte("String"),
+				IsList:   false,
+				Nullable: true,
+				ListType: nil,
+			},
+			Directives: nil,
+			Default:    nil,
+			Location:   nil,
+		},
+		{
+			Name:      []byte("isOneOf"),
+			Arguments: nil,
+			Type: &FieldType{
+				Name:     []byte("Boolean"),
+				IsList:   false,
+				Nullable: false,
+				ListType: nil,
+			},
+			Directives: nil,
+			Default:    nil,
+			Location:   nil,
+		},
 	}
 	fieldIntrospectionFields = []*FieldDefinition{
 		{

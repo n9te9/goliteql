@@ -147,7 +147,7 @@ func GenerateTypeObjectCaseStmts(typeDefinition *schema.TypeDefinition) []ast.St
 					},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						ast.NewIdent("__TypeKind_UNION"),
+						ast.NewIdent("__TypeKind_OBJECT"),
 					},
 				},
 			},
