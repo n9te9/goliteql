@@ -8,7 +8,7 @@ import (
 	"github.com/n9te9/goliteql/schema"
 )
 
-func generateFieldIsDeprecatedAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
+func generateInputValueIsDeprecatedAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
 	return &ast.AssignStmt{
 		Lhs: []ast.Expr{
 			&ast.SelectorExpr{
@@ -26,7 +26,7 @@ func generateFieldIsDeprecatedAssignStmt(fieldDefinition *schema.FieldDefinition
 	}
 }
 
-func generateFieldDeprecationReasonAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
+func generateInputValueDeprecationReasonAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
 	deprecationReason := "nil"
 	if fieldDefinition.IsDeprecated() {
 		deprecationReason = fieldDefinition.DeprecatedReason()
@@ -57,7 +57,7 @@ func generateFieldDeprecationReasonAssignStmt(fieldDefinition *schema.FieldDefin
 	}
 }
 
-func generateFieldNameAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
+func generateInputValueNameAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
 	return &ast.AssignStmt{
 		Lhs: []ast.Expr{
 			&ast.SelectorExpr{
@@ -75,7 +75,7 @@ func generateFieldNameAssignStmt(fieldDefinition *schema.FieldDefinition) ast.St
 	}
 }
 
-func generateFieldDescriptionAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
+func generateInputValueDescriptionAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
 	return &ast.AssignStmt{
 		Lhs: []ast.Expr{
 			&ast.SelectorExpr{
@@ -101,7 +101,7 @@ func generateFieldDescriptionAssignStmt(fieldDefinition *schema.FieldDefinition)
 	}
 }
 
-func generateFieldArgsAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
+func generateInputValueArgsAssignStmt(fieldDefinition *schema.FieldDefinition) ast.Stmt {
 	rhs := []ast.Expr{
 		&ast.CompositeLit{
 			Type: &ast.ArrayType{
@@ -123,7 +123,7 @@ func generateFieldArgsAssignStmt(fieldDefinition *schema.FieldDefinition) ast.St
 	}
 }
 
-func generateFieldTypeAssignStmt(fieldDefinition *schema.FieldDefinition) []ast.Stmt {
+func generateInputValueTypeAssignStmt(fieldDefinition *schema.FieldDefinition) []ast.Stmt {
 	return []ast.Stmt{
 		&ast.AssignStmt{
 			Lhs: []ast.Expr{
@@ -163,7 +163,7 @@ func generateFieldTypeAssignStmt(fieldDefinition *schema.FieldDefinition) []ast.
 	}
 }
 
-func GenerateFieldsCaseStmts(fieldDefinition schema.FieldDefinitions) []ast.Stmt {
+func GenerateInputValuesCaseStmts(fieldDefinition schema.FieldDefinitions) []ast.Stmt {
 	nameAssignStmts := make([]ast.Stmt, 0, len(fieldDefinition))
 	descriptionAssignStmts := make([]ast.Stmt, 0, len(fieldDefinition))
 	argsAssignStmts := make([]ast.Stmt, 0, len(fieldDefinition))
@@ -197,15 +197,6 @@ func GenerateFieldsCaseStmts(fieldDefinition schema.FieldDefinitions) []ast.Stmt
 				},
 			},
 			Body: descriptionAssignStmts,
-		},
-		&ast.CaseClause{
-			List: []ast.Expr{
-				&ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"args"`,
-				},
-			},
-			Body: argsAssignStmts,
 		},
 		&ast.CaseClause{
 			List: []ast.Expr{

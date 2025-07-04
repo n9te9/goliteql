@@ -1770,83 +1770,21 @@ func generateIntrospectionFieldSwitchStmt(typeName string, fieldDefinitions sche
 	}
 }
 
-func generateIntrospectionIsDeprecatedFieldStmts(fieldDefinitions schema.FieldDefinitions) []ast.Stmt {
-	ret := make([]ast.Stmt, 0, len(fieldDefinitions))
-	for _, fieldDefinition := range fieldDefinitions {
-		if fieldDefinition.Directives.Get([]byte("deprecated")) != nil {
-			ret = append(ret, &ast.AssignStmt{
-				Lhs: []ast.Expr{
-					&ast.SelectorExpr{
-						X:   ast.NewIdent("field" + string(fieldDefinition.Name)),
-						Sel: ast.NewIdent("IsDeprecated"),
-					},
+func generateIntrospectionInputValueSwitchStmt(typeName string, fieldDefinitions schema.FieldDefinitions) ast.Stmt {
+	return &ast.SwitchStmt{
+		Tag: &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("child"),
+					Sel: ast.NewIdent("Name"),
 				},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					ast.NewIdent("true"),
-				},
-			})
-		} else {
-			ret = append(ret, &ast.AssignStmt{
-				Lhs: []ast.Expr{
-					&ast.SelectorExpr{
-						X:   ast.NewIdent("field" + string(fieldDefinition.Name)),
-						Sel: ast.NewIdent("IsDeprecated"),
-					},
-				},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					ast.NewIdent("false"),
-				},
-			})
-		}
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: introspection.GenerateInputValuesCaseStmts(fieldDefinitions),
+		},
 	}
-
-	return ret
-}
-
-func generateIntrospectionDeprecationReasonFieldStmts(fieldDefinitions schema.FieldDefinitions) []ast.Stmt {
-	ret := make([]ast.Stmt, 0, len(fieldDefinitions))
-	for _, fieldDefinition := range fieldDefinitions {
-		if fieldDefinition.Directives.Get([]byte("deprecated")) != nil {
-			directive := fieldDefinition.Directives.Get([]byte("deprecated"))
-			ret = append(ret, &ast.AssignStmt{
-				Lhs: []ast.Expr{
-					&ast.SelectorExpr{
-						X:   ast.NewIdent("field" + string(fieldDefinition.Name)),
-						Sel: ast.NewIdent("DeprecationReason"),
-					},
-				},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("executor"),
-							Sel: ast.NewIdent("NewNullable"),
-						},
-						Args: []ast.Expr{
-							ast.NewIdent(string(directive.Arguments[0].Value)),
-						},
-					},
-				},
-			})
-		} else {
-			ret = append(ret, &ast.AssignStmt{
-				Lhs: []ast.Expr{
-					&ast.SelectorExpr{
-						X:   ast.NewIdent("field" + string(fieldDefinition.Name)),
-						Sel: ast.NewIdent("DeprecationReason"),
-					},
-				},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					ast.NewIdent("nil"),
-				},
-			})
-		}
-	}
-
-	return ret
 }
 
 func generateIntrospectionInputFieldsDecls(inputDefinitions []*schema.InputDefinition) []ast.Decl {
@@ -1952,7 +1890,7 @@ func generateIntrospectionInputFieldsDecls(inputDefinitions []*schema.InputDefin
 				},
 				Body: &ast.BlockStmt{
 					List: []ast.Stmt{
-						generateIntrospectionFieldSwitchStmt(string(t.Name), t.Fields),
+						generateIntrospectionInputValueSwitchStmt(string(t.Name), t.Fields),
 					},
 				},
 			},
@@ -3831,7 +3769,10 @@ func generateIntrospectionTypeFuncDeclBodySwitchStmt(typeDefinitions schema.Type
 					generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}),
 					&ast.ReturnStmt{
 						Results: []ast.Expr{
-							ast.NewIdent("ret"),
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X:  ast.NewIdent("ret"),
+							},
 							ast.NewIdent("nil"),
 						},
 					},

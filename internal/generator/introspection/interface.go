@@ -26,7 +26,7 @@ func generateInterfaceFields(extentions []*schema.InterfaceDefinition) []ast.Stm
 					ast.NewIdent("0"),
 					&ast.BasicLit{
 						Kind:  token.INT,
-						Value: string(len(extentions)),
+						Value: fmt.Sprintf("%d", len(extentions)),
 					},
 				},
 			},
