@@ -234,7 +234,7 @@ func GenerateEnumTypeCaseStmts(enumDefinition *schema.EnumDefinition) []ast.Stmt
 						ast.NewIdent("enumValues"),
 						ast.NewIdent("err"),
 					},
-					Tok: token.ASSIGN,
+					Tok: token.DEFINE,
 					Rhs: []ast.Expr{
 						&ast.CallExpr{
 							Fun: &ast.SelectorExpr{

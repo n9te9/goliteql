@@ -253,9 +253,6 @@ func GenerateUnionTypeCaseStmts(unionDefinition *schema.UnionDefinition) []ast.S
 				},
 			},
 			Body: []ast.Stmt{
-				generateReturnErrorHandlingStmt([]ast.Expr{
-					ast.NewIdent("ret"),
-				}),
 				&ast.AssignStmt{
 					Lhs: []ast.Expr{
 						&ast.SelectorExpr{

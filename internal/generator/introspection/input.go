@@ -212,9 +212,6 @@ func GenerateInputTypeCaseStmts(inputDefinition *schema.InputDefinition) []ast.S
 				},
 			},
 			Body: []ast.Stmt{
-				generateReturnErrorHandlingStmt([]ast.Expr{
-					ast.NewIdent("ret"),
-				}),
 				&ast.AssignStmt{
 					Lhs: []ast.Expr{
 						&ast.SelectorExpr{

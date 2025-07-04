@@ -219,7 +219,10 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 								Sel: ast.NewIdent("NewNullable"),
 							},
 							Args: []ast.Expr{
-								ast.NewIdent(string(interfaceDefinition.Name)),
+								&ast.BasicLit{
+									Kind:  token.STRING,
+									Value: fmt.Sprintf(`"%s"`, string(interfaceDefinition.Name)),
+								},
 							},
 						},
 					},
@@ -382,9 +385,6 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 				},
 			},
 			Body: []ast.Stmt{
-				generateReturnErrorHandlingStmt([]ast.Expr{
-					ast.NewIdent("ret"),
-				}),
 				&ast.AssignStmt{
 					Lhs: []ast.Expr{
 						&ast.SelectorExpr{
