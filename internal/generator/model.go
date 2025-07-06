@@ -28,6 +28,11 @@ func generateModelImport() *ast.GenDecl {
 	}
 }
 
+// generateEnumImport generates an empty import declaration for enums.
+func generateEnumImport() *ast.GenDecl {
+	return &ast.GenDecl{}
+}
+
 func generateSelectionSetInput(fields schema.FieldDefinitions) []ast.Decl {
 	decls := make([]ast.Decl, 0, len(fields))
 
@@ -102,6 +107,31 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 	}
 }
 
+func generateModelFieldForResponse(field schema.FieldDefinitions) *ast.FieldList {
+	fields := make([]*ast.Field, 0, len(field))
+
+	for _, f := range field {
+		fieldTypeExpr := generateExprForResponse(f.Type)
+
+		fields = append(fields, &ast.Field{
+			Names: []*ast.Ident{
+				{
+					Name: toUpperCase(string(f.Name)),
+				},
+			},
+			Type: fieldTypeExpr,
+			Tag: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("`json:\"%s,omitempty\"`", string(f.Name)),
+			},
+		})
+	}
+
+	return &ast.FieldList{
+		List: fields,
+	}
+}
+
 func generateExpr(fieldType *schema.FieldType) ast.Expr {
 	graphQLType := GraphQLType(fieldType.Name)
 	if fieldType.Nullable {
@@ -137,6 +167,67 @@ func generateExpr(fieldType *schema.FieldType) ast.Expr {
 			}
 
 			return ast.NewIdent(graphQLType.golangType())
+		}
+	}
+}
+
+func generateExprForResponse(fieldType *schema.FieldType) ast.Expr {
+	if fieldType.Nullable {
+		return &ast.SelectorExpr{
+			X:   ast.NewIdent("executor"),
+			Sel: ast.NewIdent("Nullable"),
+		}
+	}
+
+	if fieldType.IsList {
+		return &ast.ArrayType{
+			Elt: generateExprForResponse(fieldType.ListType),
+		}
+	}
+
+	graphQLType := GraphQLType(fieldType.Name)
+	return ast.NewIdent(graphQLType.golangType())
+}
+
+func generateExprWithPrefix(prefix string, fieldType *schema.FieldType) ast.Expr {
+	graphQLType := GraphQLType(fieldType.Name)
+	if fieldType.Nullable {
+		if graphQLType.IsPrimitive() {
+			return &ast.StarExpr{
+				X: &ast.Ident{
+					Name: graphQLType.golangType(),
+				},
+			}
+		} else {
+			if fieldType.IsList {
+				return &ast.ArrayType{
+					Elt: generateExprWithPrefix(prefix, fieldType.ListType),
+				}
+			}
+
+			return &ast.StarExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent(prefix),
+					Sel: ast.NewIdent(graphQLType.golangType()),
+				},
+			}
+		}
+	} else {
+		if graphQLType.IsPrimitive() {
+			return &ast.Ident{
+				Name: graphQLType.golangType(),
+			}
+		} else {
+			if fieldType.IsList {
+				return &ast.ArrayType{
+					Elt: generateExprWithPrefix(prefix, fieldType.ListType),
+				}
+			}
+
+			return &ast.SelectorExpr{
+				X:   ast.NewIdent(prefix),
+				Sel: ast.NewIdent(graphQLType.golangType()),
+			}
 		}
 	}
 }

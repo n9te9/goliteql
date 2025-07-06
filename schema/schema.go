@@ -21,8 +21,8 @@ func (o OperationType) IsSubscription() bool {
 }
 
 const (
-	QueryOperation OperationType = "query"
-	MutationOperation OperationType = "mutation"
+	QueryOperation        OperationType = "query"
+	MutationOperation     OperationType = "mutation"
 	SubscriptionOperation OperationType = "subscription"
 )
 
@@ -32,16 +32,31 @@ type CompositeType interface {
 }
 
 type TypeDefinition struct {
-	Name []byte
-	Fields FieldDefinitions
-	Required map[*FieldDefinition]struct{}
-	tokens Tokens
-	Interfaces []*InterfaceDefinition
-	Directives []*Directive
-	Extentions []*TypeDefinition
+	Name              []byte
+	Fields            FieldDefinitions
+	Required          map[*FieldDefinition]struct{}
+	tokens            Tokens
+	PrimitiveTypeName []byte
+	Interfaces        []*InterfaceDefinition
+	Directives        []*Directive
+	Extentions        []*TypeDefinition
 }
 
-func (t *TypeDefinition) IsPremitive() bool {
+type TypeDefinitions []*TypeDefinition
+
+func (t TypeDefinitions) WithoutMetaDefinition() TypeDefinitions {
+	res := make(TypeDefinitions, 0, len(t))
+
+	for _, td := range t {
+		if !td.IsIntrospection() {
+			res = append(res, td)
+		}
+	}
+
+	return res
+}
+
+func (t *TypeDefinition) IsPrimitive() bool {
 	return bytes.Equal(t.Name, []byte("String")) || bytes.Equal(t.Name, []byte("Int")) || bytes.Equal(t.Name, []byte("Float")) || bytes.Equal(t.Name, []byte("Boolean")) || bytes.Equal(t.Name, []byte("ID"))
 }
 
@@ -59,27 +74,89 @@ func (t *TypeDefinition) TypeName() []byte {
 	return t.Name
 }
 
+func (t *TypeDefinition) IsIntrospection() bool {
+	return bytes.Equal(t.Name, []byte("__Schema")) ||
+		bytes.Equal(t.Name, []byte("__Type")) ||
+		bytes.Equal(t.Name, []byte("__Field")) ||
+		bytes.Equal(t.Name, []byte("__InputValue")) ||
+		bytes.Equal(t.Name, []byte("__EnumValue")) ||
+		bytes.Equal(t.Name, []byte("__Directive")) ||
+		bytes.Equal(t.Name, []byte("__DirectiveLocation")) ||
+		bytes.Equal(t.Name, []byte("__TypeKind"))
+}
+
 type FieldType struct {
-	Name []byte
+	Name     []byte
 	Nullable bool
-	IsList bool
+	IsList   bool
 	ListType *FieldType
 }
 
-func (f *FieldType) GetPremitiveType() *FieldType {
+func (f *FieldType) IsObject() bool {
+	return !bytes.Equal(f.Name, []byte(""))
+}
+
+func (f *FieldType) IsBoolean() bool {
+	return bytes.Equal(f.Name, []byte("Boolean"))
+}
+
+func (f *FieldType) IsString() bool {
+	return bytes.Equal(f.Name, []byte("String"))
+}
+
+func (f *FieldType) IsInt() bool {
+	return bytes.Equal(f.Name, []byte("Int"))
+}
+
+func (f *FieldType) IsFloat() bool {
+	return bytes.Equal(f.Name, []byte("Float"))
+}
+
+func (f *FieldType) IsID() bool {
+	return bytes.Equal(f.Name, []byte("ID"))
+}
+
+func (f *FieldType) GetRootType() *FieldType {
 	if f.IsList {
-		return f.ListType.GetPremitiveType()
+		return f.ListType.GetRootType()
 	}
 
 	return f
 }
 
+func (f *FieldType) IsPrimitive() bool {
+	return bytes.Equal(f.Name, []byte("String")) || bytes.Equal(f.Name, []byte("Int")) || bytes.Equal(f.Name, []byte("Float")) || bytes.Equal(f.Name, []byte("Boolean")) || bytes.Equal(f.Name, []byte("ID"))
+}
+
+func (f *FieldType) GetNestFieldType(nestCount, currentNestCount int) *FieldType {
+	if nestCount == currentNestCount {
+		return f
+	}
+
+	if f.IsList {
+		return f.ListType.GetNestFieldType(nestCount, currentNestCount+1)
+	}
+
+	return nil
+}
 
 type OperationDefinition struct {
 	OperationType OperationType
-	Name []byte
-	Fields FieldDefinitions
-	Extentions []*OperationDefinition
+	Name          []byte
+	Fields        FieldDefinitions
+	Extentions    []*OperationDefinition
+}
+
+func (f FieldDefinitions) HasDeprecatedDirective() bool {
+	for _, field := range f {
+		for _, directive := range field.Directives {
+			if bytes.Equal(directive.Name, []byte("deprecated")) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (o *OperationDefinition) GetFieldByName(name []byte) *FieldDefinition {
@@ -97,11 +174,11 @@ type DefinitionType interface {
 }
 
 type Indexes struct {
-	TypeIndex map[string]*TypeDefinition
-	EnumIndex map[string]*EnumDefinition
-	UnionIndex map[string]*UnionDefinition
-	InterfaceIndex map[string]*InterfaceDefinition
-	InputIndex map[string]*InputDefinition
+	TypeIndex        map[string]*TypeDefinition
+	EnumIndex        map[string]*EnumDefinition
+	UnionIndex       map[string]*UnionDefinition
+	InterfaceIndex   map[string]*InterfaceDefinition
+	InputIndex       map[string]*InputDefinition
 	OperationIndexes map[OperationType]map[string]*OperationDefinition
 }
 
@@ -132,29 +209,27 @@ func (i *Indexes) GetImplementedType(id *InterfaceDefinition) []*TypeDefinition 
 }
 
 type Schema struct {
-	tokens Tokens
+	tokens     Tokens
 	Definition *SchemaDefinition
 	Operations []*OperationDefinition
-	Types []*TypeDefinition
-	Enums []*EnumDefinition
-	Unions []*UnionDefinition
+	Types      TypeDefinitions
+	Enums      []*EnumDefinition
+	Unions     []*UnionDefinition
 	Interfaces []*InterfaceDefinition
 	Directives DirectiveDefinitions
-	Inputs []*InputDefinition
-	Scalars []*ScalarDefinition
+	Inputs     []*InputDefinition
+	Scalars    []*ScalarDefinition
 
 	Indexes *Indexes
 }
 
-
 func NewSchema(tokens Tokens) *Schema {
 	operationIndexes := make(map[OperationType]map[string]*OperationDefinition)
-
-	for _, t := range([]OperationType{QueryOperation, MutationOperation, SubscriptionOperation}) {
+	for _, t := range []OperationType{QueryOperation, MutationOperation, SubscriptionOperation} {
 		operationIndexes[t] = make(map[string]*OperationDefinition)
 	}
 
-	return &Schema{
+	s := &Schema{
 		tokens: tokens,
 		Definition: &SchemaDefinition{
 			Query:        []byte("Query"),
@@ -162,15 +237,20 @@ func NewSchema(tokens Tokens) *Schema {
 			Subscription: []byte("Subscription"),
 		},
 		Indexes: &Indexes{
-			TypeIndex: make(map[string]*TypeDefinition),
+			TypeIndex:        make(map[string]*TypeDefinition),
 			OperationIndexes: operationIndexes,
-			EnumIndex: make(map[string]*EnumDefinition),
-			UnionIndex: make(map[string]*UnionDefinition),
-			InterfaceIndex: make(map[string]*InterfaceDefinition),
-			InputIndex: make(map[string]*InputDefinition),
+			EnumIndex:        make(map[string]*EnumDefinition),
+			UnionIndex:       make(map[string]*UnionDefinition),
+			InterfaceIndex:   make(map[string]*InterfaceDefinition),
+			InputIndex:       make(map[string]*InputDefinition),
 		},
 		Directives: NewBuildInDirectives(),
 	}
+
+	s = withTypeIntrospection(s)
+	s = withBuiltin(s)
+
+	return s
 }
 
 func (s *Schema) digOperation(name string, ops []*OperationDefinition) (FieldDefinitions, error) {
@@ -254,6 +334,7 @@ func (s *Schema) mergeTypeDefinition(newSchema *Schema) error {
 		newType.Fields = t.Fields
 		newType.Interfaces = t.Interfaces
 		newType.Directives = t.Directives
+		newType.PrimitiveTypeName = t.PrimitiveTypeName
 
 		newFields := make(FieldDefinitions, 0)
 
@@ -399,7 +480,7 @@ func (s *Schema) digEnumDefinition(name string, extentions EnumDefinitions) ([]*
 	for _, ext := range extentions {
 		if string(ext.Name) == name {
 			res = append(res, ext.Values...)
-			
+
 			if len(ext.Extentions) > 0 {
 				elms, err := s.digEnumDefinition(name, ext.Extentions)
 				if err != nil {
@@ -420,6 +501,7 @@ func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
 		newEnum.Name = enum.Name
 		newEnum.Directives = enum.Directives
 		newEnum.Values = enum.Values
+		newEnum.Type = enum.Type
 
 		newSchema.Enums = append(newSchema.Enums, newEnum)
 		if len(enum.Extentions) > 0 {
@@ -427,7 +509,7 @@ func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
 			if err != nil {
 				return err
 			}
-			
+
 			newSchema.Indexes.EnumIndex[string(newEnum.Name)] = newEnum
 			newEnum.Values = append(newEnum.Values, enumValues...)
 		}
@@ -487,7 +569,7 @@ func (s *Schema) mergeInputDefinition(newSchema *Schema) error {
 	}
 
 	return nil
-} 
+}
 
 func (s *Schema) Merge() (*Schema, error) {
 	newSchema := new(Schema)
@@ -495,7 +577,8 @@ func (s *Schema) Merge() (*Schema, error) {
 	newSchema.tokens = s.tokens
 	newSchema.Indexes = s.Indexes
 	newSchema.Directives = s.Directives
-	
+	newSchema.Scalars = s.Scalars
+
 	if err := s.mergeOperation(newSchema); err != nil {
 		return nil, err
 	}
@@ -594,15 +677,15 @@ func get[T DefinitionType](indexes *Indexes, key string, t T) T {
 }
 
 type ScalarDefinition struct {
-	Name []byte
+	Name       []byte
 	Directives []*Directive
 }
 
 type SchemaDefinition struct {
-	Query []byte
-	Mutation []byte
+	Query        []byte
+	Mutation     []byte
 	Subscription []byte
-	Extentions []*SchemaDefinition
+	Extentions   []*SchemaDefinition
 
 	Directives []*Directive
 }

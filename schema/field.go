@@ -1,15 +1,15 @@
 package schema
 
 type FieldDefinition struct {
-	Name []byte
-	Arguments []*ArgumentDefinition
-	Type *FieldType
-	Directives []*Directive
-	Default []byte
-	Location *Location
+	Name       []byte
+	Arguments  []*ArgumentDefinition
+	Type       *FieldType
+	Directives Directives
+	Default    []byte
+	Location   *Location
 }
 
-func (f *FieldDefinition) IsPremitive() bool {
+func (f *FieldDefinition) IsPrimitive() bool {
 	typeName := string(f.Type.Name)
 
 	if typeName == "ID" || typeName == "String" || typeName == "Int" || typeName == "Float" || typeName == "Boolean" {
@@ -17,6 +17,32 @@ func (f *FieldDefinition) IsPremitive() bool {
 	}
 
 	return false
+}
+
+func (f *FieldDefinition) IsDeprecated() bool {
+	for _, directive := range f.Directives {
+		if string(directive.Name) == "deprecated" {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *FieldDefinition) DeprecatedReason() string {
+	for _, directive := range f.Directives {
+		if string(directive.Name) == "deprecated" {
+			if len(directive.Arguments) > 0 {
+				for _, arg := range directive.Arguments {
+					if string(arg.Name) == "reason" {
+						return string(arg.Value)
+					}
+				}
+			}
+			return "No reason provided"
+		}
+	}
+
+	return ""
 }
 
 type FieldDefinitions []*FieldDefinition
@@ -38,6 +64,6 @@ func (f FieldDefinitions) Has(name string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }

@@ -3,6 +3,8 @@ package query
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/n9te9/goliteql"
 )
 
 type OperationType string
@@ -77,9 +79,19 @@ type Selection interface {
 }
 
 type Argument struct {
-	Name         []byte
-	Type         *FieldType
-	DefaultValue []byte
+	Name  []byte
+	Value []byte
+}
+
+func (a *Argument) IsVariable() bool {
+	return len(a.Value) > 0 && a.Value[0] == '$'
+}
+
+func (a *Argument) VariableAnnotation() string {
+	if a.IsVariable() {
+		return string(a.Value[1:])
+	}
+	return ""
 }
 
 type DirectiveArgument struct {
@@ -156,18 +168,23 @@ func (f *FragmentDefinition) GetSelections() []Selection {
 }
 
 type Parser struct {
-	Lexer *Lexer
+	ValueParser *goliteql.ValueParser
+	Lexer       *Lexer
 }
 
 func NewParser(lexer *Lexer) *Parser {
+	valueLexer := goliteql.NewValueLexer()
 	return &Parser{
-		Lexer: lexer,
+		ValueParser: goliteql.NewValueParser(valueLexer),
+		Lexer:       lexer,
 	}
 }
 
 func NewParserWithLexer() *Parser {
+	valueLexer := goliteql.NewValueLexer()
 	return &Parser{
-		Lexer: NewLexer(),
+		ValueParser: goliteql.NewValueParser(valueLexer),
+		Lexer:       NewLexer(),
 	}
 }
 
@@ -606,29 +623,12 @@ func (p *Parser) parseFieldArgument(tokens Tokens, cur int) (*Argument, int, err
 	}
 	cur++
 
-	if tokens[cur].Type == Dollar {
+	v := make([]byte, 0)
+	for tokens[cur].Type != Comma && tokens[cur].Type != ParenClose {
+		v = append(v, tokens[cur].Value...)
 		cur++
 	}
-
-	fieldType, newCur, err := p.parseFieldType(tokens, cur, 0)
-	if err != nil {
-		return nil, newCur, err
-	}
-	cur = newCur
-	argument.Type = fieldType
-
-	if tokens[cur].Type == Equal {
-		cur++
-		if tokens[cur].Type != Value {
-			return nil, cur, fmt.Errorf("expected value after =")
-		}
-		argument.DefaultValue, cur, err = p.parseDefaultValue(tokens, cur)
-		if err != nil {
-			return nil, cur, err
-		}
-
-		cur++
-	}
+	argument.Value = v
 
 	return argument, cur, nil
 }

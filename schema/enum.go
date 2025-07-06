@@ -1,11 +1,20 @@
 package schema
 
-
 type EnumDefinition struct {
-	Name []byte
-	Values []*EnumElement
+	Name       []byte
+	Type       *FieldType
+	Values     []*EnumElement
 	Extentions []*EnumDefinition
-	Directives []*Directive
+	Directives
+}
+
+func (e *EnumDefinition) IsIntrospection() bool {
+	if e.Type == nil {
+		return false
+	}
+
+	return string(e.Type.Name) == "__TypeKind" ||
+		string(e.Type.Name) == "__DirectiveLocation"
 }
 
 func (e *EnumDefinition) Location() *Location {
@@ -27,9 +36,9 @@ func (e EnumDefinitions) Has(name string) bool {
 }
 
 type EnumElement struct {
-	Name []byte
-	Value []byte
-	Directives []*Directive
+	Name       []byte
+	Value      []byte
+	Directives Directives
 }
 
 func (e *EnumElement) Location() *Location {
