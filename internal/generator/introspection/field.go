@@ -18,9 +18,14 @@ func generateFieldIsDeprecatedAssignStmt(fieldDefinition *schema.FieldDefinition
 		},
 		Tok: token.ASSIGN,
 		Rhs: []ast.Expr{
-			&ast.BasicLit{
-				Kind:  token.STRING,
-				Value: fmt.Sprintf("%t", fieldDefinition.IsDeprecated()),
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("executor"),
+					Sel: ast.NewIdent("NewNullable"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent(fmt.Sprintf("%t", fieldDefinition.IsDeprecated())),
+				},
 			},
 		},
 	}
@@ -47,10 +52,7 @@ func generateFieldDeprecationReasonAssignStmt(fieldDefinition *schema.FieldDefin
 					Sel: ast.NewIdent("NewNullable"),
 				},
 				Args: []ast.Expr{
-					&ast.BasicLit{
-						Kind:  token.STRING,
-						Value: deprecationReason,
-					},
+					ast.NewIdent(deprecationReason),
 				},
 			},
 		},

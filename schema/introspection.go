@@ -21,7 +21,7 @@ var (
 			Type: &FieldType{
 				Name:     []byte("__Type"),
 				IsList:   false,
-				Nullable: false,
+				Nullable: true,
 				ListType: nil,
 			},
 			Directives: nil,
@@ -318,7 +318,7 @@ var (
 			Type: &FieldType{
 				Name:     []byte("Boolean"),
 				IsList:   false,
-				Nullable: false,
+				Nullable: true,
 				ListType: nil,
 			},
 		},
@@ -371,7 +371,7 @@ var (
 			Type: &FieldType{
 				Name:     []byte("Boolean"),
 				IsList:   false,
-				Nullable: false,
+				Nullable: true,
 			},
 		},
 		{
@@ -406,7 +406,7 @@ var (
 			Type: &FieldType{
 				Name:     []byte("Boolean"),
 				IsList:   false,
-				Nullable: false,
+				Nullable: true,
 			},
 		},
 		{
