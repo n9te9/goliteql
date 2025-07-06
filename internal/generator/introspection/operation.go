@@ -8,35 +8,13 @@ import (
 	"github.com/n9te9/goliteql/schema"
 )
 
-func generateInterfaceFields(extentions []*schema.InterfaceDefinition) []ast.Stmt {
-	ret := make([]ast.Stmt, 0)
+func generateOperationFieldBodyStmts(fieldDefinitions schema.FieldDefinitions) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0, len(fieldDefinitions))
 
-	ret = append(ret, &ast.AssignStmt{
-		Lhs: []ast.Expr{
-			ast.NewIdent("interfaces"),
-		},
-		Tok: token.DEFINE,
-		Rhs: []ast.Expr{
-			&ast.CallExpr{
-				Fun: ast.NewIdent("make"),
-				Args: []ast.Expr{
-					&ast.ArrayType{
-						Elt: ast.NewIdent("__Type"),
-					},
-					ast.NewIdent("0"),
-					&ast.BasicLit{
-						Kind:  token.INT,
-						Value: fmt.Sprintf("%d", len(extentions)),
-					},
-				},
-			},
-		},
-	})
-
-	for _, ext := range extentions {
-		ret = append(ret, &ast.AssignStmt{
+	if fieldDefinitions.HasDeprecatedDirective() {
+		stmts = append(stmts, &ast.AssignStmt{
 			Lhs: []ast.Expr{
-				ast.NewIdent(fmt.Sprintf("%sInterface", ext.Name)),
+				ast.NewIdent("includeDeprecated"),
 				ast.NewIdent("err"),
 			},
 			Tok: token.DEFINE,
@@ -44,34 +22,26 @@ func generateInterfaceFields(extentions []*schema.InterfaceDefinition) []ast.Stm
 				&ast.CallExpr{
 					Fun: &ast.SelectorExpr{
 						X:   ast.NewIdent("r"),
-						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", ext.Name)),
+						Sel: ast.NewIdent("extract__fieldsArgs"),
 					},
-				},
-			},
-		}, generateReturnErrorHandlingStmt([]ast.Expr{
-			ast.NewIdent("ret"),
-		}), &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				ast.NewIdent("interfaces"),
-			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: ast.NewIdent("append"),
 					Args: []ast.Expr{
-						ast.NewIdent("fields"),
-						ast.NewIdent(fmt.Sprintf("%sInterfaces", ext.Name)),
+						ast.NewIdent("child"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
 		})
 	}
 
-	ret = append(ret, &ast.AssignStmt{
+	for _, fieldDefinition := range fieldDefinitions {
+		stmts = append(stmts, generateOperationFieldAssignStmt(fieldDefinition)...)
+	}
+
+	stmts = append(stmts, &ast.AssignStmt{
 		Lhs: []ast.Expr{
 			&ast.SelectorExpr{
 				X:   ast.NewIdent("ret"),
-				Sel: ast.NewIdent("Interfaces"),
+				Sel: ast.NewIdent("Fields"),
 			},
 		},
 		Tok: token.ASSIGN,
@@ -82,45 +52,72 @@ func generateInterfaceFields(extentions []*schema.InterfaceDefinition) []ast.Stm
 					Sel: ast.NewIdent("NewNullable"),
 				},
 				Args: []ast.Expr{
-					ast.NewIdent("interfaces"),
+					ast.NewIdent("fields"),
 				},
 			},
 		},
 	})
 
-	return ret
+	return stmts
 }
 
-func generateInterfacePossibleTypeStmts(interfaceDefinition *schema.InterfaceDefinition, indexes *schema.Indexes) []ast.Stmt {
-	implementedTypes := indexes.GetImplementedType(interfaceDefinition)
-
+func generateOperationFieldAssignStmt(fieldDefinition *schema.FieldDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
-	ret = append(ret, &ast.AssignStmt{
-		Lhs: []ast.Expr{
-			ast.NewIdent("possibleTypes"),
-		},
-		Tok: token.DEFINE,
-		Rhs: []ast.Expr{
-			&ast.CallExpr{
-				Fun: ast.NewIdent("make"),
-				Args: []ast.Expr{
-					&ast.ArrayType{
-						Elt: ast.NewIdent("__Type"),
+
+	if fieldDefinition.IsDeprecated() {
+		ret = append(ret, &ast.IfStmt{
+			Cond: &ast.StarExpr{
+				X: ast.NewIdent("includeDeprecated"),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent(fmt.Sprintf("%sfield", fieldDefinition.Name)),
+							ast.NewIdent("err"),
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("r"),
+									Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(fieldDefinition.Name))),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("ctx"),
+									ast.NewIdent("child"),
+									ast.NewIdent("variables"),
+								},
+							},
+						},
 					},
-					ast.NewIdent("0"),
-					&ast.BasicLit{
-						Kind:  token.INT,
-						Value: fmt.Sprintf("%d", len(implementedTypes)),
+					generateReturnErrorHandlingStmt([]ast.Expr{
+						&ast.CompositeLit{
+							Type: ast.NewIdent("__Type"),
+							Elts: []ast.Expr{},
+						},
+					}), &ast.AssignStmt{
+						Lhs: []ast.Expr{
+							ast.NewIdent("fields"),
+						},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: ast.NewIdent("append"),
+								Args: []ast.Expr{
+									ast.NewIdent("fields"),
+									ast.NewIdent(fmt.Sprintf("%sfield", fieldDefinition.Name)),
+								},
+							},
+						},
 					},
 				},
 			},
-		},
-	})
-
-	for _, implementedType := range implementedTypes {
+		})
+	} else {
 		ret = append(ret, &ast.AssignStmt{
 			Lhs: []ast.Expr{
-				ast.NewIdent(fmt.Sprintf("%sPossibleTypes", implementedType.Name)),
+				ast.NewIdent(fmt.Sprintf("%sfield", fieldDefinition.Name)),
 				ast.NewIdent("err"),
 			},
 			Tok: token.DEFINE,
@@ -128,7 +125,7 @@ func generateInterfacePossibleTypeStmts(interfaceDefinition *schema.InterfaceDef
 				&ast.CallExpr{
 					Fun: &ast.SelectorExpr{
 						X:   ast.NewIdent("r"),
-						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__type", implementedType.Name)),
+						Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", string(fieldDefinition.Name))),
 					},
 					Args: []ast.Expr{
 						ast.NewIdent("ctx"),
@@ -141,46 +138,25 @@ func generateInterfacePossibleTypeStmts(interfaceDefinition *schema.InterfaceDef
 			ast.NewIdent("ret"),
 		}), &ast.AssignStmt{
 			Lhs: []ast.Expr{
-				ast.NewIdent("possibleTypes"),
+				ast.NewIdent("fields"),
 			},
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{
 				&ast.CallExpr{
 					Fun: ast.NewIdent("append"),
 					Args: []ast.Expr{
-						ast.NewIdent("possibleTypes"),
-						ast.NewIdent(fmt.Sprintf("%sPossibleTypes", implementedType.Name)),
+						ast.NewIdent("fields"),
+						ast.NewIdent(fmt.Sprintf("%sfield", fieldDefinition.Name)),
 					},
 				},
 			},
 		})
 	}
 
-	ret = append(ret, &ast.AssignStmt{
-		Lhs: []ast.Expr{
-			&ast.SelectorExpr{
-				X:   ast.NewIdent("ret"),
-				Sel: ast.NewIdent("PossibleTypes"),
-			},
-		},
-		Tok: token.ASSIGN,
-		Rhs: []ast.Expr{
-			&ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent("executor"),
-					Sel: ast.NewIdent("NewNullable"),
-				},
-				Args: []ast.Expr{
-					ast.NewIdent("possibleTypes"),
-				},
-			},
-		},
-	})
-
 	return ret
 }
 
-func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinition, indexes *schema.Indexes) []ast.Stmt {
+func GenerateOperationCaseStmts(operationName string, operationDefinition *schema.OperationDefinition) []ast.Stmt {
 	return []ast.Stmt{
 		&ast.CaseClause{
 			List: []ast.Expr{
@@ -205,16 +181,14 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 								Sel: ast.NewIdent("NewNullable"),
 							},
 							Args: []ast.Expr{
-								&ast.BasicLit{
-									Kind:  token.STRING,
-									Value: fmt.Sprintf(`"%s"`, string(interfaceDefinition.Name)),
-								},
+								ast.NewIdent(fmt.Sprintf(`"%s"`, string(operationName))),
 							},
 						},
 					},
 				},
 			},
-		}, &ast.CaseClause{
+		},
+		&ast.CaseClause{
 			List: []ast.Expr{
 				&ast.BasicLit{
 					Kind:  token.STRING,
@@ -231,83 +205,75 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 					},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						ast.NewIdent("__TypeKind_INTERFACE"),
+						ast.NewIdent("__TypeKind_OBJECT"),
 					},
 				},
 			},
-		}, &ast.CaseClause{
+		},
+		&ast.CaseClause{
 			List: []ast.Expr{
 				&ast.BasicLit{
 					Kind:  token.STRING,
-					Value: `"fields"`,
+					Value: `"description"`,
 				},
 			},
 			Body: []ast.Stmt{
 				&ast.AssignStmt{
 					Lhs: []ast.Expr{
-						ast.NewIdent("includeDeprecated"),
-						ast.NewIdent("err"),
-					},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("r"),
-								Sel: ast.NewIdent("extract__fieldsArgs"),
-							},
-							Args: []ast.Expr{
-								ast.NewIdent("child"),
-								ast.NewIdent("variables"),
-							},
-						},
-					},
-				},
-				generateReturnErrorHandlingStmt([]ast.Expr{
-					ast.NewIdent("ret"),
-				}),
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{
-						ast.NewIdent("fields"),
-						ast.NewIdent("err"),
-					},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("r"),
-								Sel: ast.NewIdent(fmt.Sprintf("__schema__%s__fields", interfaceDefinition.Name)),
-							},
-							Args: []ast.Expr{
-								ast.NewIdent("ctx"),
-								ast.NewIdent("child"),
-								ast.NewIdent("variables"),
-								&ast.StarExpr{
-									X: ast.NewIdent("includeDeprecated"),
-								},
-							},
-						},
-					},
-				},
-				generateReturnErrorHandlingStmt([]ast.Expr{
-					ast.NewIdent("ret"),
-				}),
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{
 						&ast.SelectorExpr{
 							X:   ast.NewIdent("ret"),
-							Sel: ast.NewIdent("Fields"),
+							Sel: ast.NewIdent("Description"),
 						},
 					},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-
 						&ast.CallExpr{
 							Fun: &ast.SelectorExpr{
 								X:   ast.NewIdent("executor"),
 								Sel: ast.NewIdent("NewNullable"),
 							},
 							Args: []ast.Expr{
-								ast.NewIdent("fields"),
+								ast.NewIdent("nil"),
+							},
+						},
+					},
+				},
+			},
+		},
+		&ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"fields"`,
+				},
+			},
+			Body: generateOperationFieldBodyStmts(operationDefinition.Fields),
+		},
+		&ast.CaseClause{
+			List: []ast.Expr{
+				ast.NewIdent(`"interfaces"`),
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("ret"),
+							Sel: ast.NewIdent("Interfaces"),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("NewNullable"),
+							},
+							Args: []ast.Expr{
+								&ast.CompositeLit{
+									Type: &ast.ArrayType{
+										Elt: &ast.Ident{Name: "__Type"},
+									},
+								},
 							},
 						},
 					},
@@ -315,26 +281,7 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 			},
 		}, &ast.CaseClause{
 			List: []ast.Expr{
-				&ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"interfaces"`,
-				},
-			},
-			Body: generateInterfaceFields(interfaceDefinition.Extentions),
-		}, &ast.CaseClause{
-			List: []ast.Expr{
-				&ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"possibleTypes"`,
-				},
-			},
-			Body: generateInterfacePossibleTypeStmts(interfaceDefinition, indexes),
-		}, &ast.CaseClause{
-			List: []ast.Expr{
-				&ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"inputFields"`,
-				},
+				ast.NewIdent(`"inputFields"`),
 			},
 			Body: []ast.Stmt{
 				&ast.AssignStmt{
@@ -354,9 +301,8 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 							Args: []ast.Expr{
 								&ast.CompositeLit{
 									Type: &ast.ArrayType{
-										Elt: ast.NewIdent("__InputValue"),
+										Elt: &ast.Ident{Name: "__InputValue"},
 									},
-									Elts: []ast.Expr{},
 								},
 							},
 						},
@@ -365,10 +311,7 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 			},
 		}, &ast.CaseClause{
 			List: []ast.Expr{
-				&ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"enumValues"`,
-				},
+				ast.NewIdent(`"enumValues"`),
 			},
 			Body: []ast.Stmt{
 				&ast.AssignStmt{
@@ -388,7 +331,37 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 							Args: []ast.Expr{
 								&ast.CompositeLit{
 									Type: &ast.ArrayType{
-										Elt: ast.NewIdent("__EnumValue"),
+										Elt: &ast.Ident{Name: "__EnumValue"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, &ast.CaseClause{
+			List: []ast.Expr{
+				ast.NewIdent(`"possibleTypes"`),
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("ret"),
+							Sel: ast.NewIdent("PossibleTypes"),
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("NewNullable"),
+							},
+							Args: []ast.Expr{
+								&ast.CompositeLit{
+									Type: &ast.ArrayType{
+										Elt: &ast.Ident{Name: "__Type"},
 									},
 									Elts: []ast.Expr{},
 								},
@@ -399,10 +372,7 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 			},
 		}, &ast.CaseClause{
 			List: []ast.Expr{
-				&ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"ofType"`,
-				},
+				ast.NewIdent(`"ofType"`),
 			},
 			Body: []ast.Stmt{
 				&ast.AssignStmt{
@@ -426,6 +396,11 @@ func GenerateInterfaceTypeCaseStmts(interfaceDefinition *schema.InterfaceDefinit
 					},
 				},
 			},
+		}, &ast.CaseClause{
+			List: []ast.Expr{
+				ast.NewIdent(`"specifiedByURL"`),
+			},
+			Body: []ast.Stmt{},
 		},
 	}
 }
