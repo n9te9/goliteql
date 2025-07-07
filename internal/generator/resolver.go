@@ -210,6 +210,40 @@ func generateTypeExprFromFieldType(typePrefix string, fieldType *schema.FieldTyp
 	return baseTypeExpr
 }
 
+func generateTypeExprFromFieldTypeForReturn(typePrefix string, fieldType *schema.FieldType, indexes *schema.Indexes) ast.Expr {
+	if fieldType.IsList {
+		return &ast.ArrayType{
+			Elt: generateTypeExprFromFieldTypeForReturn(typePrefix, fieldType.ListType, indexes),
+		}
+	}
+
+	graphQLType := GraphQLType(fieldType.Name)
+
+	var baseTypeExpr ast.Expr = ast.NewIdent(graphQLType.golangType())
+	if !graphQLType.IsPrimitive() {
+		if typePrefix != "" {
+			baseTypeExpr = &ast.SelectorExpr{
+				X:   ast.NewIdent(typePrefix),
+				Sel: ast.NewIdent(graphQLType.golangType()),
+			}
+		}
+	}
+
+	_, isInterface := indexes.InterfaceIndex[string(fieldType.Name)]
+	_, isUnion := indexes.UnionIndex[string(fieldType.Name)]
+	if isUnion || isInterface {
+		return baseTypeExpr
+	}
+
+	if fieldType.Nullable {
+		return &ast.StarExpr{
+			X: baseTypeExpr,
+		}
+	}
+
+	return baseTypeExpr
+}
+
 func generateTypeExprFromFieldTypeForResponse(typePrefix string, fieldType *schema.FieldType) ast.Expr {
 	if fieldType.IsList {
 		return &ast.ArrayType{
@@ -2098,7 +2132,7 @@ func generateTypeExprFromExpandedType(expandedType *introspection.FieldType) ast
 	}
 }
 
-func generateResolverArgs(typePrefix string, field *schema.FieldDefinition) *ast.FieldList {
+func generateResolverArgs(typePrefix string, field *schema.FieldDefinition, indexes *schema.Indexes) *ast.FieldList {
 	ret := make([]*ast.Field, 0, len(field.Arguments)+1)
 	ret = append(ret, &ast.Field{
 		Names: []*ast.Ident{
@@ -2119,7 +2153,7 @@ func generateResolverArgs(typePrefix string, field *schema.FieldDefinition) *ast
 					Name: string(arg.Name),
 				},
 			},
-			Type: generateTypeExprFromFieldType(typePrefix, arg.Type),
+			Type: generateTypeExprFromFieldTypeForReturn(typePrefix, arg.Type, indexes),
 		})
 	}
 
@@ -2128,12 +2162,12 @@ func generateResolverArgs(typePrefix string, field *schema.FieldDefinition) *ast
 	}
 }
 
-func generateResolverReturns(typePrefix string, field *schema.FieldDefinition) *ast.FieldList {
+func generateResolverReturns(typePrefix string, field *schema.FieldDefinition, indexes *schema.Indexes) *ast.FieldList {
 	ret := make([]*ast.Field, 0, len(field.Arguments)+1)
 
 	ret = append(ret, &ast.Field{
 		Names: []*ast.Ident{},
-		Type:  generateTypeExprFromFieldType(typePrefix, field.Type),
+		Type:  generateTypeExprFromFieldTypeForReturn(typePrefix, field.Type, indexes),
 	})
 
 	ret = append(ret, &ast.Field{
@@ -2224,7 +2258,7 @@ func generatePrefixCheck(operation string) *ast.IfStmt {
 	}
 }
 
-func generateInterfaceField(typePrefix string, operation *schema.OperationDefinition) *ast.GenDecl {
+func generateInterfaceField(typePrefix string, operation *schema.OperationDefinition, indexes *schema.Indexes) *ast.GenDecl {
 	generateField := func(field schema.FieldDefinitions) *ast.FieldList {
 		fields := make([]*ast.Field, 0, len(field))
 
@@ -2236,8 +2270,8 @@ func generateInterfaceField(typePrefix string, operation *schema.OperationDefini
 					},
 				},
 				Type: &ast.FuncType{
-					Params:  generateResolverArgs(typePrefix, f),
-					Results: generateResolverReturns(typePrefix, f),
+					Params:  generateResolverArgs(typePrefix, f, indexes),
+					Results: generateResolverReturns(typePrefix, f, indexes),
 				},
 			})
 		}
@@ -2398,7 +2432,7 @@ func generateResolverImplementationStruct() []ast.Decl {
 	}
 }
 
-func generateResolverImplementation(typePrefix string, fields schema.FieldDefinitions) []ast.Decl {
+func generateResolverImplementation(typePrefix string, fields schema.FieldDefinitions, indexes *schema.Indexes) []ast.Decl {
 	decls := make([]ast.Decl, 0, len(fields))
 
 	for _, f := range fields {
@@ -2422,8 +2456,8 @@ func generateResolverImplementation(typePrefix string, fields schema.FieldDefini
 				},
 			},
 			Type: &ast.FuncType{
-				Params:  generateResolverArgs(typePrefix, f),
-				Results: generateResolverReturns(typePrefix, f),
+				Params:  generateResolverArgs(typePrefix, f, indexes),
+				Results: generateResolverReturns(typePrefix, f, indexes),
 			},
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{

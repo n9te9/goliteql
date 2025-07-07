@@ -9,6 +9,7 @@ type Node struct {
 	SelectSets []query.Selection
 	Directives []*query.Directive
 	Arguments  []*query.Argument
+	Type       string
 	Children   []*Node
 }
 
@@ -52,6 +53,10 @@ func digExecution(selectSet query.Selection) *Node {
 			switch c := child.(type) {
 			case *query.Field:
 				node.Children = append(node.Children, digExecution(c))
+			case *query.InlineFragment:
+				// Handle inline fragment
+			case *query.FragmentSpread:
+				// Handle fragment spread
 			}
 		}
 		return node
