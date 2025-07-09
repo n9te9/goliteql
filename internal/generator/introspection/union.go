@@ -54,7 +54,26 @@ func generateUnionPossibleAssignStmts(unionDefinition *schema.UnionDefinition) [
 			},
 		}, generateReturnErrorHandlingStmt([]ast.Expr{
 			ast.NewIdent("ret"),
-		}), &ast.AssignStmt{
+		}))
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("possibleTypes"),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("append"),
+					Args: []ast.Expr{
+						ast.NewIdent("possibleTypes"),
+						ast.NewIdent(fmt.Sprintf("%sPossibleType", unionType)),
+					},
+				},
+			},
+		})
+	}
+
+	ret = append(ret, &ast.AssignStmt{
 			Lhs: []ast.Expr{
 				&ast.SelectorExpr{
 					X:   ast.NewIdent("ret"),
@@ -65,17 +84,15 @@ func generateUnionPossibleAssignStmts(unionDefinition *schema.UnionDefinition) [
 			Rhs: []ast.Expr{
 				&ast.CallExpr{
 					Fun: &ast.SelectorExpr{
-						Sel: ast.NewIdent("executor"),
-						X:   ast.NewIdent("NewNullable"),
+						X: ast.NewIdent("executor"),
+						Sel:   ast.NewIdent("NewNullable"),
 					},
 					Args: []ast.Expr{
-						ast.NewIdent(fmt.Sprintf("%sPossibleType", unionType)),
+						ast.NewIdent("possibleTypes"),
 					},
 				},
 			},
-		},
-		)
-	}
+		})
 
 	return ret
 }
