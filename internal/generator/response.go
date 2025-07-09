@@ -530,13 +530,13 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 
 		if !field.Type.Nullable {
 			if field.Type.IsBoolean() {
-				rh = generateIntPointerExpr(rh)
+				rh = generateNewNullableExpr(rh)
 			} else if field.Type.IsString() || field.Type.IsID() {
-				rh = generateStringPointerExpr(rh)
+				rh = generateNewNullableExpr(rh)
 			} else if field.Type.IsInt() {
-				rh = generateIntPointerExpr(rh)
+				rh = generateNewNullableExpr(rh)
 			} else if field.Type.IsFloat() {
-				rh = generateFloatPointerExpr(rh)
+				rh = generateNewNullableExpr(rh)
 			} else {
 				retName := fmt.Sprintf("ret%s", field.Name)
 				fieldRetAssignStmt := &ast.AssignStmt{
@@ -669,6 +669,16 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 	return ret
 }
 
+func generateNewNullableExpr(expr ast.Expr) ast.Expr {
+	return &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   ast.NewIdent("executor"),
+			Sel: ast.NewIdent("NewNullable"),
+		},
+		Args: []ast.Expr{expr},
+	}
+}
+
 func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeDefinition, nestCount int, fieldName string, rootNestCount int) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
@@ -698,13 +708,13 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 
 		if !field.Type.Nullable {
 			if field.Type.IsBoolean() {
-				rh = generateIntPointerExpr(rh)
+				rh = generateNewNullableExpr(rh)
 			} else if field.Type.IsString() || field.Type.IsID() {
-				rh = generateStringPointerExpr(rh)
+				rh = generateNewNullableExpr(rh)
 			} else if field.Type.IsInt() {
-				rh = generateIntPointerExpr(rh)
+				rh = generateNewNullableExpr(rh)
 			} else if field.Type.IsFloat() {
-				rh = generateFloatPointerExpr(rh)
+				rh = generateNewNullableExpr(rh)
 			} else {
 				retName := fmt.Sprintf("ret%s", field.Name)
 				fieldRetAssignStmt := &ast.AssignStmt{
@@ -818,6 +828,14 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 							Op: token.AND,
 							X:  ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
 						},
+					},
+				})
+			} else {
+				caseBody = append(caseBody,	&ast.AssignStmt{
+					Lhs: lhs,
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						generateNewNullableExpr(rh),
 					},
 				})
 			}

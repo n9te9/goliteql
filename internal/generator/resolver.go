@@ -3298,10 +3298,10 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 	fields := make([]*ast.Field, 0, len(typeDefinition.Fields))
 
 	for _, field := range typeDefinition.Fields {
-		var typeExpr ast.Expr = &ast.StarExpr{
-			X: generateTypeExprFromFieldTypeForResponse("", field.Type),
+		var typeExpr ast.Expr = &ast.SelectorExpr{
+			X: ast.NewIdent("executor"),
+			Sel: ast.NewIdent("Nullable"),
 		}
-
 		fields = append(fields, &ast.Field{
 			Names: []*ast.Ident{
 				ast.NewIdent(toUpperCase(string(field.Name))),
