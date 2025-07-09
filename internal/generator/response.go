@@ -609,6 +609,18 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 			})
 		} else {
 			if !field.Type.IsPrimitive() {
+				var argExpr ast.Expr = &ast.SelectorExpr{
+					X:   ast.NewIdent(valueName),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				}
+				if field.Type.IsList {
+					argExpr = &ast.StarExpr{
+						X: &ast.SelectorExpr{
+							X:   ast.NewIdent(valueName),
+							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+						},
+					}
+				}
 				caseBody = append(caseBody, &ast.AssignStmt{
 					Lhs: []ast.Expr{
 						ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
@@ -623,10 +635,7 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 									string(field.Name))),
 							},
 							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   ast.NewIdent(valueName),
-									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-								},
+								argExpr,
 								ast.NewIdent("child"),
 							},
 						},
@@ -646,10 +655,23 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 					},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						&ast.UnaryExpr{
-							Op: token.AND,
-							X:  ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
+						generateNewNullableExpr(ast.NewIdent(fmt.Sprintf("ret%s", field.Name))),
+					},
+				})
+			} else {
+				caseBody = append(caseBody, &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   assignExpr,
+							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						generateNewNullableExpr(&ast.SelectorExpr{
+							X:   ast.NewIdent(valueName),
+							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+						}),
 					},
 				})
 			}
@@ -717,6 +739,16 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 				rh = generateNewNullableExpr(rh)
 			} else {
 				retName := fmt.Sprintf("ret%s", field.Name)
+				var valueExpr ast.Expr = &ast.SelectorExpr{
+					X:   ast.NewIdent(valueName),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				}
+				if field.Type.Nullable {
+					valueExpr = &ast.StarExpr{
+						X: valueExpr,
+					}
+				}
+
 				fieldRetAssignStmt := &ast.AssignStmt{
 					Lhs: []ast.Expr{
 						ast.NewIdent(retName),
@@ -730,10 +762,7 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 								Sel: ast.NewIdent(fmt.Sprintf("apply%s%sQueryResponse", fieldName, string(field.Name))),
 							},
 							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   ast.NewIdent(valueName),
-									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-								},
+								valueExpr,
 								ast.NewIdent("child"),
 							},
 						},
@@ -801,9 +830,11 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 									string(field.Name))),
 							},
 							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   ast.NewIdent(valueName),
-									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+								&ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   ast.NewIdent(valueName),
+										Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+									},
 								},
 								ast.NewIdent("child"),
 							},
@@ -824,14 +855,11 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 					},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						&ast.UnaryExpr{
-							Op: token.AND,
-							X:  ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
-						},
+						generateNewNullableExpr(ast.NewIdent(fmt.Sprintf("ret%s", field.Name))),
 					},
 				})
 			} else {
-				caseBody = append(caseBody,	&ast.AssignStmt{
+				caseBody = append(caseBody, &ast.AssignStmt{
 					Lhs: lhs,
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
