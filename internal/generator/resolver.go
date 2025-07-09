@@ -280,7 +280,6 @@ func generateApplyQueryResponseFuncDecls(operationDefinition *schema.OperationDe
 
 	for _, field := range operationDefinition.Fields {
 		ret = append(ret, generateApplyQueryResponseFuncDeclFromField(field, indexes, typePrefix, ""))
-
 		ret = append(ret, generateApplyNestedFieldQueryResponseFuncDecls(field.Type, indexes, typePrefix, string(field.Name))...)
 	}
 
@@ -300,12 +299,27 @@ func generateApplyNestedFieldQueryResponseFuncDecls(fieldType *schema.FieldType,
 
 	rootType := fieldType.GetRootType()
 
-	fieldDefinition := indexes.TypeIndex[string(rootType.Name)]
-	if fieldDefinition == nil {
-		return ret
+	typeDefinition := indexes.TypeIndex[string(rootType.Name)]
+	if typeDefinition != nil {
+		ret = append(ret, generateApplyNestedFieldQueryResponseFuncDeclsFromTypeDefinition(typeDefinition, indexes, typePrefix, operationPrefix)...)
 	}
 
-	for _, field := range fieldDefinition.Fields {
+	interfaceDefinition := indexes.InterfaceIndex[string(rootType.Name)]
+	if interfaceDefinition != nil {
+		interfaceImplementedTypes := indexes.GetImplementedType(interfaceDefinition)
+		for _, implementedType := range interfaceImplementedTypes {
+			ret = append(ret, generateApplyNestedFieldQueryResponseFuncDeclsFromTypeDefinition(implementedType, indexes, typePrefix, operationPrefix)...)
+
+		}
+	}
+
+	return ret
+}
+
+func generateApplyNestedFieldQueryResponseFuncDeclsFromTypeDefinition(typeDefinition *schema.TypeDefinition, indexes *schema.Indexes, typePrefix, operationPrefix string) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	for _, field := range typeDefinition.Fields {
 		if field.IsPrimitive() {
 			continue
 		}
@@ -3257,6 +3271,10 @@ func generateOperationResponseStructDecls(schema *schema.Schema) []ast.Decl {
 		decls = append(decls, generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition))
 	}
 
+	for _, interfaceDefinition := range schema.Interfaces {
+		decls = append(decls, generateResponseInterfaceFromField(interfaceDefinition))
+	}
+
 	return decls
 }
 
@@ -3293,6 +3311,12 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 				Kind:  token.STRING,
 				Value: fmt.Sprintf("`json:\"%s,omitempty\"`", string(field.Name)),
 			},
+		})
+	}
+
+	for _, i := range typeDefinition.Interfaces {
+		fields = append(fields, &ast.Field{
+			Type: ast.NewIdent(fmt.Sprintf("%sResponse", i.Name)),
 		})
 	}
 
@@ -3371,6 +3395,22 @@ func generateResponseStructAliasFromTypeDefinition(typeDefinition *schema.TypeDe
 			&ast.TypeSpec{
 				Name: ast.NewIdent(aliasTypeName),
 				Type: ast.NewIdent(recvTypeName),
+			},
+		},
+	}
+}
+
+func generateResponseInterfaceFromField(interfaceDefinition *schema.InterfaceDefinition) ast.Decl {
+	return &ast.GenDecl{
+		Tok: token.TYPE,
+		Specs: []ast.Spec{
+			&ast.TypeSpec{
+				Name: ast.NewIdent(fmt.Sprintf("%sResponse", interfaceDefinition.Name)),
+				Type: &ast.InterfaceType{
+					Methods: &ast.FieldList{
+						List: []*ast.Field{},
+					},
+				},
 			},
 		},
 	}
