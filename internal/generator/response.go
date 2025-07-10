@@ -560,8 +560,14 @@ func generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition *schema.Inter
 					Rhs: []ast.Expr{
 						&ast.CallExpr{
 							Fun: &ast.SelectorExpr{
-								X:   assignRh,
-								Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("NewNullable"),
+							},
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent(fmt.Sprintf("v%d", nestCount)),
+									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+								},
 							},
 						},
 					},
@@ -571,54 +577,111 @@ func generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition *schema.Inter
 	}
 
 	appendAssignLh := ast.NewIdent("ret")
-	if nestCount - 1 > 0 {
-		appendAssignLh = ast.NewIdent(fmt.Sprintf("ret%d", nestCount - 1))
+	if nestCount-1 > 0 {
+		appendAssignLh = ast.NewIdent(fmt.Sprintf("ret%d", nestCount-1))
+	}
+
+	typeCaseStmts := make([]ast.Stmt, 0)
+	for _, typeDefinition := range indexes.GetImplementedType(interfaceDefinition) {
+		rangeSwitchStmt := []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent(fmt.Sprintf("ret%d", nestCount)),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CompositeLit{
+						Type: ast.NewIdent(fmt.Sprintf("%sResponse", typeDefinition.Name)),
+					},
+				},
+			},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent("child"),
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("node"),
+					Sel: ast.NewIdent("Children"),
+				},
+				Tok: token.DEFINE,
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.SwitchStmt{
+							Tag: &ast.CallExpr{
+								Fun: ast.NewIdent("string"),
+								Args: []ast.Expr{
+									&ast.SelectorExpr{
+										X:   ast.NewIdent("child"),
+										Sel: ast.NewIdent("Name"),
+									},
+								},
+							},
+							Body: &ast.BlockStmt{
+								List: caseStmts,
+							},
+						},
+					},
+				},
+			},
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					appendAssignLh,
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("append"),
+						Args: []ast.Expr{
+							appendAssignLh,
+							assignLh,
+						},
+					},
+				},
+			},
+		}
+
+		typeCaseStmts = append(typeCaseStmts, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent(typePrefix),
+					Sel: ast.NewIdent(string(typeDefinition.Name)),
+				},
+			},
+			Body: rangeSwitchStmt,
+		}, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.StarExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent(typePrefix),
+						Sel: ast.NewIdent(string(typeDefinition.Name)),
+					},
+				},
+			},
+			Body: rangeSwitchStmt,
+		})
 	}
 
 	return []ast.Stmt{
-		&ast.RangeStmt{
-			Key:   ast.NewIdent("_"),
-			Value: ast.NewIdent("child"),
-			X: &ast.SelectorExpr{
-				X:   ast.NewIdent("node"),
-				Sel: ast.NewIdent("Children"),
+		&ast.TypeSwitchStmt{
+			Assign: &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent(fmt.Sprintf("v%d", nestCount)),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.TypeAssertExpr{
+						X:    assignRh,
+						Type: ast.NewIdent("type"),
+					},
+				},
 			},
-			Tok: token.DEFINE,
 			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-					&ast.SwitchStmt{
-						Tag: &ast.CallExpr{
-							Fun: ast.NewIdent("string"),
-							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   ast.NewIdent("child"),
-									Sel: ast.NewIdent("Name"),
-								},
-							},
-						},
-						Body: &ast.BlockStmt{
-							List: caseStmts,
-						},
-					},
-				},
-			},
-		},
-		&ast.AssignStmt{
-			Lhs: []ast.Expr{
-				appendAssignLh,
-			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: ast.NewIdent("append"),
-					Args: []ast.Expr{
-						appendAssignLh,
-						assignLh,
-					},
-				},
+				List: typeCaseStmts,
 			},
 		},
 	}
+
+	// return []ast.Stmt{
+	// }
 }
 
 func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, nestCount int, fieldName string, rootNestCount int) []ast.Stmt {
