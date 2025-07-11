@@ -310,7 +310,6 @@ func generateApplyNestedFieldQueryResponseFuncDecls(fieldType *schema.FieldType,
 		interfaceImplementedTypes := indexes.GetImplementedType(interfaceDefinition)
 		for _, implementedType := range interfaceImplementedTypes {
 			ret = append(ret, generateApplyNestedFieldQueryResponseFuncDeclsFromTypeDefinition(implementedType, indexes, typePrefix, operationPrefix)...)
-
 		}
 	}
 
@@ -3300,7 +3299,7 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 
 	for _, field := range typeDefinition.Fields {
 		var typeExpr ast.Expr = &ast.SelectorExpr{
-			X: ast.NewIdent("executor"),
+			X:   ast.NewIdent("executor"),
 			Sel: ast.NewIdent("Nullable"),
 		}
 		fields = append(fields, &ast.Field{
@@ -3315,18 +3314,12 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 		})
 	}
 
-	for _, i := range typeDefinition.Interfaces {
-		fields = append(fields, &ast.Field{
-			Type: ast.NewIdent(fmt.Sprintf("%sResponse", i.Name)),
-		})
-	}
-
 	fields = append(fields, &ast.Field{
 		Names: []*ast.Ident{
 			ast.NewIdent("GraphQLTypeName"),
 		},
 		Type: &ast.SelectorExpr{
-			X: ast.NewIdent("executor"),
+			X:   ast.NewIdent("executor"),
 			Sel: ast.NewIdent("Nullable"),
 		},
 		Tag: &ast.BasicLit{
@@ -3334,6 +3327,22 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 			Value: "`json:\"__typename,omitempty\"`",
 		},
 	})
+
+	if len(typeDefinition.Interfaces) > 0 {
+		fields = append(fields, &ast.Field{
+			Type: &ast.BasicLit{},
+		})
+	}
+
+	for _, i := range typeDefinition.Interfaces {
+		fields = append(fields, &ast.Field{
+			Type: ast.NewIdent(fmt.Sprintf("%sResponse", i.Name)),
+			Tag: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: "`json:\"-\"`",
+			},
+		})
+	}
 
 	return fields
 }
@@ -3363,7 +3372,7 @@ func generateAllPointerFieldStructFromInterface(interfaceDefinition *schema.Inte
 
 	for _, field := range interfaceDefinition.Fields {
 		var typeExpr ast.Expr = &ast.SelectorExpr{
-			X: ast.NewIdent("executor"),
+			X:   ast.NewIdent("executor"),
 			Sel: ast.NewIdent("Nullable"),
 		}
 		fields = append(fields, &ast.Field{
@@ -3377,7 +3386,7 @@ func generateAllPointerFieldStructFromInterface(interfaceDefinition *schema.Inte
 			},
 		})
 	}
-	
+
 	fields = append(fields, &ast.Field{
 		Type: ast.NewIdent(fmt.Sprintf("%sResponse", interfaceDefinition.Name)),
 	})
@@ -3387,7 +3396,7 @@ func generateAllPointerFieldStructFromInterface(interfaceDefinition *schema.Inte
 			ast.NewIdent("GraphQLTypeName"),
 		},
 		Type: &ast.SelectorExpr{
-			X: ast.NewIdent("executor"),
+			X:   ast.NewIdent("executor"),
 			Sel: ast.NewIdent("Nullable"),
 		},
 		Tag: &ast.BasicLit{

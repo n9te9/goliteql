@@ -57,7 +57,7 @@ func generateApplyQueryResponseFuncDeclFromField(field *schema.FieldDefinition, 
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Type: generateNestedArrayTypeForResponse(ast.NewIdent(fmt.Sprintf("%sResponse", field.Type.GetRootType().Name)), 0, nestCount, field.Type.GetRootType().Nullable),
+						Type: generateNestedArrayTypeForResponse(field.Type, indexes, true),
 					},
 					{
 						Type: ast.NewIdent("error"),
@@ -84,7 +84,6 @@ func generateApplyQueryResponseFuncStmts(field *schema.FieldDefinition, indexes 
 	}
 
 	if currentNestCount == nestCount {
-
 		if rootType.Nullable {
 			ret = append(ret, &ast.AssignStmt{
 				Lhs: []ast.Expr{resultLh},
@@ -127,7 +126,7 @@ func generateApplyQueryResponseFuncStmts(field *schema.FieldDefinition, indexes 
 				&ast.CallExpr{
 					Fun: ast.NewIdent("make"),
 					Args: []ast.Expr{
-						generateNestedArrayTypeForResponse(ast.NewIdent(fmt.Sprintf("%sResponse", field.Type.GetRootType().Name)), currentNestCount, nestCount, field.Type.GetRootType().Nullable),
+						generateNestedArrayTypeForResponse(field.Type, indexes, true),
 						ast.NewIdent("0"),
 						&ast.CallExpr{
 							Fun: ast.NewIdent("len"),
@@ -180,21 +179,26 @@ func generateApplyQueryResponseFuncStmts(field *schema.FieldDefinition, indexes 
 	return ret
 }
 
-func generateNestedArrayTypeForResponse(typeExpr ast.Expr, currentNestCount, nestCount int, isNullable bool) ast.Expr {
-	if currentNestCount >= nestCount {
-		if isNullable {
-			return &ast.SelectorExpr{
-				X:   ast.NewIdent("executor"),
-				Sel: ast.NewIdent("Nullable"),
-			}
+func generateNestedArrayTypeForResponse(fieldType *schema.FieldType, indexes *schema.Indexes, isRoot bool) ast.Expr {
+	_, isInterface := indexes.InterfaceIndex[string(fieldType.Name)]
+	_, isUnion := indexes.UnionIndex[string(fieldType.Name)]
+	if isInterface || isUnion {
+		return ast.NewIdent(fmt.Sprintf("%sResponse", fieldType.Name))
+	}
+
+	if fieldType.IsList {
+		return &ast.ArrayType{
+			Elt: generateNestedArrayTypeForResponse(fieldType.ListType, indexes, false),
 		}
-
-		return typeExpr
 	}
 
-	return &ast.ArrayType{
-		Elt: generateNestedArrayTypeForResponse(typeExpr, currentNestCount+1, nestCount, isNullable),
+	if fieldType.Nullable {
+		return &ast.StarExpr{
+			X: ast.NewIdent(fmt.Sprintf("%sResponse", fieldType.Name)),
+		}
 	}
+
+	return ast.NewIdent(fmt.Sprintf("%sResponse", fieldType.Name))
 }
 
 func generateApplySwitchStmtForQueryResponse(field *schema.FieldDefinition, indexes *schema.Indexes, nestCount, rootNestCount int) []ast.Stmt {
