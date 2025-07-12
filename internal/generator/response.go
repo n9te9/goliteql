@@ -330,7 +330,7 @@ func generateApplyRangeStmtForFragmentResponse(field *schema.FieldDefinition, in
 	}
 
 	if nestCount == rootNestCount {
-		return generateApplySwitchStmtForFragmentQueryResponse(field, indexes, nestCount, rootNestCount, typePrefix)
+		return generateApplySwitchStmtForFragmentQueryResponseToRefactor(field, indexes, nestCount, rootNestCount, typePrefix)
 	}
 
 	var rangeRetAssignStmt, appendAssignStmt ast.Stmt = &ast.EmptyStmt{}, &ast.EmptyStmt{}
@@ -530,6 +530,170 @@ func generateApplySwitchStmtForFragmentQueryResponse(field *schema.FieldDefiniti
 		})
 	}
 
+	stmts = append(stmts, generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition, indexes, nestCount, rootNestCount, typePrefix)...)
+
+	return stmts
+}
+
+func generateApplySwitchStmtForFragmentQueryResponseToRefactor(field *schema.FieldDefinition, indexes *schema.Indexes, nestCount, rootNestCount int, typePrefix string) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0)
+
+	interfaceDefinition := indexes.InterfaceIndex[string(field.Type.GetRootType().Name)]
+	typeDefinitions := indexes.GetImplementedType(interfaceDefinition)
+
+	rangeSwitchStmts := make([]ast.Stmt, 0, len(typeDefinitions))
+	for _, typeDefinition := range typeDefinitions {
+		assignLh := ast.NewIdent("ret")
+		if nestCount-1 > 0 {
+			assignLh = ast.NewIdent(fmt.Sprintf("ret%s%d", typeDefinition.Name, rootNestCount))
+		}
+
+		switchCaseStmts := make([]ast.Stmt, 0)
+		switchCaseStmts = append(switchCaseStmts, &ast.SwitchStmt{
+			Tag: &ast.CallExpr{
+				Fun: ast.NewIdent("string"),
+				Args: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("fragmentChild"),
+						Sel: ast.NewIdent("Name"),
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: generateApplyQueryResponseCaseStmtsForFragment(typeDefinition, nestCount, string(field.Name), rootNestCount),
+			},
+		})
+
+		rangeStmt := &ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Value: ast.NewIdent("fragmentChild"),
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("child"),
+				Sel: ast.NewIdent("Children"),
+			},
+			Tok: token.DEFINE,
+			Body: &ast.BlockStmt{
+				List: switchCaseStmts,
+			},
+		}
+
+		rangeSwitchStmts = append(rangeSwitchStmts,
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent(fmt.Sprintf("ret%s%d", typeDefinition.Name, rootNestCount)),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CompositeLit{
+						Type: ast.NewIdent(fmt.Sprintf("%sResponse", typeDefinition.Name)),
+					},
+				},
+			})
+		rangeSwitchStmts = append(rangeSwitchStmts, &ast.IfStmt{
+			Cond: &ast.BinaryExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("child"),
+					Sel: ast.NewIdent("Type"),
+				},
+				Op: token.EQL,
+				Y:  ast.NewIdent(fmt.Sprintf("%q", typeDefinition.Name)),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.TypeSwitchStmt{
+						Assign: &ast.AssignStmt{
+							Lhs: []ast.Expr{
+								ast.NewIdent(fmt.Sprintf("v%d", rootNestCount)),
+							},
+							Tok: token.DEFINE,
+							Rhs: []ast.Expr{
+								&ast.TypeAssertExpr{
+									X:    ast.NewIdent(fmt.Sprintf("v%d", rootNestCount-1)),
+									Type: ast.NewIdent("type"),
+								},
+							},
+						},
+						Body: &ast.BlockStmt{
+							List: []ast.Stmt{
+								&ast.CaseClause{
+									List: []ast.Expr{
+										&ast.SelectorExpr{
+											X:   ast.NewIdent(typePrefix),
+											Sel: ast.NewIdent(string(typeDefinition.Name)),
+										},
+									},
+									Body: []ast.Stmt{
+										rangeStmt,
+									},
+								},
+								&ast.CaseClause{
+									List: []ast.Expr{
+										&ast.StarExpr{
+											X: &ast.SelectorExpr{
+												X:   ast.NewIdent(typePrefix),
+												Sel: ast.NewIdent(string(typeDefinition.Name)),
+											},
+										},
+									},
+									Body: []ast.Stmt{
+										rangeStmt,
+									},
+								},
+							},
+						},
+					},
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							assignLh,
+						},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: ast.NewIdent("append"),
+								Args: []ast.Expr{
+									assignLh,
+									ast.NewIdent(fmt.Sprintf("ret%s%d", typeDefinition.Name, rootNestCount)),
+								},
+							},
+						},
+					},
+					&ast.ExprStmt{
+						X: &ast.BasicLit{
+							Kind:  token.CONTINUE,
+							Value: "continue",
+						},
+					},
+				},
+			},
+		})
+	}
+
+	stmt := &ast.IfStmt{
+		Cond: &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("node"),
+				Sel: ast.NewIdent("HasFragment"),
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.RangeStmt{
+					Key:   ast.NewIdent("_"),
+					Value: ast.NewIdent("child"),
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("node"),
+						Sel: ast.NewIdent("Children"),
+					},
+					Tok: token.DEFINE,
+					Body: &ast.BlockStmt{
+						List: rangeSwitchStmts,
+					},
+				},
+			},
+		},
+	}
+
+	stmts = append(stmts, stmt)
 	stmts = append(stmts, generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition, indexes, nestCount, rootNestCount, typePrefix)...)
 
 	return stmts
@@ -932,7 +1096,7 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 	valueName := "resolverRet"
 	if nestCount >= 0 && rootNestCount > 0 {
 		valueName = fmt.Sprintf("v%d", nestCount)
-		assignExpr = ast.NewIdent(fmt.Sprintf("ret%d", nestCount))
+		assignExpr = ast.NewIdent(fmt.Sprintf("ret%s%d", typeDefinition.Name, nestCount))
 	}
 
 	for _, field := range typeDefinition.Fields {

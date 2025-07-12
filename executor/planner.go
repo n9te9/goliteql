@@ -9,9 +9,28 @@ type Node struct {
 	Directives []*query.Directive
 	Arguments  []*query.Argument
 	Type       string
-	IsFragment bool
 	Parent     *Node
 	Children   []*Node
+}
+
+func (n *Node) HasFragment() bool {
+	return n.recursiveHasFragment()
+}
+
+func (n *Node) recursiveHasFragment() bool {
+	if len(n.Children) == 0 {
+		return false
+	}
+
+	if n.Type != "" {
+		return true
+	}
+
+	for _, child := range n.Children {
+		return child.recursiveHasFragment()
+	}
+
+	return false
 }
 
 func PlanExecution(selections []query.Selection) []*Node {
@@ -27,7 +46,7 @@ func PlanExecution(selections []query.Selection) []*Node {
 			}
 
 			for _, child := range s.Selections {
-				node.Children = append(node.Children, digExecution(nil, child))
+				node.Children = append(node.Children, digExecution(child))
 			}
 
 			ret = append(ret, node)
@@ -37,7 +56,7 @@ func PlanExecution(selections []query.Selection) []*Node {
 	return ret
 }
 
-func digExecution(parent *Node, selectSet query.Selection) *Node {
+func digExecution(selectSet query.Selection) *Node {
 	switch s := selectSet.(type) {
 	case *query.Field:
 		node := &Node{
@@ -45,16 +64,14 @@ func digExecution(parent *Node, selectSet query.Selection) *Node {
 			Directives: s.Directives,
 			Arguments:  s.Arguments,
 			Children:   make([]*Node, 0, len(s.Selections)),
-			Parent:     parent,
 		}
 		for _, child := range s.Selections {
 			switch c := child.(type) {
 			case *query.Field:
-				node.Children = append(node.Children, digExecution(node, c))
+				node.Children = append(node.Children, digExecution(c))
 			case *query.InlineFragment:
-				node.Parent.IsFragment = true
 				node.Type = string(c.TypeCondition)
-				node.Children = append(node.Children, digExecution(node, c))
+				node.Children = append(node.Children, digExecution(c))
 			case *query.FragmentSpread:
 				// Handle fragment spread
 			}
@@ -65,15 +82,13 @@ func digExecution(parent *Node, selectSet query.Selection) *Node {
 			Directives: s.Directives,
 			Type:       string(s.TypeCondition),
 			Children:   make([]*Node, 0, len(s.Selections)),
-			Parent:     parent,
 		}
 		for _, child := range s.Selections {
 			switch c := child.(type) {
 			case *query.Field:
-				node.Children = append(node.Children, digExecution(node, c))
+				node.Children = append(node.Children, digExecution(c))
 			case *query.InlineFragment:
-				node.Parent.IsFragment = true
-				node.Children = append(node.Children, digExecution(node, c))
+				node.Children = append(node.Children, digExecution(c))
 			case *query.FragmentSpread:
 				// Handle fragment spread
 			}
