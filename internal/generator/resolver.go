@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strings"
 
 	"github.com/n9te9/goliteql/internal/generator/introspection"
 	"github.com/n9te9/goliteql/schema"
@@ -3343,67 +3342,6 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 			},
 		})
 	}
-
-	return fields
-}
-
-func toLowerCase(s string) string {
-	return strings.ToLower(s[:1]) + s[1:]
-}
-
-func generateResponseStructFromInterface(interfaceDefinition *schema.InterfaceDefinition) ast.Decl {
-	return &ast.GenDecl{
-		Tok: token.TYPE,
-		Specs: []ast.Spec{
-			&ast.TypeSpec{
-				Name: ast.NewIdent(fmt.Sprintf("%sResponse", toLowerCase(string(interfaceDefinition.Name)))),
-				Type: &ast.StructType{
-					Fields: &ast.FieldList{
-						List: generateAllPointerFieldStructFromInterface(interfaceDefinition),
-					},
-				},
-			},
-		},
-	}
-}
-
-func generateAllPointerFieldStructFromInterface(interfaceDefinition *schema.InterfaceDefinition) []*ast.Field {
-	fields := make([]*ast.Field, 0, len(interfaceDefinition.Fields))
-
-	for _, field := range interfaceDefinition.Fields {
-		var typeExpr ast.Expr = &ast.SelectorExpr{
-			X:   ast.NewIdent("executor"),
-			Sel: ast.NewIdent("Nullable"),
-		}
-		fields = append(fields, &ast.Field{
-			Names: []*ast.Ident{
-				ast.NewIdent(toUpperCase(string(field.Name))),
-			},
-			Type: typeExpr,
-			Tag: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: fmt.Sprintf("`json:\"%s,omitempty\"`", string(field.Name)),
-			},
-		})
-	}
-
-	fields = append(fields, &ast.Field{
-		Type: ast.NewIdent(fmt.Sprintf("%sResponse", interfaceDefinition.Name)),
-	})
-
-	fields = append(fields, &ast.Field{
-		Names: []*ast.Ident{
-			ast.NewIdent("GraphQLTypeName"),
-		},
-		Type: &ast.SelectorExpr{
-			X:   ast.NewIdent("executor"),
-			Sel: ast.NewIdent("Nullable"),
-		},
-		Tag: &ast.BasicLit{
-			Kind:  token.STRING,
-			Value: "`json:\"__typename,omitempty\"`",
-		},
-	})
 
 	return fields
 }

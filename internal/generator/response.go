@@ -624,6 +624,21 @@ func generateApplySwitchStmtForFragmentQueryResponseToRefactor(field *schema.Fie
 									},
 									Body: []ast.Stmt{
 										rangeStmt,
+										&ast.AssignStmt{
+											Lhs: []ast.Expr{
+												assignLh,
+											},
+											Tok: token.ASSIGN,
+											Rhs: []ast.Expr{
+												&ast.CallExpr{
+													Fun: ast.NewIdent("append"),
+													Args: []ast.Expr{
+														assignLh,
+														ast.NewIdent(fmt.Sprintf("ret%s%d", typeDefinition.Name, rootNestCount)),
+													},
+												},
+											},
+										},
 									},
 								},
 								&ast.CaseClause{
@@ -637,22 +652,22 @@ func generateApplySwitchStmtForFragmentQueryResponseToRefactor(field *schema.Fie
 									},
 									Body: []ast.Stmt{
 										rangeStmt,
+										&ast.AssignStmt{
+											Lhs: []ast.Expr{
+												assignLh,
+											},
+											Tok: token.ASSIGN,
+											Rhs: []ast.Expr{
+												&ast.CallExpr{
+													Fun: ast.NewIdent("append"),
+													Args: []ast.Expr{
+														assignLh,
+														ast.NewIdent(fmt.Sprintf("ret%s%d", typeDefinition.Name, rootNestCount)),
+													},
+												},
+											},
+										},
 									},
-								},
-							},
-						},
-					},
-					&ast.AssignStmt{
-						Lhs: []ast.Expr{
-							assignLh,
-						},
-						Tok: token.ASSIGN,
-						Rhs: []ast.Expr{
-							&ast.CallExpr{
-								Fun: ast.NewIdent("append"),
-								Args: []ast.Expr{
-									assignLh,
-									ast.NewIdent(fmt.Sprintf("ret%s%d", typeDefinition.Name, rootNestCount)),
 								},
 							},
 						},
@@ -691,10 +706,12 @@ func generateApplySwitchStmtForFragmentQueryResponseToRefactor(field *schema.Fie
 				},
 			},
 		},
+		Else: &ast.BlockStmt{
+			List: generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition, indexes, nestCount, rootNestCount, typePrefix),
+		},
 	}
 
 	stmts = append(stmts, stmt)
-	stmts = append(stmts, generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition, indexes, nestCount, rootNestCount, typePrefix)...)
 
 	return stmts
 }
