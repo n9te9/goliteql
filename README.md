@@ -151,6 +151,7 @@ You should see the following response:
 		]
 	}
 }
+```
 
 ### Benchmark
 
