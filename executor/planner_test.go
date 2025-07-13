@@ -11,10 +11,10 @@ import (
 func TestPlanExecution(t *testing.T) {
 	// Test cases for PlanExecution function
 	tests := []struct {
-		name         string
-		input        []query.Selection
-		resultTree   *executor.Node
-		expectedName []byte
+		name                string
+		input               []query.Selection
+		resultTree          []*executor.Node
+		fragmentDefinitions query.FragmentDefinitions
 	}{
 		{
 			name: "Test case 1",
@@ -26,17 +26,14 @@ func TestPlanExecution(t *testing.T) {
 					},
 				},
 			},
-			expectedName: []byte("field1"),
-			resultTree: &executor.Node{
-				Name: []byte("field1"),
-				SelectSets: []query.Selection{
-					&query.Field{Name: []byte("childField1")},
-				},
-				Children: []*executor.Node{
-					{
-						Name:       []byte("childField1"),
-						SelectSets: nil,
-						Children:   nil,
+			resultTree: []*executor.Node{
+				{
+					Name: []byte("field1"),
+					Children: []*executor.Node{
+						{
+							Name:     []byte("childField1"),
+							Children: []*executor.Node{},
+						},
 					},
 				},
 			},
@@ -63,50 +60,106 @@ func TestPlanExecution(t *testing.T) {
 					},
 				},
 			},
-			expectedName: []byte("level1"),
-			resultTree: &executor.Node{
-				Name: []byte("level1"),
-				SelectSets: []query.Selection{
-					&query.Field{
-						Name: []byte("level2"),
-						Selections: []query.Selection{
-							&query.Field{
-								Name: []byte("level3"),
-								Selections: []query.Selection{
-									&query.Field{
-										Name: []byte("leafField"),
+			resultTree: []*executor.Node{
+				{
+					Name: []byte("level1"),
+					Children: []*executor.Node{
+						{
+							Name: []byte("level2"),
+							Children: []*executor.Node{
+								{
+									Name: []byte("level3"),
+									Children: []*executor.Node{
+										{
+											Name:     []byte("leafField"),
+											Children: []*executor.Node{},
+										},
 									},
 								},
 							},
 						},
 					},
 				},
-				Children: []*executor.Node{
-					{
-						Name: []byte("level2"),
-						SelectSets: []query.Selection{
-							&query.Field{
-								Name: []byte("level3"),
-								Selections: []query.Selection{
-									&query.Field{
-										Name: []byte("leafField"),
+			},
+		}, {
+			name: "Plan inline fragment",
+			input: []query.Selection{
+				&query.Field{
+					Name: []byte("field"),
+					Selections: []query.Selection{
+						&query.InlineFragment{
+							TypeCondition: []byte("TypeName"),
+							Selections: []query.Selection{
+								&query.Field{
+									Name: []byte("subfield"),
+								},
+							},
+						},
+					},
+				},
+			},
+			resultTree: []*executor.Node{
+				{
+					Name: []byte("field"),
+					Children: []*executor.Node{
+						{
+							Type: "TypeName",
+							Children: []*executor.Node{
+								{
+									Name:     []byte("subfield"),
+									Children: []*executor.Node{},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Plan depth 3 inline fragment",
+			input: []query.Selection{
+				&query.Field{
+					Name: []byte("field"),
+					Selections: []query.Selection{
+						&query.InlineFragment{
+							TypeCondition: []byte("TypeName1"),
+							Selections: []query.Selection{
+								&query.InlineFragment{
+									TypeCondition: []byte("TypeName2"),
+									Selections: []query.Selection{
+										&query.InlineFragment{
+											TypeCondition: []byte("TypeName3"),
+											Selections: []query.Selection{
+												&query.Field{
+													Name: []byte("subfield"),
+												},
+											},
+										},
 									},
 								},
 							},
 						},
-						Children: []*executor.Node{
-							{
-								Name: []byte("level3"),
-								SelectSets: []query.Selection{
-									&query.Field{
-										Name: []byte("leafField"),
-									},
-								},
-								Children: []*executor.Node{
-									{
-										Name:       []byte("leafField"),
-										SelectSets: nil,
-										Children:   nil,
+					},
+				},
+			},
+			resultTree: []*executor.Node{
+				{
+					Name: []byte("field"),
+					Children: []*executor.Node{
+						{
+							Type: "TypeName1",
+							Children: []*executor.Node{
+								{
+									Type: "TypeName2",
+									Children: []*executor.Node{
+										{
+											Type: "TypeName3",
+											Children: []*executor.Node{
+												{
+													Name:     []byte("subfield"),
+													Children: []*executor.Node{},
+												},
+											},
+										},
 									},
 								},
 							},
@@ -119,7 +172,7 @@ func TestPlanExecution(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := executor.PlanExecution(tt.input)
+			result := executor.PlanExecution(tt.input, tt.fragmentDefinitions)
 			if result == nil {
 				t.Errorf("PlanExecution() returned nil")
 				return

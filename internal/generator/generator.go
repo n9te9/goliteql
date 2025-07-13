@@ -453,7 +453,7 @@ func (g *Generator) generateResolver() error {
 			Tok:   token.IMPORT,
 			Specs: generateOperationImport(g.Schema.GetQuery(), g.modelPackagePath),
 		})
-		g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateInterfaceField(modelPrefix, g.Schema.GetQuery()))
+		g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateInterfaceField(modelPrefix, g.Schema.GetQuery(), g.Schema.Indexes))
 	}
 
 	if g.Schema.GetMutation() != nil {
@@ -461,14 +461,14 @@ func (g *Generator) generateResolver() error {
 			Tok:   token.IMPORT,
 			Specs: generateOperationImport(g.Schema.GetMutation(), g.modelPackagePath),
 		})
-		g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateInterfaceField(modelPrefix, g.Schema.GetMutation()))
+		g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateInterfaceField(modelPrefix, g.Schema.GetMutation(), g.Schema.Indexes))
 	}
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementationStruct()...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(modelPrefix, fields)...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(modelPrefix, fields, g.Schema.Indexes)...)
 
-	g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateResolverImplementation(modelPrefix, queryFields)...)
-	g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateResolverImplementation(modelPrefix, mutationFields)...)
+	g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateResolverImplementation(modelPrefix, queryFields, g.Schema.Indexes)...)
+	g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateResolverImplementation(modelPrefix, mutationFields, g.Schema.Indexes)...)
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
 
