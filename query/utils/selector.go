@@ -47,6 +47,22 @@ func ExtractSelectorArgs(op *query.Operation, operationName string) []*query.Arg
 	return nil
 }
 
+func GetOperationType(operations query.Operations, operationName string) string {
+	if q := ExtractExecuteSelector(operations.GetQuery(), operationName); len(q) > 0 {
+		return "query"
+	}
+
+	if m := ExtractExecuteSelector(operations.GetMutation(), operationName); len(m) > 0 {
+		return "mutation"
+	}
+
+	if s := ExtractExecuteSelector(operations.GetSubscription(), operationName); len(s) > 0 {
+		return "subscription"
+	}
+
+	return ""
+}
+
 func ExtractExecuteSelector(op *query.Operation, operationName string) []query.Selection {
 	if op == nil {
 		return nil

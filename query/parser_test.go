@@ -556,15 +556,15 @@ func TestQueryParse(t *testing.T) {
 								Name: []byte("post"),
 								Selections: []query.Selection{
 									&query.Field{
-										Name: []byte("id"),
+										Name:       []byte("id"),
 										Directives: nil,
 									},
 									&query.Field{
-										Name: []byte("title"),
+										Name:       []byte("title"),
 										Directives: nil,
 									},
 									&query.Field{
-										Name: []byte("content"),
+										Name:       []byte("content"),
 										Directives: nil,
 									},
 									&query.Field{
@@ -579,8 +579,8 @@ func TestQueryParse(t *testing.T) {
 												Name: []byte("skip"),
 												Arguments: []*query.DirectiveArgument{
 													{
-														Name:  []byte("if"),
-														Value: []byte("true"),
+														Name:       []byte("if"),
+														Value:      []byte("true"),
 														IsVariable: false,
 													},
 												},
@@ -748,6 +748,29 @@ func TestQueryParse(t *testing.T) {
 						Selections: []query.Selection{
 							&query.Field{
 								Name: []byte("field"),
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Parse fragment definition",
+			input: []byte(`fragment MyFragment on User {
+				id
+				name
+			}`),
+			expected: &query.Document{
+				Operations: query.Operations{},
+				FragmentDefinitions: query.FragmentDefinitions{
+					{
+						Name:          []byte("MyFragment"),
+						BasedTypeName: []byte("User"),
+						Selections: []query.Selection{
+							&query.Field{
+								Name: []byte("id"),
+							},
+							&query.Field{
+								Name: []byte("name"),
 							},
 						},
 					},

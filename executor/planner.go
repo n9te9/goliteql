@@ -33,7 +33,7 @@ func (n *Node) recursiveHasFragment() bool {
 	return false
 }
 
-func PlanExecution(selections []query.Selection) []*Node {
+func PlanExecution(selections []query.Selection, fragmentDefinitions query.FragmentDefinitions) []*Node {
 	ret := make([]*Node, 0, len(selections))
 	for _, sel := range selections {
 		switch s := sel.(type) {
@@ -46,7 +46,7 @@ func PlanExecution(selections []query.Selection) []*Node {
 			}
 
 			for _, child := range s.Selections {
-				node.Children = append(node.Children, digExecution(child))
+				node.Children = append(node.Children, digExecution(child, fragmentDefinitions))
 			}
 
 			ret = append(ret, node)
@@ -56,7 +56,7 @@ func PlanExecution(selections []query.Selection) []*Node {
 	return ret
 }
 
-func digExecution(selectSet query.Selection) *Node {
+func digExecution(selectSet query.Selection, fragmentDefinitions query.FragmentDefinitions) *Node {
 	switch s := selectSet.(type) {
 	case *query.Field:
 		node := &Node{
@@ -68,10 +68,10 @@ func digExecution(selectSet query.Selection) *Node {
 		for _, child := range s.Selections {
 			switch c := child.(type) {
 			case *query.Field:
-				node.Children = append(node.Children, digExecution(c))
+				node.Children = append(node.Children, digExecution(c, fragmentDefinitions))
 			case *query.InlineFragment:
 				node.Type = string(c.TypeCondition)
-				node.Children = append(node.Children, digExecution(c))
+				node.Children = append(node.Children, digExecution(c, fragmentDefinitions))
 			case *query.FragmentSpread:
 				// Handle fragment spread
 			}
@@ -86,11 +86,29 @@ func digExecution(selectSet query.Selection) *Node {
 		for _, child := range s.Selections {
 			switch c := child.(type) {
 			case *query.Field:
-				node.Children = append(node.Children, digExecution(c))
+				node.Children = append(node.Children, digExecution(c, fragmentDefinitions))
 			case *query.InlineFragment:
-				node.Children = append(node.Children, digExecution(c))
+				node.Children = append(node.Children, digExecution(c, fragmentDefinitions))
 			case *query.FragmentSpread:
-				// Handle fragment spread
+				node.Children = append(node.Children, digExecution(c, fragmentDefinitions))
+			}
+		}
+		return node
+	case *query.FragmentSpread:
+		fragment := fragmentDefinitions.GetFragment(s.Name)
+		node := &Node{
+			Directives: s.Directives,
+			Type:       string(fragment.BasedTypeName),
+			Children:   make([]*Node, 0, len(fragment.Selections)),
+		}
+		for _, child := range fragment.Selections {
+			switch c := child.(type) {
+			case *query.Field:
+				node.Children = append(node.Children, digExecution(c, fragmentDefinitions))
+			case *query.InlineFragment:
+				node.Children = append(node.Children, digExecution(c, fragmentDefinitions))
+			case *query.FragmentSpread:
+				node.Children = append(node.Children, digExecution(c, fragmentDefinitions))
 			}
 		}
 		return node

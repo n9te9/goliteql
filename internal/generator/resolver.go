@@ -1540,17 +1540,6 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 
 	return &ast.BlockStmt{
 		List: []ast.Stmt{
-			&ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent("detectOperationType")},
-				Tok: token.DEFINE,
-				Rhs: []ast.Expr{
-					&ast.FuncLit{
-						Type: generateDetectOperationType().Type,
-						Body: generateDetectOperationType().Body,
-					},
-				},
-			},
-
 			&ast.ExprStmt{X: &ast.BasicLit{}},
 			&ast.DeclStmt{Decl: &ast.GenDecl{
 				Tok: token.VAR,
@@ -1623,19 +1612,6 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 			},
 
 			&ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent("operationType")},
-				Tok: token.DEFINE,
-				Rhs: []ast.Expr{
-					&ast.CallExpr{
-						Fun: ast.NewIdent("detectOperationType"),
-						Args: []ast.Expr{
-							ast.NewIdent("request.Query"),
-						},
-					},
-				},
-			},
-
-			&ast.AssignStmt{
 				Lhs: []ast.Expr{
 					ast.NewIdent("parsedQuery"),
 					ast.NewIdent("err"),
@@ -1672,6 +1648,29 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 			},
 
 			&ast.ExprStmt{X: &ast.BasicLit{}},
+
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{ast.NewIdent("operationType")},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("utils"),
+							Sel: ast.NewIdent("GetOperationType"),
+						},
+						Args: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("parsedQuery"),
+								Sel: ast.NewIdent("Operations"),
+							},
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("request"),
+								Sel: ast.NewIdent("OperationName"),
+							},
+						},
+					},
+				},
+			},
 
 			&ast.AssignStmt{
 				Lhs: []ast.Expr{
@@ -1802,6 +1801,10 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 														},
 														Args: []ast.Expr{
 															ast.NewIdent("rootSelectionSet"),
+															&ast.SelectorExpr{
+																X:   ast.NewIdent("parsedQuery"),
+																Sel: ast.NewIdent("FragmentDefinitions"),
+															},
 														},
 													},
 												},
@@ -1951,6 +1954,10 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 														},
 														Args: []ast.Expr{
 															ast.NewIdent("rootSelectionSet"),
+															&ast.SelectorExpr{
+																X:   ast.NewIdent("parsedQuery"),
+																Sel: ast.NewIdent("FragmentDefinitions"),
+															},
 														},
 													},
 												},
@@ -2190,60 +2197,6 @@ func generateResolverReturns(typePrefix string, field *schema.FieldDefinition, i
 
 	return &ast.FieldList{
 		List: ret,
-	}
-}
-
-func generateDetectOperationType() *ast.FuncDecl {
-	return &ast.FuncDecl{
-		Name: ast.NewIdent("detectOperationType"),
-		Type: &ast.FuncType{
-			Params: &ast.FieldList{
-				List: []*ast.Field{
-					{
-						Names: []*ast.Ident{ast.NewIdent("query")},
-						Type:  ast.NewIdent("string"),
-					},
-				},
-			},
-			Results: &ast.FieldList{
-				List: []*ast.Field{
-					{
-						Type: ast.NewIdent("string"),
-					},
-				},
-			},
-		},
-		Body: &ast.BlockStmt{
-			List: []ast.Stmt{
-				// query = strings.TrimSpace(query)
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{ast.NewIdent("query")},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("strings"),
-								Sel: ast.NewIdent("TrimSpace"),
-							},
-							Args: []ast.Expr{ast.NewIdent("query")},
-						},
-					},
-				},
-				// if strings.HasPrefix(query, "query") { return "query" }
-				generatePrefixCheck("query"),
-				// if strings.HasPrefix(query, "mutation") { return "mutation" }
-				generatePrefixCheck("mutation"),
-				// if strings.HasPrefix(query, "subscription") { return "subscription" }
-				generatePrefixCheck("subscription"),
-				// return ""
-				&ast.ReturnStmt{
-					Results: []ast.Expr{&ast.BasicLit{
-						Kind:  token.STRING,
-						Value: `""`,
-					}},
-				},
-			},
-		},
 	}
 }
 

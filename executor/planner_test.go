@@ -11,9 +11,10 @@ import (
 func TestPlanExecution(t *testing.T) {
 	// Test cases for PlanExecution function
 	tests := []struct {
-		name       string
-		input      []query.Selection
-		resultTree []*executor.Node
+		name                string
+		input               []query.Selection
+		resultTree          []*executor.Node
+		fragmentDefinitions query.FragmentDefinitions
 	}{
 		{
 			name: "Test case 1",
@@ -171,7 +172,7 @@ func TestPlanExecution(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := executor.PlanExecution(tt.input)
+			result := executor.PlanExecution(tt.input, tt.fragmentDefinitions)
 			if result == nil {
 				t.Errorf("PlanExecution() returned nil")
 				return
