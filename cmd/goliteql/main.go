@@ -113,11 +113,22 @@ func initializeConfig() {
 	}
 }
 
-const schemaFile = `type Post {
+const schemaFile = `interface Node {
+	id: ID!
+}
+
+type Post implements Node {
 	id: ID!
 	title: String!
 	content: String!
+	alt: String! @deprecated(reason: "use description")
 	description: String
+}
+
+type User implements Node {
+	id: ID!
+	name: String!
+	gender: Int
 }
 
 input NewPost {
@@ -126,9 +137,18 @@ input NewPost {
 	description: String
 }
 
+enum Role {
+	ADMIN
+	USER
+	GUEST @deprecated(reason: "Use USER instead")
+}
+
+union SearchResult = Post | User
+
 type Query {
-	posts: [Post!]!
+	posts: [Node!]!
 	post(id: ID!): Post!
+	users: [User!]!
 }
 
 type Mutation {
