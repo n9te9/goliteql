@@ -85,8 +85,8 @@ var initConfig = Config{
 	MutationResolverOutputFile: "./graphql/resolver/mutate.resolver.go",
 	RootResolverOutputFile:     "./graphql/resolver/resolver.go",
 	EnumOutputFile:             "./graphql/model/enum.go",
-	ModelPackageName:           "example/graphql/model",
-	ResolverPackageName:        "example/graphql/resolver",
+	ModelPackageName:           "example.com/graphql/model",
+	ResolverPackageName:        "example.com/graphql/resolver",
 }
 
 func initializeConfig() {
