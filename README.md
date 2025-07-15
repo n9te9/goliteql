@@ -30,6 +30,7 @@ The following table shows the current status of the features.
 | Federation     | ❌     | Not supported |
 | Introspection  | ❌     | Not supported |
 | Validation     | ❌     | Parser structures exist, runtime validation WIP |
+| Comment        | ❌     | Not supported |
 
 goliteql is not a full-featured graphql server.
 If you want to full-featured graphql server, please use gqlgen.

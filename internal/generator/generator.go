@@ -225,7 +225,9 @@ func (g *Generator) Generate() error {
 }
 
 func (g *Generator) generateModel() error {
-	g.modelAST.Decls = append(g.modelAST.Decls, generateModelImport())
+	if len(g.Schema.Inputs) > 0 {
+		g.modelAST.Decls = append(g.modelAST.Decls, generateModelImport())
+	}
 	// g.enumAST.Decls = append(g.enumAST.Decls, generateEnumImport())
 
 	for _, input := range g.Schema.Inputs {

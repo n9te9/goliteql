@@ -222,7 +222,7 @@ func generateApplySwitchStmtForQueryResponse(field *schema.FieldDefinition, inde
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: generateApplyQueryResponseCaseStmts(typeDefinition, nestCount, string(field.Name), rootNestCount),
+			List: generateApplyQueryResponseCaseStmts(typeDefinition, nestCount, string(field.Name), rootNestCount, indexes),
 		},
 	}
 
@@ -869,7 +869,7 @@ func generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition *schema.Inter
 	// }
 }
 
-func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, nestCount int, fieldName string, rootNestCount int) []ast.Stmt {
+func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, nestCount int, fieldName string, rootNestCount int, indexes *schema.Indexes) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
 	if typeDefinition == nil {
@@ -895,154 +895,83 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 		}
 
-		if !field.Type.Nullable {
-			if field.Type.IsBoolean() {
-				rh = generateNewNullableExpr(rh)
-			} else if field.Type.IsString() || field.Type.IsID() {
-				rh = generateNewNullableExpr(rh)
-			} else if field.Type.IsInt() {
-				rh = generateNewNullableExpr(rh)
-			} else if field.Type.IsFloat() {
-				rh = generateNewNullableExpr(rh)
-			} else {
-				retName := fmt.Sprintf("ret%s", field.Name)
-				fieldRetAssignStmt := &ast.AssignStmt{
+		if field.Type.IsPrimitive() {
+			rh = generateNewNullableExpr(rh)
+		} else {
+			retName := fmt.Sprintf("ret%s", field.Name)
+			fieldRetAssignStmt := &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent(retName),
+					ast.NewIdent("err"),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("r"),
+							Sel: ast.NewIdent(fmt.Sprintf("apply%s%sQueryResponse", fieldName, string(field.Name))),
+						},
+						Args: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent(valueName),
+								Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+							},
+							ast.NewIdent("child"),
+						},
+					},
+				},
+			}
+
+			if _, ok := indexes.EnumIndex[string(field.Type.Name)]; ok {
+				fieldRetAssignStmt = &ast.AssignStmt{
 					Lhs: []ast.Expr{
 						ast.NewIdent(retName),
-						ast.NewIdent("err"),
 					},
 					Tok: token.DEFINE,
 					Rhs: []ast.Expr{
 						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("r"),
-								Sel: ast.NewIdent(fmt.Sprintf("apply%s%sQueryResponse", fieldName, string(field.Name))),
-							},
+							Fun: ast.NewIdent("string"),
 							Args: []ast.Expr{
 								&ast.SelectorExpr{
 									X:   ast.NewIdent(valueName),
 									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 								},
-								ast.NewIdent("child"),
 							},
 						},
 					},
 				}
 				caseBody = append(caseBody, fieldRetAssignStmt)
-				if rootNestCount > 0 || (rootNestCount == 0 && field.Type.Nullable) {
-					caseBody = append(caseBody, generateReturnErrorHandlingStmt([]ast.Expr{
-						ast.NewIdent("nil"),
-					}))
-				} else {
-					caseBody = append(caseBody, generateReturnErrorHandlingStmt([]ast.Expr{
-						&ast.CompositeLit{
-							Type: ast.NewIdent(string(typeDefinition.TypeName()) + "Response"),
-						},
-					}))
-				}
-
-				// var elmExpr ast.Expr = ast.NewIdent(retName)
-				// if field.Type.Nullable {
-				// 	elmExpr = &ast.StarExpr{
-				// 		X: ast.NewIdent(retName),
-				// 	}
-				// }
-
-				if field.Type.IsList {
-					if field.Type.GetRootType().Nullable {
-						rh = &ast.UnaryExpr{
-							Op: token.AND,
-							X:  ast.NewIdent(retName),
-						}
-					} else {
-						rh = &ast.UnaryExpr{
-							Op: token.AND,
-							X:  ast.NewIdent(retName),
-						}
-					}
-				} else {
-					rh = &ast.UnaryExpr{
-						Op: token.AND,
-						X:  ast.NewIdent(retName),
-					}
-				}
-			}
-			caseBody = append(caseBody, &ast.AssignStmt{
-				Lhs: lhs,
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					rh,
-				},
-			})
-		} else {
-			if !field.Type.IsPrimitive() {
-				var argExpr ast.Expr = &ast.SelectorExpr{
-					X:   ast.NewIdent(valueName),
-					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-				}
-				if field.Type.IsList {
-					argExpr = &ast.StarExpr{
-						X: &ast.SelectorExpr{
-							X:   ast.NewIdent(valueName),
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-						},
-					}
-				}
-				caseBody = append(caseBody, &ast.AssignStmt{
-					Lhs: []ast.Expr{
-						ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
-						ast.NewIdent("err"),
-					},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X: ast.NewIdent("r"),
-								Sel: ast.NewIdent(fmt.Sprintf("apply%s%sQueryResponse", fieldName,
-									string(field.Name))),
-							},
-							Args: []ast.Expr{
-								argExpr,
-								ast.NewIdent("child"),
-							},
-						},
-					},
-				})
-
+			} else {
+				caseBody = append(caseBody, fieldRetAssignStmt)
 				caseBody = append(caseBody, generateReturnErrorHandlingStmt([]ast.Expr{
 					ast.NewIdent("ret"),
 				}))
+			}
 
-				caseBody = append(caseBody, &ast.AssignStmt{
-					Lhs: []ast.Expr{
-						&ast.SelectorExpr{
-							X:   assignExpr,
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-						},
-					},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{
-						generateNewNullableExpr(ast.NewIdent(fmt.Sprintf("ret%s", field.Name))),
-					},
-				})
-			} else {
-				caseBody = append(caseBody, &ast.AssignStmt{
-					Lhs: []ast.Expr{
-						&ast.SelectorExpr{
-							X:   assignExpr,
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-						},
-					},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{
-						generateNewNullableExpr(&ast.SelectorExpr{
-							X:   ast.NewIdent(valueName),
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-						}),
-					},
-				})
+			// var elmExpr ast.Expr = ast.NewIdent(retName)
+			// if field.Type.Nullable {
+			// 	elmExpr = &ast.StarExpr{
+			// 		X: ast.NewIdent(retName),
+			// 	}
+			// }
+
+			rh = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("executor"),
+					Sel: ast.NewIdent("NewNullable"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent(retName),
+				},
 			}
 		}
+		caseBody = append(caseBody, &ast.AssignStmt{
+			Lhs: lhs,
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rh,
+			},
+		})
 
 		ret = append(ret, &ast.CaseClause{
 			List: []ast.Expr{
