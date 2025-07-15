@@ -480,7 +480,6 @@ func (g *Generator) generateResolver() error {
 	if err := format.Node(&rootResolverBuffer, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)
 	}
-	fmt.Println(rootResolverBuffer.String())
 
 	var queryResolverBuffer bytes.Buffer
 	if err := format.Node(&queryResolverBuffer, token.NewFileSet(), g.queryResolverAST); err != nil {
