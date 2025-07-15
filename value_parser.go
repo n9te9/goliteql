@@ -43,6 +43,10 @@ func (v *ValueParserLiteral) StringValue() string {
 	return string(v.Value)
 }
 
+func (v *ValueParserLiteral) IDValue() string {
+	return string(v.Value)
+}
+
 func (v *ValueParserLiteral) IsInt() bool {
 	return v.TokenType == INT
 }

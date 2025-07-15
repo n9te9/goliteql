@@ -1046,104 +1046,105 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 	}
 
 	if operationType == "query" {
-		schemaCase := &ast.CaseClause{
-			List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"__schema\""}},
-			Body: []ast.Stmt{
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{
-						ast.NewIdent("ret"),
-						ast.NewIdent("err"),
-					},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("r"),
-								Sel: ast.NewIdent("__schema"),
-							},
-							Args: []ast.Expr{
-								ast.NewIdent("ctx"),
-								ast.NewIdent("node"),
-								ast.NewIdent("variables"),
-							},
-						},
-					},
-				},
-				&ast.IfStmt{
-					Cond: &ast.BinaryExpr{
-						X:  ast.NewIdent("err"),
-						Op: token.NEQ,
-						Y:  ast.NewIdent("nil"),
-					},
-					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							&ast.ReturnStmt{
-								Results: []ast.Expr{
-									ast.NewIdent("nil"),
-									ast.NewIdent("err"),
-								},
-							},
-						},
-					},
-				},
-				&ast.ReturnStmt{
-					Results: []ast.Expr{
-						ast.NewIdent("ret"),
-						ast.NewIdent("nil"),
-					},
-				},
-			},
-		}
+		// TODO: for introspection
+		// schemaCase := &ast.CaseClause{
+		// 	List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"__schema\""}},
+		// 	Body: []ast.Stmt{
+		// 		&ast.AssignStmt{
+		// 			Lhs: []ast.Expr{
+		// 				ast.NewIdent("ret"),
+		// 				ast.NewIdent("err"),
+		// 			},
+		// 			Tok: token.DEFINE,
+		// 			Rhs: []ast.Expr{
+		// 				&ast.CallExpr{
+		// 					Fun: &ast.SelectorExpr{
+		// 						X:   ast.NewIdent("r"),
+		// 						Sel: ast.NewIdent("__schema"),
+		// 					},
+		// 					Args: []ast.Expr{
+		// 						ast.NewIdent("ctx"),
+		// 						ast.NewIdent("node"),
+		// 						ast.NewIdent("variables"),
+		// 					},
+		// 				},
+		// 			},
+		// 		},
+		// 		&ast.IfStmt{
+		// 			Cond: &ast.BinaryExpr{
+		// 				X:  ast.NewIdent("err"),
+		// 				Op: token.NEQ,
+		// 				Y:  ast.NewIdent("nil"),
+		// 			},
+		// 			Body: &ast.BlockStmt{
+		// 				List: []ast.Stmt{
+		// 					&ast.ReturnStmt{
+		// 						Results: []ast.Expr{
+		// 							ast.NewIdent("nil"),
+		// 							ast.NewIdent("err"),
+		// 						},
+		// 					},
+		// 				},
+		// 			},
+		// 		},
+		// 		&ast.ReturnStmt{
+		// 			Results: []ast.Expr{
+		// 				ast.NewIdent("ret"),
+		// 				ast.NewIdent("nil"),
+		// 			},
+		// 		},
+		// 	},
+		// }
 
-		typeCase := &ast.CaseClause{
-			List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"__type\""}},
-			Body: []ast.Stmt{
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{
-						ast.NewIdent("ret"),
-						ast.NewIdent("err"),
-					},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("r"),
-								Sel: ast.NewIdent("__type"),
-							},
-							Args: []ast.Expr{
-								ast.NewIdent("ctx"),
-								ast.NewIdent("node"),
-								ast.NewIdent("variables"),
-							},
-						},
-					},
-				},
-				&ast.IfStmt{
-					Cond: &ast.BinaryExpr{
-						X:  ast.NewIdent("err"),
-						Op: token.NEQ,
-						Y:  ast.NewIdent("nil"),
-					},
-					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							&ast.ReturnStmt{
-								Results: []ast.Expr{
-									ast.NewIdent("nil"),
-									ast.NewIdent("err"),
-								},
-							},
-						},
-					},
-				},
-				&ast.ReturnStmt{
-					Results: []ast.Expr{
-						ast.NewIdent("ret"),
-						ast.NewIdent("nil"),
-					},
-				},
-			},
-		}
-		bodyStmt = append(bodyStmt, schemaCase, typeCase)
+		// typeCase := &ast.CaseClause{
+		// 	List: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"__type\""}},
+		// 	Body: []ast.Stmt{
+		// 		&ast.AssignStmt{
+		// 			Lhs: []ast.Expr{
+		// 				ast.NewIdent("ret"),
+		// 				ast.NewIdent("err"),
+		// 			},
+		// 			Tok: token.DEFINE,
+		// 			Rhs: []ast.Expr{
+		// 				&ast.CallExpr{
+		// 					Fun: &ast.SelectorExpr{
+		// 						X:   ast.NewIdent("r"),
+		// 						Sel: ast.NewIdent("__type"),
+		// 					},
+		// 					Args: []ast.Expr{
+		// 						ast.NewIdent("ctx"),
+		// 						ast.NewIdent("node"),
+		// 						ast.NewIdent("variables"),
+		// 					},
+		// 				},
+		// 			},
+		// 		},
+		// 		&ast.IfStmt{
+		// 			Cond: &ast.BinaryExpr{
+		// 				X:  ast.NewIdent("err"),
+		// 				Op: token.NEQ,
+		// 				Y:  ast.NewIdent("nil"),
+		// 			},
+		// 			Body: &ast.BlockStmt{
+		// 				List: []ast.Stmt{
+		// 					&ast.ReturnStmt{
+		// 						Results: []ast.Expr{
+		// 							ast.NewIdent("nil"),
+		// 							ast.NewIdent("err"),
+		// 						},
+		// 					},
+		// 				},
+		// 			},
+		// 		},
+		// 		&ast.ReturnStmt{
+		// 			Results: []ast.Expr{
+		// 				ast.NewIdent("ret"),
+		// 				ast.NewIdent("nil"),
+		// 			},
+		// 		},
+		// 	},
+		// }
+		// bodyStmt = append(bodyStmt, schemaCase, typeCase)
 	}
 
 	stmts := []ast.Stmt{}
@@ -2583,16 +2584,50 @@ func generateDeclareStmts(typePrefix string, args schema.ArgumentDefinitions) []
 }
 
 func generateValueCaseAssignStmt(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {
+	return generateCaseAssignStmts(arg, indexes)
+}
+
+func generateObjectArgumentRhsType(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Expr {
+	expandedType := introspection.ExpandType(arg.Type)
+	return &ast.CompositeLit{
+		Type: generateTypeExprFromExpandedType(expandedType),
+		Elts: generateObjectArgumentElements(arg, indexes),
+	}
+}
+
+func generateCaseAssignStmts(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {
 	caseSelector := "ValueParserLiteral"
+	var body []ast.Stmt = generateValueParserLiteralCaseAssignStmts(arg, indexes)
+
+	if !arg.Type.IsID() && !arg.Type.IsString() && !arg.Type.IsBoolean() && !arg.Type.IsInt() && !arg.Type.IsFloat() {
+		caseSelector = "ValueParserObject"
+		body = generateValueParserObjectCaseAssignStmts(arg, indexes)
+	}
+
+	if arg.Type.IsList {
+		caseSelector = "ValueParserArray"
+		body = generateValueParserArrayCaseAssignStmts(arg, indexes)
+	}
+
+	return &ast.CaseClause{
+		List: []ast.Expr{
+			&ast.StarExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("goliteql"),
+					Sel: ast.NewIdent(caseSelector),
+				},
+			},
+		},
+		Body: body,
+	}
+}
+
+func generateValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, indexes *schema.Indexes) []ast.Stmt {
 	var rhs ast.Expr = &ast.CallExpr{
 		Fun: &ast.SelectorExpr{
 			X:   ast.NewIdent("val"),
 			Sel: ast.NewIdent("StringValue"),
 		},
-	}
-
-	if arg.Type.Nullable {
-		rhs = generateStringPointerExpr(rhs)
 	}
 
 	if arg.Type.IsBoolean() {
@@ -2626,39 +2661,194 @@ func generateValueCaseAssignStmt(arg *schema.ArgumentDefinition, indexes *schema
 		}
 	}
 
-	if !arg.Type.IsID() && !arg.Type.IsString() && !arg.Type.IsBoolean() && !arg.Type.IsInt() && !arg.Type.IsFloat() {
-		caseSelector = "ValueParserObject"
-		rhs = generateObjectArgumentRhsType(arg, indexes)
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Rhs: []ast.Expr{
+				rhs,
+			},
+		},
+	}
+}
+
+func generateValueParserArrayCaseAssignStmts(arg *schema.ArgumentDefinition, indexes *schema.Indexes) []ast.Stmt {
+	return generateValueParserArrayCaseRangeAssignStmts(arg, arg.Type, indexes, 0)
+}
+
+func generateValueParserArrayCaseRangeAssignStmts(argDefinition *schema.ArgumentDefinition, fieldType *schema.FieldType, indexes *schema.Indexes, depth int) []ast.Stmt {
+	rangeX := &ast.SelectorExpr{
+		X:   ast.NewIdent("val"),
+		Sel: ast.NewIdent("Items"),
+	}
+	if depth > 0 {
+		rangeX = &ast.SelectorExpr{
+			X:   ast.NewIdent(fmt.Sprintf("item%d", depth-1)),
+			Sel: ast.NewIdent("Items"),
+		}
 	}
 
-	return &ast.CaseClause{
-		List: []ast.Expr{
-			&ast.StarExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("goliteql"),
-					Sel: ast.NewIdent(caseSelector),
+	if fieldType.IsList {
+		return []ast.Stmt{
+			&ast.RangeStmt{
+				X:     rangeX,
+				Tok:   token.DEFINE,
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent(fmt.Sprintf("item%d", depth)),
+				Body: &ast.BlockStmt{
+					List: generateValueParserArrayCaseRangeAssignStmts(argDefinition, fieldType.ListType, indexes, depth+1),
+				},
+			},
+		}
+	}
+
+	if fieldType.IsPrimitive() {
+		return generateValueParserObjectPrimitiveAssignStmts(argDefinition, fieldType, indexes, depth)
+	}
+
+	return generateValueParserObjectCaseAssignStmts(argDefinition, indexes)
+}
+
+func generateValueParserObjectPrimitiveAssignStmts(argDefinition *schema.ArgumentDefinition, fieldType *schema.FieldType, indexes *schema.Indexes, depth int) []ast.Stmt {
+	assignStmt := &ast.AssignStmt{
+		Tok: token.ASSIGN,
+		Lhs: []ast.Expr{
+			ast.NewIdent(string(argDefinition.Name)),
+		},
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: ast.NewIdent("append"),
+				Args: []ast.Expr{
+					ast.NewIdent(string(argDefinition.Name)),
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("item"),
+							Sel: ast.NewIdent("BoolValue"),
+						},
+					},
 				},
 			},
 		},
-		Body: []ast.Stmt{
-			&ast.AssignStmt{
-				Tok: token.ASSIGN,
+	}
+
+	if fieldType.IsInt() {
+		assignStmt = &ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(argDefinition.Name)),
+			},
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("append"),
+					Args: []ast.Expr{
+						ast.NewIdent(string(argDefinition.Name)),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("item"),
+								Sel: ast.NewIdent("IntValue"),
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	if fieldType.IsFloat() {
+		assignStmt = &ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(argDefinition.Name)),
+			},
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("append"),
+					Args: []ast.Expr{
+						ast.NewIdent(string(argDefinition.Name)),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("item"),
+								Sel: ast.NewIdent("FloatValue"),
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	if fieldType.IsString() || fieldType.IsID() {
+		assignStmt = &ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(argDefinition.Name)),
+			},
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("append"),
+					Args: []ast.Expr{
+						ast.NewIdent(string(argDefinition.Name)),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("item"),
+								Sel: ast.NewIdent("StringValue"),
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	return []ast.Stmt{
+		&ast.TypeSwitchStmt{
+			Assign: &ast.AssignStmt{
+				Tok: token.DEFINE,
 				Lhs: []ast.Expr{
-					ast.NewIdent(string(arg.Name)),
+					ast.NewIdent("item"),
 				},
 				Rhs: []ast.Expr{
-					rhs,
+					&ast.TypeAssertExpr{
+						X:    ast.NewIdent(fmt.Sprintf("item%d", depth-1)),
+						Type: ast.NewIdent("type"),
+					},
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.CaseClause{
+						List: []ast.Expr{
+							&ast.StarExpr{
+								X: &ast.SelectorExpr{
+									X:   ast.NewIdent("goliteql"),
+									Sel: ast.NewIdent("ValueParserLiteral"),
+								},
+							},
+						},
+						Body: []ast.Stmt{
+							assignStmt,
+						},
+					},
 				},
 			},
 		},
 	}
 }
 
-func generateObjectArgumentRhsType(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Expr {
-	expandedType := introspection.ExpandType(arg.Type)
-	return &ast.CompositeLit{
-		Type: generateTypeExprFromExpandedType(expandedType),
-		Elts: generateObjectArgumentElements(arg, indexes),
+func generateValueParserObjectCaseAssignStmts(arg *schema.ArgumentDefinition, indexes *schema.Indexes) []ast.Stmt {
+	rhs := generateObjectArgumentRhsType(arg, indexes)
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Rhs: []ast.Expr{
+				rhs,
+			},
+		},
 	}
 }
 
