@@ -471,51 +471,16 @@ func (g *Generator) generateResolver() error {
 	g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateResolverImplementation(modelPrefix, mutationFields, g.Schema.Indexes)...)
 
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
-
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionModelAST(g.Schema.Types)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaQueryAST(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypesFuncDecl(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseModelAST())
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionSchemaResponseDataModelAST())
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResponseDataModelAST())
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResponseModelAST())
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionQueryTypeMethodAST(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionMutationTypeMethodAST(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeMethodDecls(g.Schema)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldTypeTypeOfDecls(g.Schema)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsDecls(g.Schema.Types)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInterfaceFieldsDecls(g.Schema.Interfaces)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInterfaceTypeFuncDecls(g.Schema.Interfaces, g.Schema.Indexes)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFieldsFuncDecls(g.Schema.Types, g.Schema.Indexes)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeResolverDeclsFromInterfaces(g.Schema.Interfaces, g.Schema.Indexes)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateExtractOperationArgumentsDecl(modelPrefix, fieldsIntrospectionFieldDefinition, g.Schema.Indexes))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFuncDecl(g.Schema))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionTypeFuncDecls(g.Schema.Types)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFuncDecls(g.Schema.Inputs)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFieldsDecls(g.Schema.Inputs)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionInputFieldsFuncDecls(g.Schema.Inputs, g.Schema.Indexes)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionScalarFuncDecls(g.Schema.Scalars)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionEnumFuncDecls(g.Schema.Enums)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionEnumValuesFuncDecl(g.Schema.Enums)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationResponseStructDecls(g.Schema)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionOperationFuncDecls(g.Schema)...)
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionUnionTypeFuncDecls(g.Schema.Unions, g.Schema.Indexes)...)
 
-	if q := g.Schema.GetQuery(); q != nil {
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(g.Schema.Definition.Query), q.Fields)...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionOperationFieldFuncDecls(q)...)
-	}
-
-	if m := g.Schema.GetMutation(); m != nil {
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionFieldsFuncsAST(string(g.Schema.Definition.Mutation), m.Fields)...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateIntrospectionOperationFieldFuncDecls(m)...)
-	}
+	// Introspection generation
+	// g.resolverAST.Decls = append(g.resolverAST.Decls, g.generateIntrospection(g.modelPackagePath)...)
 
 	var rootResolverBuffer bytes.Buffer
 	if err := format.Node(&rootResolverBuffer, token.NewFileSet(), g.resolverAST); err != nil {
 		return fmt.Errorf("error formatting resolver: %w", err)
 	}
+	fmt.Println(rootResolverBuffer.String())
 
 	var queryResolverBuffer bytes.Buffer
 	if err := format.Node(&queryResolverBuffer, token.NewFileSet(), g.queryResolverAST); err != nil {
@@ -550,6 +515,51 @@ func (g *Generator) generateResolver() error {
 	}
 
 	return nil
+}
+
+func (g *Generator) generateIntrospection(modelPrefix string) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	ret = append(ret, generateIntrospectionModelAST(g.Schema.Types)...)
+	ret = append(ret, generateIntrospectionSchemaQueryAST(g.Schema))
+	ret = append(ret, generateIntrospectionTypesFuncDecl(g.Schema))
+	ret = append(ret, generateIntrospectionSchemaResponseModelAST())
+	ret = append(ret, generateIntrospectionSchemaResponseDataModelAST())
+	ret = append(ret, generateIntrospectionTypeResponseDataModelAST())
+	ret = append(ret, generateIntrospectionTypeResponseModelAST())
+	ret = append(ret, generateIntrospectionQueryTypeMethodAST(g.Schema))
+	ret = append(ret, generateIntrospectionMutationTypeMethodAST(g.Schema))
+	ret = append(ret, generateIntrospectionTypeMethodDecls(g.Schema)...)
+	ret = append(ret, generateIntrospectionFieldTypeTypeOfDecls(g.Schema)...)
+	ret = append(ret, generateIntrospectionTypeFieldsDecls(g.Schema.Types)...)
+	ret = append(ret, generateIntrospectionInterfaceFieldsDecls(g.Schema.Interfaces)...)
+	ret = append(ret, generateIntrospectionInterfaceTypeFuncDecls(g.Schema.Interfaces, g.Schema.Indexes)...)
+	ret = append(ret, generateIntrospectionTypeFieldsFuncDecls(g.Schema.Types, g.Schema.Indexes)...)
+	ret = append(ret, generateIntrospectionTypeResolverDeclsFromInterfaces(g.Schema.Interfaces, g.Schema.Indexes)...)
+	ret = append(ret, generateExtractOperationArgumentsDecl(modelPrefix, fieldsIntrospectionFieldDefinition, g.Schema.Indexes))
+	ret = append(ret, generateIntrospectionTypeFuncDecl(g.Schema))
+	ret = append(ret, generateIntrospectionTypeFuncDecls(g.Schema.Types)...)
+	ret = append(ret, generateIntrospectionInputFuncDecls(g.Schema.Inputs)...)
+	ret = append(ret, generateIntrospectionInputFieldsDecls(g.Schema.Inputs)...)
+	ret = append(ret, generateIntrospectionInputFieldsFuncDecls(g.Schema.Inputs, g.Schema.Indexes)...)
+	ret = append(ret, generateIntrospectionScalarFuncDecls(g.Schema.Scalars)...)
+	ret = append(ret, generateEnumModelAST(extractIntrospectionEnumDefinitions(g.Schema.Enums))...)
+	ret = append(ret, generateIntrospectionEnumFuncDecls(g.Schema.Enums)...)
+	ret = append(ret, generateIntrospectionEnumValuesFuncDecl(g.Schema.Enums)...)
+	ret = append(ret, generateIntrospectionOperationFuncDecls(g.Schema)...)
+	ret = append(ret, generateIntrospectionUnionTypeFuncDecls(g.Schema.Unions, g.Schema.Indexes)...)
+
+	if q := g.Schema.GetQuery(); q != nil {
+		ret = append(ret, generateIntrospectionFieldsFuncsAST(string(g.Schema.Definition.Query), q.Fields)...)
+		ret = append(ret, generateIntrospectionOperationFieldFuncDecls(q)...)
+	}
+
+	if m := g.Schema.GetMutation(); m != nil {
+		ret = append(ret, generateIntrospectionFieldsFuncsAST(string(g.Schema.Definition.Mutation), m.Fields)...)
+		ret = append(ret, generateIntrospectionOperationFieldFuncDecls(m)...)
+	}
+
+	return ret
 }
 
 type GraphQLType string
