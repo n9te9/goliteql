@@ -20,6 +20,7 @@ const (
 	INT
 	FLOAT
 	STRING
+	ID
 	BOOL
 	NULL
 	LPAREN
