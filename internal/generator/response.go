@@ -895,6 +895,16 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 		}
 
+		var arg ast.Expr = &ast.SelectorExpr{
+			X:   ast.NewIdent(valueName),
+			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+		}
+		if field.Type.Nullable {
+			arg = &ast.StarExpr{
+				X: arg,
+			}
+		}
+
 		if field.Type.IsPrimitive() {
 			rh = generateNewNullableExpr(rh)
 		} else {
@@ -912,10 +922,7 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 							Sel: ast.NewIdent(fmt.Sprintf("apply%s%sQueryResponse", fieldName, string(field.Name))),
 						},
 						Args: []ast.Expr{
-							&ast.SelectorExpr{
-								X:   ast.NewIdent(valueName),
-								Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-							},
+							arg,
 							ast.NewIdent("child"),
 						},
 					},
