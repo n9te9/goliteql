@@ -24,22 +24,12 @@ var generateCmd = &cobra.Command{
 			log.Fatalf("error reading config file: %v", err)
 		}
 
-		var config Config
+		var config generator.Config
 		if err := yaml.Unmarshal(yamlFile, &config); err != nil {
 			log.Fatalf("error unmarshalling config file: %v", err)
 		}
 
-		generateorConfig := &generator.Config{
-			SchemaDirectory:            config.SchemaDirectory,
-			ModelOutputFile:            config.ModelOutputFile,
-			QueryResolverOutputFile:    config.QueryResolverOutputFile,
-			MutationResolverOutputFile: config.MutationResolverOutputFile,
-			RootResolverOutputFile:     config.RootResolverOutputFile,
-			EnumOutputFile:             config.EnumOutputFile,
-			ModelPackageName:           config.ModelPackageName,
-			ResolverPackageName:        config.ResolverPackageName,
-		}
-		g, err := generator.NewGenerator(generateorConfig)
+		g, err := generator.NewGenerator(&config)
 		if err != nil {
 			log.Fatalf("error creating generator: %v", err)
 		}
@@ -67,18 +57,7 @@ func main() {
 	}
 }
 
-type Config struct {
-	SchemaDirectory            string `yaml:"schema_directory"`
-	ModelOutputFile            string `yaml:"model_output_file"`
-	QueryResolverOutputFile    string `yaml:"query_resolver_output_file"`
-	MutationResolverOutputFile string `yaml:"mutation_resolver_output_file"`
-	RootResolverOutputFile     string `yaml:"root_resolver_output_file"`
-	EnumOutputFile             string `yaml:"enum_output_file"`
-	ModelPackageName           string `yaml:"model_package_name"`
-	ResolverPackageName        string `yaml:"resolver_package_name"`
-}
-
-var initConfig = Config{
+var initConfig = generator.Config{
 	SchemaDirectory:            "./graphql/schema",
 	ModelOutputFile:            "./graphql/model/models.go",
 	QueryResolverOutputFile:    "./graphql/resolver/query.resolver.go",
@@ -87,6 +66,13 @@ var initConfig = Config{
 	EnumOutputFile:             "./graphql/model/enum.go",
 	ModelPackageName:           "example.com/graphql/model",
 	ResolverPackageName:        "example.com/graphql/resolver",
+	ScalarOutputFile:           "./graphql/scalar/scalar.go",
+	Scalars: []generator.ScalarConfig{
+		{
+			Name: "DateTime",
+			Type: "time.Time",
+		},
+	},
 }
 
 func initializeConfig() {

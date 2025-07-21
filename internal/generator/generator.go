@@ -40,17 +40,30 @@ type Generator struct {
 
 	enumOutput io.Writer
 	enumAST    *ast.File
+
+	scalarOutput io.Writer
+	scalarAST    *ast.File
+
+	config *Config
+}
+
+type ScalarConfig struct {
+	Name    string `yaml:"name"`
+	Package string `yaml:"package"`
+	Type    string `yaml:"type"`
 }
 
 type Config struct {
-	SchemaDirectory            string `yaml:"schema_directory"`
-	ModelOutputFile            string `yaml:"model_output_file"`
-	QueryResolverOutputFile    string `yaml:"query_resolver_output_file"`
-	MutationResolverOutputFile string `yaml:"mutation_resolver_output_file"`
-	RootResolverOutputFile     string `yaml:"root_resolver_output_file"`
-	EnumOutputFile             string `yaml:"enum_output_file"`
-	ModelPackageName           string `yaml:"model_package_name"`
-	ResolverPackageName        string `yaml:"resolver_package_name"`
+	SchemaDirectory            string         `yaml:"schema_directory"`
+	ModelOutputFile            string         `yaml:"model_output_file"`
+	QueryResolverOutputFile    string         `yaml:"query_resolver_output_file"`
+	MutationResolverOutputFile string         `yaml:"mutation_resolver_output_file"`
+	RootResolverOutputFile     string         `yaml:"root_resolver_output_file"`
+	EnumOutputFile             string         `yaml:"enum_output_file"`
+	ScalarOutputFile           string         `yaml:"scalar_output_file"`
+	ModelPackageName           string         `yaml:"model_package_name"`
+	ResolverPackageName        string         `yaml:"resolver_package_name"`
+	Scalars                    []ScalarConfig `yaml:"scalars"`
 }
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
@@ -141,11 +154,18 @@ func NewGenerator(config *Config) (*Generator, error) {
 		return nil, fmt.Errorf("error merging schema: %w", err)
 	}
 
-	var modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, enumOutput io.Writer
+	var modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, enumOutput, scalarOutput io.Writer
 	if len(extractUserEnumDefinitions(s.Enums)) > 0 {
 		enumOutput, err = createFile(config.EnumOutputFile)
 		if err != nil {
 			return nil, fmt.Errorf("error creating enum output file: %w", err)
+		}
+	}
+
+	if len(s.Scalars) > 0 {
+		scalarOutput, err = createFile(config.ScalarOutputFile)
+		if err != nil {
+			return nil, fmt.Errorf("error creating scalar output file: %w", err)
 		}
 	}
 
@@ -188,6 +208,9 @@ func NewGenerator(config *Config) (*Generator, error) {
 		enumAST: &ast.File{
 			Name: ast.NewIdent(filepath.Base(modelPackagePath)),
 		},
+		scalarAST: &ast.File{
+			Name: ast.NewIdent(filepath.Base(modelPackagePath)),
+		},
 		queryResolverAST: &ast.File{
 			Name:  ast.NewIdent(filepath.Base(resolverPackagePath)),
 			Decls: []ast.Decl{},
@@ -202,10 +225,12 @@ func NewGenerator(config *Config) (*Generator, error) {
 		mutationResolverOutput:         mutationResolverOutput,
 		rootResolverOutput:             rootResolverOutput,
 		enumOutput:                     enumOutput,
+		scalarOutput:                   scalarOutput,
 		resolverPackagePath:            resolverPackagePath,
 		queryResolverOutputFilePath:    config.QueryResolverOutputFile,
 		mutationResolverOutputFilePath: config.MutationResolverOutputFile,
 		rootResolverOutputFilePath:     config.RootResolverOutputFile,
+		config:                         config,
 	}
 
 	return g, nil
@@ -222,6 +247,38 @@ func (g *Generator) Generate() error {
 	}
 
 	return nil
+}
+
+func (g *Generator) generateScalar() {
+	specs := make([]ast.Spec, 0)
+
+	for _, scalar := range g.config.Scalars {
+		specs = append(specs, &ast.ImportSpec{
+			Path: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf(`"%s"`, scalar.Package),
+			},
+		})
+	}
+
+	g.scalarAST.Decls = append(g.scalarAST.Decls, &ast.GenDecl{
+		Tok:   token.IMPORT,
+		Specs: specs,
+	})
+
+	for _, scalar := range g.config.Scalars {
+		g.scalarAST.Decls = append(g.scalarAST.Decls, &ast.GenDecl{
+			Tok: token.TYPE,
+			Specs: []ast.Spec{
+				&ast.TypeSpec{
+					Name: ast.NewIdent(scalar.Name),
+					Type: &ast.Ident{
+						Name: scalar.Type,
+					},
+				},
+			},
+		})
+	}
 }
 
 func (g *Generator) generateModel() error {
@@ -272,6 +329,17 @@ func (g *Generator) generateModel() error {
 			})
 		}
 
+		for _, u := range g.Schema.Unions {
+			for _, unionType := range u.Types {
+				if bytes.Equal(unionType, t.Name) {
+					fields.List = append(fields.List, &ast.Field{
+						Names: []*ast.Ident{},
+						Type:  ast.NewIdent(string(u.Name)),
+					})
+				}
+			}
+		}
+
 		decl := &ast.GenDecl{
 			Tok: token.TYPE,
 			Specs: []ast.Spec{
@@ -304,7 +372,9 @@ func (g *Generator) generateModel() error {
 		}
 	}
 
+	// TODO: move to generated.go
 	g.modelAST.Decls = append(g.modelAST.Decls, generateInterfaceTypeDecls(g.Schema.Interfaces)...)
+	g.modelAST.Decls = append(g.modelAST.Decls, generateUnionTypeDecls(g.Schema.Unions)...)
 
 	userEnums := extractUserEnumDefinitions(g.Schema.Enums)
 	g.enumAST.Decls = append(g.enumAST.Decls, generateEnumModelAST(userEnums)...)
@@ -326,6 +396,13 @@ func (g *Generator) generateModel() error {
 	if g.enumOutput != nil {
 		if err := format.Node(g.enumOutput, token.NewFileSet(), g.enumAST); err != nil {
 			return fmt.Errorf("error formatting enum: %w", err)
+		}
+	}
+
+	if g.scalarOutput != nil {
+		g.generateScalar()
+		if err := format.Node(g.scalarOutput, token.NewFileSet(), g.scalarAST); err != nil {
+			return fmt.Errorf("error formatting scalar: %w", err)
 		}
 	}
 

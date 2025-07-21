@@ -170,7 +170,7 @@ func (o *OperationDefinition) GetFieldByName(name []byte) *FieldDefinition {
 }
 
 type DefinitionType interface {
-	*TypeDefinition | *OperationDefinition | *EnumDefinition | *UnionDefinition | *InterfaceDefinition | *InputDefinition
+	*TypeDefinition | *OperationDefinition | *EnumDefinition | *UnionDefinition | *InterfaceDefinition | *InputDefinition | *ScalarDefinition
 }
 
 type Indexes struct {
@@ -180,6 +180,7 @@ type Indexes struct {
 	InterfaceIndex   map[string]*InterfaceDefinition
 	InputIndex       map[string]*InputDefinition
 	OperationIndexes map[OperationType]map[string]*OperationDefinition
+	ScalarIndex      map[string]*ScalarDefinition
 }
 
 func (i *Indexes) GetTypeDefinition(name string) *TypeDefinition {
@@ -243,6 +244,7 @@ func NewSchema(tokens Tokens) *Schema {
 			UnionIndex:       make(map[string]*UnionDefinition),
 			InterfaceIndex:   make(map[string]*InterfaceDefinition),
 			InputIndex:       make(map[string]*InputDefinition),
+			ScalarIndex:      make(map[string]*ScalarDefinition),
 		},
 		Directives: NewBuildInDirectives(),
 	}
@@ -650,6 +652,8 @@ func add[T DefinitionType](indexes *Indexes, definition T) (*Indexes, error) {
 		indexes.InterfaceIndex[string(d.Name)] = d
 	case *InputDefinition:
 		indexes.InputIndex[string(d.Name)] = d
+	case *ScalarDefinition:
+		indexes.ScalarIndex[string(d.Name)] = d
 	default:
 		return nil, fmt.Errorf("definition type %v is unsupported in index", reflect.TypeOf(d))
 	}
