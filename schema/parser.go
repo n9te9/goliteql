@@ -142,6 +142,10 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			cur = newCur
 			schema.Scalars = append(schema.Scalars, scalarDefinition)
+			schema.Indexes, err = add(schema.Indexes, scalarDefinition)
+			if err != nil {
+				return nil, err
+			}
 		case EOF:
 			return schema, nil
 		}

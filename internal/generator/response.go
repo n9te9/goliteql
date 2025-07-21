@@ -330,7 +330,7 @@ func generateApplyRangeStmtForFragmentResponse(field *schema.FieldDefinition, in
 	}
 
 	if nestCount == rootNestCount {
-		return generateApplySwitchStmtForFragmentQueryResponseToRefactor(field, indexes, nestCount, rootNestCount, typePrefix)
+		return generateApplySwitchStmtForFragmentQueryResponse(field, indexes, nestCount, rootNestCount, typePrefix)
 	}
 
 	var rangeRetAssignStmt, appendAssignStmt ast.Stmt = &ast.EmptyStmt{}, &ast.EmptyStmt{}
@@ -398,148 +398,32 @@ func generateApplyRangeStmtForFragmentResponse(field *schema.FieldDefinition, in
 	}
 }
 
+func getPossibleTypeDefinitions(field *schema.FieldDefinition, indexes *schema.Indexes) []*schema.TypeDefinition {
+	fieldRootType := field.Type.GetRootType()
+	ret := make(schema.TypeDefinitions, 0)
+	if iface, ok := indexes.InterfaceIndex[string(fieldRootType.Name)]; ok {
+		ret = append(ret, indexes.GetImplementedType(iface)...)
+		return ret
+	}
+
+	if union, ok := indexes.UnionIndex[string(fieldRootType.Name)]; ok {
+		for _, unionTypeName := range union.Types {
+			if typeDef, ok := indexes.TypeIndex[string(unionTypeName)]; ok {
+				ret = append(ret, typeDef)
+			}
+		}
+
+		return ret
+	}
+
+	return ret
+}
+
 func generateApplySwitchStmtForFragmentQueryResponse(field *schema.FieldDefinition, indexes *schema.Indexes, nestCount, rootNestCount int, typePrefix string) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0)
 
 	interfaceDefinition := indexes.InterfaceIndex[string(field.Type.GetRootType().Name)]
-	typeDefinitions := indexes.GetImplementedType(interfaceDefinition)
-
-	for _, typeDefinition := range typeDefinitions {
-		rangeStmt := &ast.RangeStmt{
-			Key:   ast.NewIdent("_"),
-			Value: ast.NewIdent("child"),
-			X: &ast.SelectorExpr{
-				X:   ast.NewIdent("node"),
-				Sel: ast.NewIdent("Children"),
-			},
-			Tok: token.DEFINE,
-			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-					&ast.SwitchStmt{
-						Tag: &ast.CallExpr{
-							Fun: ast.NewIdent("string"),
-							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   ast.NewIdent("child"),
-									Sel: ast.NewIdent("Name"),
-								},
-							},
-						},
-						Body: &ast.BlockStmt{
-							List: generateApplyQueryResponseCaseStmtsForFragment(typeDefinition, nestCount, string(field.Name), rootNestCount),
-						},
-					},
-				},
-			},
-		}
-
-		assignLh := ast.NewIdent("ret")
-		if nestCount-1 > 0 {
-			assignLh = ast.NewIdent(fmt.Sprintf("ret%d", rootNestCount))
-		}
-
-		appendAssignStmt := &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				assignLh,
-			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: ast.NewIdent("append"),
-					Args: []ast.Expr{
-						assignLh,
-						ast.NewIdent(fmt.Sprintf("ret%d", nestCount)),
-					},
-				},
-			},
-		}
-
-		stmts = append(stmts, &ast.IfStmt{
-			Cond: &ast.BinaryExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("node"),
-					Sel: ast.NewIdent("Type"),
-				},
-				Op: token.EQL,
-				Y:  ast.NewIdent(fmt.Sprintf("%q", typeDefinition.Name)),
-			},
-			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-					&ast.AssignStmt{
-						Lhs: []ast.Expr{
-							ast.NewIdent(fmt.Sprintf("ret%d", rootNestCount)),
-						},
-						Tok: token.DEFINE,
-						Rhs: []ast.Expr{
-							&ast.CompositeLit{
-								Type: ast.NewIdent(fmt.Sprintf("%sResponse", typeDefinition.Name)),
-							},
-						},
-					},
-					&ast.TypeSwitchStmt{
-						Assign: &ast.AssignStmt{
-							Lhs: []ast.Expr{
-								ast.NewIdent(fmt.Sprintf("v%d", rootNestCount)),
-							},
-							Tok: token.DEFINE,
-							Rhs: []ast.Expr{
-								&ast.TypeAssertExpr{
-									X:    ast.NewIdent(fmt.Sprintf("v%d", rootNestCount-1)),
-									Type: ast.NewIdent("type"),
-								},
-							},
-						},
-						Body: &ast.BlockStmt{
-							List: []ast.Stmt{
-								&ast.CaseClause{
-									List: []ast.Expr{
-										&ast.SelectorExpr{
-											X:   ast.NewIdent(typePrefix),
-											Sel: ast.NewIdent(string(typeDefinition.Name)),
-										},
-									},
-									Body: []ast.Stmt{
-										rangeStmt,
-									},
-								},
-								&ast.CaseClause{
-									List: []ast.Expr{
-										&ast.StarExpr{
-											X: &ast.SelectorExpr{
-												X:   ast.NewIdent(typePrefix),
-												Sel: ast.NewIdent(string(typeDefinition.Name)),
-											},
-										},
-									},
-									Body: []ast.Stmt{
-										rangeStmt,
-									},
-								},
-							},
-						},
-					},
-					appendAssignStmt,
-					&ast.ExprStmt{
-						X: &ast.BasicLit{
-							Kind:  token.CONTINUE,
-							Value: "continue",
-						},
-					},
-				},
-			},
-		})
-	}
-
-	stmts = append(stmts, generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition, indexes, nestCount, rootNestCount, typePrefix)...)
-
-	return stmts
-}
-
-func generateApplySwitchStmtForFragmentQueryResponseToRefactor(field *schema.FieldDefinition, indexes *schema.Indexes, nestCount, rootNestCount int, typePrefix string) []ast.Stmt {
-	stmts := make([]ast.Stmt, 0)
-
-	interfaceDefinition := indexes.InterfaceIndex[string(field.Type.GetRootType().Name)]
-	typeDefinitions := indexes.GetImplementedType(interfaceDefinition)
+	typeDefinitions := getPossibleTypeDefinitions(field, indexes)
 
 	rangeSwitchStmts := make([]ast.Stmt, 0, len(typeDefinitions))
 	for _, typeDefinition := range typeDefinitions {
@@ -560,7 +444,7 @@ func generateApplySwitchStmtForFragmentQueryResponseToRefactor(field *schema.Fie
 				},
 			},
 			Body: &ast.BlockStmt{
-				List: generateApplyQueryResponseCaseStmtsForFragment(typeDefinition, nestCount, string(field.Name), rootNestCount),
+				List: generateApplyQueryResponseCaseStmtsForFragment(typeDefinition, nestCount, string(field.Name), rootNestCount, indexes),
 			},
 		})
 
@@ -706,9 +590,12 @@ func generateApplySwitchStmtForFragmentQueryResponseToRefactor(field *schema.Fie
 				},
 			},
 		},
-		Else: &ast.BlockStmt{
+	}
+
+	if _, ok := indexes.InterfaceIndex[string(field.Type.GetRootType().Name)]; ok {
+		stmt.Else = &ast.BlockStmt{
 			List: generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition, indexes, nestCount, rootNestCount, typePrefix),
-		},
+		}
 	}
 
 	stmts = append(stmts, stmt)
@@ -864,9 +751,10 @@ func generateInterfaceDefinitionApplyCaseStmts(interfaceDefinition *schema.Inter
 			},
 		},
 	}
+}
 
-	// return []ast.Stmt{
-	// }
+func generateUnionDefinitionApplyCaseStmts(unionDefinition *schema.UnionDefinition, indexes *schema.Indexes, nestCount, rootNestCount int, typePrefix string) []ast.Stmt {
+	return []ast.Stmt{}
 }
 
 func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, nestCount int, fieldName string, rootNestCount int, indexes *schema.Indexes) []ast.Stmt {
@@ -899,13 +787,14 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 			X:   ast.NewIdent(valueName),
 			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 		}
-		if field.Type.Nullable {
-			arg = &ast.StarExpr{
-				X: arg,
-			}
-		}
+		// if field.Type.Nullable {
+		// 	arg = &ast.StarExpr{
+		// 		X: arg,
+		// 	}
+		// }
 
-		if field.Type.IsPrimitive() {
+		_, isScalar := indexes.ScalarIndex[string(field.Type.GetRootType().Name)]
+		if field.Type.IsPrimitive() || isScalar {
 			rh = generateNewNullableExpr(rh)
 		} else {
 			retName := fmt.Sprintf("ret%s", field.Name)
@@ -1038,7 +927,7 @@ func generateNewNullableExpr(expr ast.Expr) ast.Expr {
 	}
 }
 
-func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeDefinition, nestCount int, fieldName string, rootNestCount int) []ast.Stmt {
+func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeDefinition, nestCount int, fieldName string, rootNestCount int, indexes *schema.Indexes) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
 	if typeDefinition == nil {
@@ -1067,24 +956,15 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 		}
 
 		if !field.Type.Nullable {
-			if field.Type.IsBoolean() {
-				rh = generateNewNullableExpr(rh)
-			} else if field.Type.IsString() || field.Type.IsID() {
-				rh = generateNewNullableExpr(rh)
-			} else if field.Type.IsInt() {
-				rh = generateNewNullableExpr(rh)
-			} else if field.Type.IsFloat() {
+			_, isScalar := indexes.ScalarIndex[string(field.Type.GetRootType().Name)]
+			_, isEnum := indexes.EnumIndex[string(field.Type.GetRootType().Name)]
+			if field.Type.GetRootType().IsPrimitive() || isScalar || isEnum {
 				rh = generateNewNullableExpr(rh)
 			} else {
 				retName := fmt.Sprintf("ret%s", field.Name)
 				var valueExpr ast.Expr = &ast.SelectorExpr{
 					X:   ast.NewIdent(valueName),
 					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-				}
-				if field.Type.Nullable {
-					valueExpr = &ast.StarExpr{
-						X: valueExpr,
-					}
 				}
 
 				fieldRetAssignStmt := &ast.AssignStmt{
@@ -1119,13 +999,6 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 					}))
 				}
 
-				// var elmExpr ast.Expr = ast.NewIdent(retName)
-				// if field.Type.Nullable {
-				// 	elmExpr = &ast.StarExpr{
-				// 		X: ast.NewIdent(retName),
-				// 	}
-				// }
-
 				if field.Type.IsList {
 					if field.Type.GetRootType().Nullable {
 						rh = &ast.UnaryExpr{
@@ -1153,7 +1026,9 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 				},
 			})
 		} else {
-			if !field.Type.IsPrimitive() {
+			_, isScalar := indexes.ScalarIndex[string(field.Type.GetRootType().Name)]
+			_, isEnum := indexes.EnumIndex[string(field.Type.GetRootType().Name)]
+			if !field.Type.GetRootType().IsPrimitive() && !isScalar && !isEnum {
 				caseBody = append(caseBody, &ast.AssignStmt{
 					Lhs: []ast.Expr{
 						ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
@@ -1168,11 +1043,9 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 									string(field.Name))),
 							},
 							Args: []ast.Expr{
-								&ast.StarExpr{
-									X: &ast.SelectorExpr{
-										X:   ast.NewIdent(valueName),
-										Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-									},
+								&ast.SelectorExpr{
+									X:   ast.NewIdent(valueName),
+									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
 								},
 								ast.NewIdent("child"),
 							},
@@ -1253,4 +1126,29 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 	})
 
 	return ret
+}
+
+func generateModelFieldForResponse(field schema.FieldDefinitions) *ast.FieldList {
+	fields := make([]*ast.Field, 0, len(field))
+
+	for _, f := range field {
+		fieldTypeExpr := generateExprForResponse(f.Type)
+
+		fields = append(fields, &ast.Field{
+			Names: []*ast.Ident{
+				{
+					Name: toUpperCase(string(f.Name)),
+				},
+			},
+			Type: fieldTypeExpr,
+			Tag: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("`json:\"%s,omitempty\"`", string(f.Name)),
+			},
+		})
+	}
+
+	return &ast.FieldList{
+		List: fields,
+	}
 }

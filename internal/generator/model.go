@@ -18,12 +18,6 @@ func generateModelImport() *ast.GenDecl {
 					Value: `"encoding/json"`,
 				},
 			},
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"fmt"`,
-				},
-			},
 		},
 	}
 }
@@ -98,31 +92,6 @@ func generateModelField(field schema.FieldDefinitions) *ast.FieldList {
 			Tag: &ast.BasicLit{
 				Kind:  token.STRING,
 				Value: fmt.Sprintf("`json:\"%s\"`", string(f.Name)),
-			},
-		})
-	}
-
-	return &ast.FieldList{
-		List: fields,
-	}
-}
-
-func generateModelFieldForResponse(field schema.FieldDefinitions) *ast.FieldList {
-	fields := make([]*ast.Field, 0, len(field))
-
-	for _, f := range field {
-		fieldTypeExpr := generateExprForResponse(f.Type)
-
-		fields = append(fields, &ast.Field{
-			Names: []*ast.Ident{
-				{
-					Name: toUpperCase(string(f.Name)),
-				},
-			},
-			Type: fieldTypeExpr,
-			Tag: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: fmt.Sprintf("`json:\"%s,omitempty\"`", string(f.Name)),
 			},
 		})
 	}

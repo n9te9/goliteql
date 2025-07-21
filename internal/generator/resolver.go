@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -277,8 +278,12 @@ func generateTypeExprFromFieldTypeForResponse(typePrefix string, fieldType *sche
 
 func generateApplyQueryResponseFuncDecls(operationDefinition *schema.OperationDefinition, indexes *schema.Indexes, nestCount int, typePrefix string) []ast.Decl {
 	ret := make([]ast.Decl, 0)
-
 	for _, field := range operationDefinition.Fields {
+		_, isScalar := indexes.ScalarIndex[string(field.Type.GetRootType().Name)]
+		if field.Type.GetRootType().IsPrimitive() || isScalar {
+			continue
+		}
+
 		ret = append(ret, generateApplyQueryResponseFuncDeclFromField(field, indexes, typePrefix, ""))
 		ret = append(ret, generateApplyNestedFieldQueryResponseFuncDecls(field.Type, indexes, typePrefix, string(field.Name))...)
 	}
@@ -298,10 +303,20 @@ func generateApplyNestedFieldQueryResponseFuncDecls(fieldType *schema.FieldType,
 	ret := make([]ast.Decl, 0)
 
 	rootType := fieldType.GetRootType()
-
 	typeDefinition := indexes.TypeIndex[string(rootType.Name)]
 	if typeDefinition != nil {
 		ret = append(ret, generateApplyNestedFieldQueryResponseFuncDeclsFromTypeDefinition(typeDefinition, indexes, typePrefix, operationPrefix)...)
+	}
+
+	if unionDefinitinon := indexes.UnionIndex[string(rootType.Name)]; unionDefinitinon != nil {
+		for _, unionType := range unionDefinitinon.Types {
+			typeDefinition, ok := indexes.TypeIndex[string(unionType)]
+			if !ok {
+				continue
+			}
+
+			ret = append(ret, generateApplyNestedFieldQueryResponseFuncDeclsFromTypeDefinition(typeDefinition, indexes, typePrefix, operationPrefix)...)
+		}
 	}
 
 	interfaceDefinition := indexes.InterfaceIndex[string(rootType.Name)]
@@ -319,7 +334,10 @@ func generateApplyNestedFieldQueryResponseFuncDeclsFromTypeDefinition(typeDefini
 	ret := make([]ast.Decl, 0)
 
 	for _, field := range typeDefinition.Fields {
-		if field.IsPrimitive() {
+		_, isScalar := indexes.ScalarIndex[string(field.Type.Name)]
+		_, isEnum := indexes.EnumIndex[string(field.Type.Name)]
+
+		if field.Type.GetRootType().IsPrimitive() || isScalar || isEnum {
 			continue
 		}
 
@@ -2495,7 +2513,7 @@ func generateOperationArgumentDecls(typePrefix string, operation *schema.Operati
 func generateExtractOperationArgumentsDecl(typePrefix string, field *schema.FieldDefinition, indexes *schema.Indexes) ast.Decl {
 	bodyStmts := make([]ast.Stmt, 0)
 	bodyStmts = append(bodyStmts, generateDeclareStmts(typePrefix, field.Arguments)...)
-	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments, indexes)...)
+	bodyStmts = append(bodyStmts, generateDefaultValueAssignmentStmts(field.Arguments, indexes, typePrefix)...)
 
 	results := generateArgumentsParams(typePrefix, field.Arguments)
 	results.List = append(results.List, &ast.Field{
@@ -2583,8 +2601,8 @@ func generateDeclareStmts(typePrefix string, args schema.ArgumentDefinitions) []
 	return stmts
 }
 
-func generateValueCaseAssignStmt(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {
-	return generateCaseAssignStmts(arg, indexes)
+func generateValueCaseAssignStmt(arg *schema.ArgumentDefinition, indexes *schema.Indexes, typePrefix string) ast.Stmt {
+	return generateCaseAssignStmts(arg, indexes, typePrefix)
 }
 
 func generateObjectArgumentRhsType(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Expr {
@@ -2595,11 +2613,23 @@ func generateObjectArgumentRhsType(arg *schema.ArgumentDefinition, indexes *sche
 	}
 }
 
-func generateCaseAssignStmts(arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {
+func generateCaseAssignStmts(arg *schema.ArgumentDefinition, indexes *schema.Indexes, typePrefix string) ast.Stmt {
 	caseSelector := "ValueParserLiteral"
 	var body []ast.Stmt = generateValueParserLiteralCaseAssignStmts(arg, indexes)
 
-	if !arg.Type.IsID() && !arg.Type.IsString() && !arg.Type.IsBoolean() && !arg.Type.IsInt() && !arg.Type.IsFloat() {
+	scalar, isScalar := indexes.ScalarIndex[string(arg.Type.Name)]
+	if isScalar {
+		caseSelector = "ValueParserLiteral"
+		body = generateScalarValueParserLiteralCaseAssignStmts(arg, scalar, typePrefix)
+	}
+
+	enum, isEnum := indexes.EnumIndex[string(arg.Type.Name)]
+	if isEnum {
+		caseSelector = "ValueParserLiteral"
+		body = generateEnumValueParserLiteralCaseAssignStmts(arg, enum, typePrefix)
+	}
+
+	if !arg.Type.IsID() && !arg.Type.IsString() && !arg.Type.IsBoolean() && !arg.Type.IsInt() && !arg.Type.IsFloat() && !isScalar && !isEnum {
 		caseSelector = "ValueParserObject"
 		body = generateValueParserObjectCaseAssignStmts(arg, indexes)
 	}
@@ -2630,6 +2660,10 @@ func generateValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, i
 		},
 	}
 
+	if arg.Type.Nullable {
+		rhs = generateStringPointerExpr(rhs)
+	}
+
 	if arg.Type.IsBoolean() {
 		rhs = &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
@@ -2650,6 +2684,10 @@ func generateValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, i
 				Sel: ast.NewIdent("IntValue"),
 			},
 		}
+
+		if arg.Type.Nullable {
+			rhs = generateIntPointerExpr(rhs)
+		}
 	}
 
 	if arg.Type.IsFloat() {
@@ -2658,6 +2696,10 @@ func generateValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, i
 				X:   ast.NewIdent("val"),
 				Sel: ast.NewIdent("FloatValue"),
 			},
+		}
+
+		if arg.Type.Nullable {
+			rhs = generateFloatPointerExpr(rhs)
 		}
 	}
 
@@ -2669,6 +2711,113 @@ func generateValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, i
 			},
 			Rhs: []ast.Expr{
 				rhs,
+			},
+		},
+	}
+}
+
+func generateScalarValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, scalar *schema.ScalarDefinition, prefixType string) []ast.Stmt {
+	if arg.Type.Nullable {
+		return []ast.Stmt{
+			&ast.AssignStmt{
+				Tok: token.ASSIGN,
+				Lhs: []ast.Expr{
+					ast.NewIdent(string(arg.Name)),
+				},
+				Rhs: []ast.Expr{
+					&ast.IndexExpr{
+						X: &ast.CompositeLit{
+							Type: &ast.SelectorExpr{
+								X:   ast.NewIdent(prefixType),
+								Sel: ast.NewIdent(string(scalar.Name)),
+							},
+							Elts: []ast.Expr{},
+						},
+						Index: ast.NewIdent("0"),
+					},
+				},
+			},
+		}
+	}
+
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Rhs: []ast.Expr{},
+		},
+	}
+}
+
+func generateEnumValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, enum *schema.EnumDefinition, prefixType string) []ast.Stmt {
+	if arg.Type.Nullable {
+		return []ast.Stmt{
+			&ast.AssignStmt{
+				Tok: token.ASSIGN,
+				Lhs: []ast.Expr{
+					ast.NewIdent(string(arg.Name)),
+				},
+				Rhs: []ast.Expr{
+					&ast.UnaryExpr{
+						Op: token.AND,
+						X: &ast.IndexExpr{
+							X: &ast.CompositeLit{
+								Type: &ast.ArrayType{
+									Elt: &ast.SelectorExpr{
+										X:   ast.NewIdent(prefixType),
+										Sel: ast.NewIdent(string(enum.Name)),
+									},
+								},
+								Elts: []ast.Expr{
+									&ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X:   ast.NewIdent(prefixType),
+											Sel: ast.NewIdent(string(enum.Name)),
+										},
+										Args: []ast.Expr{
+											&ast.CallExpr{
+												Fun: &ast.SelectorExpr{
+													X:   ast.NewIdent("val"),
+													Sel: ast.NewIdent("StringValue"),
+												},
+												Args: []ast.Expr{},
+											},
+										},
+									},
+								},
+							},
+							Index: ast.NewIdent("0"),
+						},
+					},
+				},
+			},
+		}
+	}
+
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent(prefixType),
+						Sel: ast.NewIdent(string(enum.Name)),
+					},
+					Args: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("val"),
+								Sel: ast.NewIdent("StringValue"),
+							},
+							Args: []ast.Expr{},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -2839,6 +2988,12 @@ func generateValueParserObjectPrimitiveAssignStmts(argDefinition *schema.Argumen
 
 func generateValueParserObjectCaseAssignStmts(arg *schema.ArgumentDefinition, indexes *schema.Indexes) []ast.Stmt {
 	rhs := generateObjectArgumentRhsType(arg, indexes)
+	if arg.Type.Nullable {
+		rhs = &ast.UnaryExpr{
+			Op: token.AND,
+			X:  rhs,
+		}
+	}
 	return []ast.Stmt{
 		&ast.AssignStmt{
 			Tok: token.ASSIGN,
@@ -2912,10 +3067,15 @@ func generateArgumentValue(field *schema.FieldDefinition) ast.Expr {
 	}
 }
 
-func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes) []ast.Stmt {
+func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes, typePrefix string) []ast.Stmt {
 	stmts := make([]ast.Stmt, 0, len(args))
 
 	argsCaseStmts := make([]ast.Stmt, 0, len(args))
+
+	returnExprs := make([]ast.Expr, 0, len(args)+1)
+	for _, arg := range args {
+		returnExprs = append(returnExprs, ast.NewIdent(string(arg.Name)))
+	}
 
 	returns := make([]ast.Expr, 0, len(args))
 	for i, arg := range args {
@@ -2955,10 +3115,7 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 			Body: &ast.BlockStmt{
 				List: []ast.Stmt{
 					&ast.ReturnStmt{
-						Results: []ast.Expr{
-							ast.NewIdent(string(arg.Name)),
-							ast.NewIdent("err"),
-						},
+						Results: append(returnExprs, ast.NewIdent("err")),
 					},
 				},
 			},
@@ -2979,7 +3136,9 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 				},
 			}
 
-			rh = generateBoolPointerExpr(rh)
+			if arg.Type.Nullable {
+				rh = generateBoolPointerExpr(rh)
+			}
 
 			bindStmt = &ast.AssignStmt{
 				Tok: token.ASSIGN,
@@ -2991,16 +3150,22 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 		}
 
 		if arg.Type.IsString() || arg.Type.IsID() {
+			var rh ast.Expr = &ast.CallExpr{
+				Fun: ast.NewIdent("string"),
+				Args: []ast.Expr{
+					ast.NewIdent("rawJSONValue"),
+				},
+			}
+
+			if arg.Type.Nullable {
+				rh = generateStringPointerExpr(rh)
+			}
+
 			bindStmt = &ast.AssignStmt{
 				Tok: token.ASSIGN,
 				Lhs: []ast.Expr{ast.NewIdent(string(arg.Name))},
 				Rhs: []ast.Expr{
-					&ast.CallExpr{
-						Fun: ast.NewIdent("string"),
-						Args: []ast.Expr{
-							ast.NewIdent("rawJSONValue"),
-						},
-					},
+					rh,
 				},
 			}
 		}
@@ -3084,10 +3249,7 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 								Body: &ast.BlockStmt{
 									List: []ast.Stmt{
 										&ast.ReturnStmt{
-											Results: []ast.Expr{
-												ast.NewIdent(string(arg.Name)),
-												ast.NewIdent("err"),
-											},
+											Results: append(returnExprs, ast.NewIdent("err")),
 										},
 									},
 								},
@@ -3107,7 +3269,7 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 								},
 								Body: &ast.BlockStmt{
 									List: []ast.Stmt{
-										generateValueCaseAssignStmt(arg, indexes),
+										generateValueCaseAssignStmt(arg, indexes, typePrefix),
 									},
 								},
 							},
@@ -3141,21 +3303,18 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 								Body: &ast.BlockStmt{
 									List: []ast.Stmt{
 										&ast.ReturnStmt{
-											Results: []ast.Expr{
-												ast.NewIdent(string(arg.Name)),
-												&ast.CallExpr{
-													Fun: &ast.SelectorExpr{
-														X:   ast.NewIdent("fmt"),
-														Sel: ast.NewIdent("Errorf"),
-													},
-													Args: []ast.Expr{
-														&ast.BasicLit{
-															Kind:  token.STRING,
-															Value: fmt.Sprintf(`"argument %s is not provided"`, string(arg.Name)),
-														},
+											Results: append(returnExprs, &ast.CallExpr{
+												Fun: &ast.SelectorExpr{
+													X:   ast.NewIdent("fmt"),
+													Sel: ast.NewIdent("Errorf"),
+												},
+												Args: []ast.Expr{
+													&ast.BasicLit{
+														Kind:  token.STRING,
+														Value: fmt.Sprintf(`"argument %s is not provided"`, string(arg.Name)),
 													},
 												},
-											},
+											}),
 										},
 									},
 								},
@@ -3408,7 +3567,7 @@ func generateOperationResponseStructDecls(schema *schema.Schema) []ast.Decl {
 			continue
 		}
 
-		decls = append(decls, generateResponseStructFromField(typeDefinition))
+		decls = append(decls, generateResponseStructFromField(typeDefinition, schema.Unions))
 		decls = append(decls, generateResponseStructAliasFromTypeDefinition(typeDefinition))
 		decls = append(decls, generateResponseStructMarshalJSONFromTypeDefinition(typeDefinition))
 	}
@@ -3417,10 +3576,14 @@ func generateOperationResponseStructDecls(schema *schema.Schema) []ast.Decl {
 		decls = append(decls, generateResponseInterfaceFromField(interfaceDefinition))
 	}
 
+	for _, unionDefinition := range schema.Unions {
+		decls = append(decls, generateResponseUnionFromDefinition(unionDefinition))
+	}
+
 	return decls
 }
 
-func generateResponseStructFromField(typeDefinition *schema.TypeDefinition) ast.Decl {
+func generateResponseStructFromField(typeDefinition *schema.TypeDefinition, unionDefinitions schema.UnionDefinitions) ast.Decl {
 	return &ast.GenDecl{
 		Tok: token.TYPE,
 		Specs: []ast.Spec{
@@ -3428,7 +3591,7 @@ func generateResponseStructFromField(typeDefinition *schema.TypeDefinition) ast.
 				Name: ast.NewIdent(fmt.Sprintf("%sResponse", typeDefinition.Name)),
 				Type: &ast.StructType{
 					Fields: &ast.FieldList{
-						List: generateAllPointerFieldStructFromField(typeDefinition),
+						List: generateAllPointerFieldStructFromField(typeDefinition, unionDefinitions),
 					},
 				},
 			},
@@ -3436,7 +3599,7 @@ func generateResponseStructFromField(typeDefinition *schema.TypeDefinition) ast.
 	}
 }
 
-func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinition) []*ast.Field {
+func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinition, unionDefinitions schema.UnionDefinitions) []*ast.Field {
 	fields := make([]*ast.Field, 0, len(typeDefinition.Fields))
 
 	for _, field := range typeDefinition.Fields {
@@ -3484,6 +3647,20 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 				Value: "`json:\"-\"`",
 			},
 		})
+	}
+
+	for _, union := range unionDefinitions {
+		for _, field := range union.Types {
+			if bytes.Equal(field, typeDefinition.Name) {
+				fields = append(fields, &ast.Field{
+					Type: ast.NewIdent(fmt.Sprintf("%sResponse", union.Name)),
+					Tag: &ast.BasicLit{
+						Kind:  token.STRING,
+						Value: "`json:\"-\"`",
+					},
+				})
+			}
+		}
 	}
 
 	return fields
@@ -3572,6 +3749,22 @@ func generateResponseInterfaceFromField(interfaceDefinition *schema.InterfaceDef
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
 				Name: ast.NewIdent(fmt.Sprintf("%sResponse", interfaceDefinition.Name)),
+				Type: &ast.InterfaceType{
+					Methods: &ast.FieldList{
+						List: []*ast.Field{},
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateResponseUnionFromDefinition(unionDefinitions *schema.UnionDefinition) ast.Decl {
+	return &ast.GenDecl{
+		Tok: token.TYPE,
+		Specs: []ast.Spec{
+			&ast.TypeSpec{
+				Name: ast.NewIdent(fmt.Sprintf("%sResponse", unionDefinitions.Name)),
 				Type: &ast.InterfaceType{
 					Methods: &ast.FieldList{
 						List: []*ast.Field{},
