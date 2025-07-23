@@ -183,7 +183,7 @@ func NewGenerator(config *Config) (*Generator, error) {
 		}
 	}
 
-	if s.Definition.Subscription != nil {
+	if s.Definition.Subscription != nil || s.Definition.Query != nil || s.Definition.Mutation != nil {
 		rootResolverOutput, err = createFile(config.RootResolverOutputFile)
 		if err != nil {
 			return nil, fmt.Errorf("error creating root resolver output file: %w", err)
@@ -574,6 +574,7 @@ func (g *Generator) generateResolver() error {
 	if err != nil {
 		return fmt.Errorf("error processing root resolver imports: %w", err)
 	}
+
 	if _, err := g.rootResolverOutput.Write(fixed); err != nil {
 		return fmt.Errorf("error writing root resolver output: %w", err)
 	}
