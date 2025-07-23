@@ -1063,7 +1063,7 @@ func (p *Parser) parseUnionDefinition(tokens Tokens, cur int) (*UnionDefinition,
 			}
 
 			return unionDefinition, cur, nil
-		case ReservedType, Union, Enum, Interface, Input, Extend, ReservedSchema:
+		case ReservedType, Union, Enum, Interface, Input, Extend, ReservedSchema, Comment:
 			return unionDefinition, cur, nil
 		default:
 			return nil, 0, fmt.Errorf("unexpected token %s", string(tokens[cur].Value))

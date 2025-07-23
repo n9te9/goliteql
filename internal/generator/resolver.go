@@ -284,7 +284,7 @@ func generateApplyQueryResponseFuncDecls(operationDefinition *schema.OperationDe
 			continue
 		}
 
-		ret = append(ret, generateApplyQueryResponseFuncDeclFromField(field, indexes, typePrefix, ""))
+		ret = append(ret, generateApplyQueryResponseFuncDeclFromField(field, indexes, typePrefix, string(field.Name), true))
 		ret = append(ret, generateApplyNestedFieldQueryResponseFuncDecls(field.Type, indexes, typePrefix, string(field.Name))...)
 	}
 
@@ -341,7 +341,7 @@ func generateApplyNestedFieldQueryResponseFuncDeclsFromTypeDefinition(typeDefini
 			continue
 		}
 
-		ret = append(ret, generateApplyQueryResponseFuncDeclFromField(field, indexes, typePrefix, operationPrefix))
+		ret = append(ret, generateApplyQueryResponseFuncDeclFromField(field, indexes, typePrefix, operationPrefix, false))
 	}
 
 	return ret
@@ -2719,21 +2719,21 @@ func generateValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, i
 func generateScalarValueParserLiteralCaseAssignStmts(arg *schema.ArgumentDefinition, scalar *schema.ScalarDefinition, prefixType string) []ast.Stmt {
 	if arg.Type.Nullable {
 		return []ast.Stmt{
-			&ast.AssignStmt{
-				Tok: token.ASSIGN,
-				Lhs: []ast.Expr{
-					ast.NewIdent(string(arg.Name)),
-				},
-				Rhs: []ast.Expr{
-					&ast.IndexExpr{
-						X: &ast.CompositeLit{
-							Type: &ast.SelectorExpr{
-								X:   ast.NewIdent(prefixType),
-								Sel: ast.NewIdent(string(scalar.Name)),
-							},
-							Elts: []ast.Expr{},
+			&ast.ExprStmt{
+				X: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("json"),
+						Sel: ast.NewIdent("Unmarshal"),
+					},
+					Args: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("val"),
+							Sel: ast.NewIdent("Value"),
 						},
-						Index: ast.NewIdent("0"),
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X:  ast.NewIdent(string(arg.Name)),
+						},
 					},
 				},
 			},
@@ -3058,7 +3058,21 @@ func generateArgumentValue(field *schema.FieldDefinition) ast.Expr {
 	}
 
 	if field.Type.Nullable {
-		v = generateStringPointerExpr(v)
+		if field.Type.IsBoolean() {
+			v = generateBoolPointerExpr(v)
+		}
+
+		if field.Type.IsInt() {
+			v = generateIntPointerExpr(v)
+		}
+
+		if field.Type.IsFloat() {
+			v = generateFloatPointerExpr(v)
+		}
+
+		if field.Type.IsString() || field.Type.IsID() {
+			v = generateStringPointerExpr(v)
+		}
 	}
 
 	return &ast.KeyValueExpr{
@@ -3078,7 +3092,7 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 	}
 
 	returns := make([]ast.Expr, 0, len(args))
-	for i, arg := range args {
+	for _, arg := range args {
 		returns = append(returns, ast.NewIdent(string(arg.Name)))
 		if arg.Default != nil {
 			stmts = append(stmts, generateAssignDefaultValueStmt(arg, indexes))
@@ -3325,54 +3339,34 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 				},
 			},
 		})
-
-		stmts = append(stmts, &ast.IfStmt{
-			Cond: &ast.BinaryExpr{
-				X: &ast.CallExpr{
-					Fun: ast.NewIdent("len"),
-					Args: []ast.Expr{
-						&ast.SelectorExpr{
-							X:   ast.NewIdent("node"),
-							Sel: ast.NewIdent("Arguments"),
-						},
-					},
-				},
-				Op: token.EQL,
-				Y:  ast.NewIdent(fmt.Sprintf("%d", i)),
-			},
-			Body: &ast.BlockStmt{
-				List: []ast.Stmt{},
-			},
-		})
-
-		stmts = append(stmts, &ast.RangeStmt{
-			Key:   ast.NewIdent("_"),
-			Value: ast.NewIdent("arg"),
-			Tok:   token.DEFINE,
-			X: &ast.SelectorExpr{
-				X:   ast.NewIdent("node"),
-				Sel: ast.NewIdent("Arguments"),
-			},
-			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-					&ast.SwitchStmt{
-						Tag: &ast.CallExpr{
-							Fun: ast.NewIdent("string"),
-							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   ast.NewIdent("arg"),
-									Sel: ast.NewIdent("Name"),
-								},
+	}
+	stmts = append(stmts, &ast.RangeStmt{
+		Key:   ast.NewIdent("_"),
+		Value: ast.NewIdent("arg"),
+		Tok:   token.DEFINE,
+		X: &ast.SelectorExpr{
+			X:   ast.NewIdent("node"),
+			Sel: ast.NewIdent("Arguments"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.SwitchStmt{
+					Tag: &ast.CallExpr{
+						Fun: ast.NewIdent("string"),
+						Args: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("arg"),
+								Sel: ast.NewIdent("Name"),
 							},
 						},
-						Body: &ast.BlockStmt{
-							List: argsCaseStmts,
-						},
+					},
+					Body: &ast.BlockStmt{
+						List: argsCaseStmts,
 					},
 				},
 			},
-		})
-	}
+		},
+	})
 
 	returns = append(returns, ast.NewIdent("nil"))
 
