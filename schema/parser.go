@@ -25,6 +25,8 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 	cur := 0
 	for cur < len(tokens) {
 		switch tokens[cur].Type {
+		case Comment:
+			cur++
 		case Extend:
 			cur++
 			schema, cur, err = p.parseExtendDefinition(schema, tokens, cur)
