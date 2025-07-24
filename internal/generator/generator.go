@@ -48,9 +48,10 @@ type Generator struct {
 }
 
 type ScalarConfig struct {
-	Name    string `yaml:"name"`
-	Package string `yaml:"package"`
-	Type    string `yaml:"type"`
+	Name               string `yaml:"name"`
+	Package            string `yaml:"package"`
+	Type               string `yaml:"type"`
+	ParseInjectionCode string `yaml:"parse_injection_code"`
 }
 
 type Config struct {
@@ -247,38 +248,6 @@ func (g *Generator) Generate() error {
 	}
 
 	return nil
-}
-
-func (g *Generator) generateScalar() {
-	specs := make([]ast.Spec, 0)
-
-	for _, scalar := range g.config.Scalars {
-		specs = append(specs, &ast.ImportSpec{
-			Path: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: fmt.Sprintf(`"%s"`, scalar.Package),
-			},
-		})
-	}
-
-	g.scalarAST.Decls = append(g.scalarAST.Decls, &ast.GenDecl{
-		Tok:   token.IMPORT,
-		Specs: specs,
-	})
-
-	for _, scalar := range g.config.Scalars {
-		g.scalarAST.Decls = append(g.scalarAST.Decls, &ast.GenDecl{
-			Tok: token.TYPE,
-			Specs: []ast.Spec{
-				&ast.TypeSpec{
-					Name: ast.NewIdent(scalar.Name),
-					Type: &ast.Ident{
-						Name: scalar.Type,
-					},
-				},
-			},
-		})
-	}
 }
 
 func (g *Generator) generateModel() error {

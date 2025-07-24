@@ -3140,7 +3140,20 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 				X: &ast.CallExpr{
 					Fun: ast.NewIdent("string"),
 					Args: []ast.Expr{
-						ast.NewIdent("rawJSONValue"),
+						&ast.SliceExpr{
+							X:   ast.NewIdent("rawJSONValue"),
+							Low: ast.NewIdent("1"),
+							High: &ast.BinaryExpr{
+								X: &ast.CallExpr{
+									Fun: ast.NewIdent("len"),
+									Args: []ast.Expr{
+										ast.NewIdent("rawJSONValue"),
+									},
+								},
+								Op: token.SUB,
+								Y:  ast.NewIdent("1"),
+							},
+						},
 					},
 				},
 				Op: token.EQL,
@@ -3167,7 +3180,20 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 			var rh ast.Expr = &ast.CallExpr{
 				Fun: ast.NewIdent("string"),
 				Args: []ast.Expr{
-					ast.NewIdent("rawJSONValue"),
+					&ast.SliceExpr{
+						X:   ast.NewIdent("rawJSONValue"),
+						Low: ast.NewIdent("1"),
+						High: &ast.BinaryExpr{
+							X: &ast.CallExpr{
+								Fun: ast.NewIdent("len"),
+								Args: []ast.Expr{
+									ast.NewIdent("rawJSONValue"),
+								},
+							},
+							Op: token.SUB,
+							Y:  ast.NewIdent("1"),
+						},
+					},
 				},
 			}
 
@@ -3201,7 +3227,20 @@ func generateDefaultValueAssignmentStmts(args schema.ArgumentDefinitions, indexe
 							&ast.CallExpr{
 								Fun: ast.NewIdent("string"),
 								Args: []ast.Expr{
-									ast.NewIdent("rawJSONValue"),
+									&ast.SliceExpr{
+										X:   ast.NewIdent("rawJSONValue"),
+										Low: ast.NewIdent("1"),
+										High: &ast.BinaryExpr{
+											X: &ast.CallExpr{
+												Fun: ast.NewIdent("len"),
+												Args: []ast.Expr{
+													ast.NewIdent("rawJSONValue"),
+												},
+											},
+											Op: token.SUB,
+											Y:  ast.NewIdent("1"),
+										},
+									},
 								},
 							},
 						},
