@@ -17,6 +17,20 @@ func (n *Node) HasFragment() bool {
 	return n.recursiveHasFragment()
 }
 
+func (n *Node) FragmentType() string {
+	if n.Type != "" {
+		return n.Type
+	}
+
+	for _, child := range n.Children {
+		if child.HasFragment() {
+			return child.FragmentType()
+		}
+	}
+
+	return ""
+}
+
 func (n *Node) recursiveHasFragment() bool {
 	if len(n.Children) == 0 {
 		return false
@@ -27,7 +41,9 @@ func (n *Node) recursiveHasFragment() bool {
 	}
 
 	for _, child := range n.Children {
-		return child.recursiveHasFragment()
+		if child.recursiveHasFragment() {
+			return true
+		}
 	}
 
 	return false
