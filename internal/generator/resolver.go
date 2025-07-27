@@ -1311,7 +1311,15 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								},
 							},
 							Rhs: []ast.Expr{
-								ast.NewIdent("ret"),
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										ast.NewIdent("ret"),
+									},
+								},
 							},
 						},
 					},
@@ -1430,7 +1438,15 @@ func generateServeHTTPBody(query, mutation, subscription *schema.OperationDefini
 								},
 							},
 							Rhs: []ast.Expr{
-								ast.NewIdent("ret"),
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										ast.NewIdent("ret"),
+									},
+								},
 							},
 						},
 					},

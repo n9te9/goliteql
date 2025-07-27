@@ -17,14 +17,15 @@ import (
 )
 
 type Generator struct {
-	Schema                     *schema.Schema
-	queryAST                   *ast.File
-	mutationAST                *ast.File
-	subscriptionAST            *ast.File
-	modelAST                   *ast.File
-	modelPackagePath           string
-	resolverPackagePath        string
-	rootResolverOutputFilePath string
+	Schema                          *schema.Schema
+	queryAST                        *ast.File
+	mutationAST                     *ast.File
+	subscriptionAST                 *ast.File
+	modelAST                        *ast.File
+	modelPackagePath                string
+	resolverPackagePath             string
+	rootResolverOutputFilePath      string
+	resolverGeneratedOutputFilePath string
 
 	modelOutput                 io.Writer
 	queryResolverOutput         io.Writer
@@ -37,6 +38,9 @@ type Generator struct {
 
 	rootResolverOutput io.Writer
 	resolverAST        *ast.File
+
+	resolverGeneratedOutput io.Writer
+	generatedAST            *ast.File
 
 	enumOutput io.Writer
 	enumAST    *ast.File
@@ -55,16 +59,17 @@ type ScalarConfig struct {
 }
 
 type Config struct {
-	SchemaDirectory            string         `yaml:"schema_directory"`
-	ModelOutputFile            string         `yaml:"model_output_file"`
-	QueryResolverOutputFile    string         `yaml:"query_resolver_output_file"`
-	MutationResolverOutputFile string         `yaml:"mutation_resolver_output_file"`
-	RootResolverOutputFile     string         `yaml:"root_resolver_output_file"`
-	EnumOutputFile             string         `yaml:"enum_output_file"`
-	ScalarOutputFile           string         `yaml:"scalar_output_file"`
-	ModelPackageName           string         `yaml:"model_package_name"`
-	ResolverPackageName        string         `yaml:"resolver_package_name"`
-	Scalars                    []ScalarConfig `yaml:"scalars"`
+	SchemaDirectory             string         `yaml:"schema_directory"`
+	ModelOutputFile             string         `yaml:"model_output_file"`
+	QueryResolverOutputFile     string         `yaml:"query_resolver_output_file"`
+	MutationResolverOutputFile  string         `yaml:"mutation_resolver_output_file"`
+	RootResolverOutputFile      string         `yaml:"root_resolver_output_file"`
+	ResolverGeneratedOutputFile string         `yaml:"resolver_generated_output_file"`
+	EnumOutputFile              string         `yaml:"enum_output_file"`
+	ScalarOutputFile            string         `yaml:"scalar_output_file"`
+	ModelPackageName            string         `yaml:"model_package_name"`
+	ResolverPackageName         string         `yaml:"resolver_package_name"`
+	Scalars                     []ScalarConfig `yaml:"scalars"`
 }
 
 var gqlFilePattern = regexp.MustCompile(`^.+\.gql$|^.+\.graphql$`)
@@ -155,7 +160,7 @@ func NewGenerator(config *Config) (*Generator, error) {
 		return nil, fmt.Errorf("error merging schema: %w", err)
 	}
 
-	var modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, enumOutput, scalarOutput io.Writer
+	var modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, resolverGeneratedOutput, enumOutput, scalarOutput io.Writer
 	if len(extractUserEnumDefinitions(s.Enums)) > 0 {
 		enumOutput, err = createFile(config.EnumOutputFile)
 		if err != nil {
@@ -190,9 +195,15 @@ func NewGenerator(config *Config) (*Generator, error) {
 			return nil, fmt.Errorf("error creating root resolver output file: %w", err)
 		}
 	}
+
 	modelOutput, err = createFile(config.ModelOutputFile)
 	if err != nil {
 		return nil, fmt.Errorf("error creating model output file: %w", err)
+	}
+
+	resolverGeneratedOutput, err = createFile(config.ResolverGeneratedOutputFile)
+	if err != nil {
+		return nil, fmt.Errorf("error creating resolver generated output file: %w", err)
 	}
 
 	g := &Generator{
@@ -220,18 +231,24 @@ func NewGenerator(config *Config) (*Generator, error) {
 			Name:  ast.NewIdent(filepath.Base(resolverPackagePath)),
 			Decls: []ast.Decl{},
 		},
-		modelOutput:                    modelOutput,
-		modelPackagePath:               modelPackagePath,
-		queryResolverOutput:            queryResolverOutput,
-		mutationResolverOutput:         mutationResolverOutput,
-		rootResolverOutput:             rootResolverOutput,
-		enumOutput:                     enumOutput,
-		scalarOutput:                   scalarOutput,
-		resolverPackagePath:            resolverPackagePath,
-		queryResolverOutputFilePath:    config.QueryResolverOutputFile,
-		mutationResolverOutputFilePath: config.MutationResolverOutputFile,
-		rootResolverOutputFilePath:     config.RootResolverOutputFile,
-		config:                         config,
+		generatedAST: &ast.File{
+			Name:  ast.NewIdent(filepath.Base(resolverPackagePath)),
+			Decls: []ast.Decl{},
+		},
+		modelOutput:                     modelOutput,
+		modelPackagePath:                modelPackagePath,
+		queryResolverOutput:             queryResolverOutput,
+		mutationResolverOutput:          mutationResolverOutput,
+		rootResolverOutput:              rootResolverOutput,
+		enumOutput:                      enumOutput,
+		scalarOutput:                    scalarOutput,
+		resolverPackagePath:             resolverPackagePath,
+		queryResolverOutputFilePath:     config.QueryResolverOutputFile,
+		mutationResolverOutputFilePath:  config.MutationResolverOutputFile,
+		rootResolverOutputFilePath:      config.RootResolverOutputFile,
+		resolverGeneratedOutput:         resolverGeneratedOutput,
+		resolverGeneratedOutputFilePath: config.ResolverGeneratedOutputFile,
+		config:                          config,
 	}
 
 	return g, nil
@@ -462,7 +479,7 @@ func (g *Generator) generateResolver() error {
 		importSpecs = append(importSpecs, generateResolverImport().Specs...)
 
 		// generate import statement
-		g.resolverAST.Decls = append(g.resolverAST.Decls, &ast.GenDecl{
+		g.generatedAST.Decls = append(g.generatedAST.Decls, &ast.GenDecl{
 			Tok:   token.IMPORT,
 			Specs: importSpecs,
 		})
@@ -478,22 +495,22 @@ func (g *Generator) generateResolver() error {
 
 	if q := g.Schema.GetQuery(); q != nil {
 		queryFields = q.Fields
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateQueryExecutor(q))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateApplyQueryResponseFuncDecls(q, g.Schema.Indexes, 0, modelPrefix)...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(modelPrefix, q, g.Schema.Indexes)...)
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateQueryExecutor(q))
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyQueryResponseFuncDecls(q, g.Schema.Indexes, 0, modelPrefix)...)
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateOperationArgumentDecls(modelPrefix, q, g.Schema.Indexes)...)
 	}
 
 	if m := g.Schema.GetMutation(); m != nil {
 		mutationFields = m.Fields
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateMutationExecutor(m))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateApplyQueryResponseFuncDecls(m, g.Schema.Indexes, 0, modelPrefix)...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationArgumentDecls(modelPrefix, m, g.Schema.Indexes)...)
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateMutationExecutor(m))
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyQueryResponseFuncDecls(m, g.Schema.Indexes, 0, modelPrefix)...)
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateOperationArgumentDecls(modelPrefix, m, g.Schema.Indexes)...)
 	}
 
 	if s := g.Schema.GetSubscription(); s != nil {
 		fields = append(fields, s.Fields...)
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateSubscriptionExecutor(g.Schema.GetSubscription()))
-		g.resolverAST.Decls = append(g.resolverAST.Decls, generateWrapResponseWriter(g.Schema.GetSubscription())...)
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateSubscriptionExecutor(g.Schema.GetSubscription()))
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateWrapResponseWriter(g.Schema.GetSubscription())...)
 	}
 
 	if g.Schema.GetQuery() != nil {
@@ -518,8 +535,8 @@ func (g *Generator) generateResolver() error {
 	g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateResolverImplementation(modelPrefix, queryFields, g.Schema.Indexes)...)
 	g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateResolverImplementation(modelPrefix, mutationFields, g.Schema.Indexes)...)
 
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateOperationResponseStructDecls(g.Schema)...)
+	g.generatedAST.Decls = append(g.generatedAST.Decls, generateResolverServeHTTP(g.Schema.GetQuery(), g.Schema.GetMutation(), g.Schema.GetSubscription()))
+	g.generatedAST.Decls = append(g.generatedAST.Decls, generateOperationResponseStructDecls(g.Schema)...)
 
 	// Introspection generation
 	// g.resolverAST.Decls = append(g.resolverAST.Decls, g.generateIntrospection(g.modelPackagePath)...)
@@ -539,6 +556,11 @@ func (g *Generator) generateResolver() error {
 		return fmt.Errorf("error formatting mutation resolver: %w", err)
 	}
 
+	var generatedBuffer bytes.Buffer
+	if err := format.Node(&generatedBuffer, token.NewFileSet(), g.generatedAST); err != nil {
+		return fmt.Errorf("error formatting generated resolver: %w", err)
+	}
+
 	fixed, err := imports.Process(g.rootResolverOutputFilePath, rootResolverBuffer.Bytes(), nil)
 	if err != nil {
 		return fmt.Errorf("error processing root resolver imports: %w", err)
@@ -554,6 +576,15 @@ func (g *Generator) generateResolver() error {
 	if _, err := g.queryResolverOutput.Write(fixed); err != nil {
 		return fmt.Errorf("error writing query resolver output: %w", err)
 	}
+
+	fixed, err = imports.Process(g.resolverGeneratedOutputFilePath, generatedBuffer.Bytes(), nil)
+	if err != nil {
+		return fmt.Errorf("error processing resolver generated imports: %w", err)
+	}
+	if _, err := g.resolverGeneratedOutput.Write(fixed); err != nil {
+		return fmt.Errorf("error writing resolver generated output: %w", err)
+	}
+
 	fixed, err = imports.Process(g.mutationResolverOutputFilePath, mutationResolverBuffer.Bytes(), nil)
 	if err != nil {
 		return fmt.Errorf("error processing mutation resolver imports: %w", err)
