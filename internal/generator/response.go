@@ -8,6 +8,872 @@ import (
 	"github.com/n9te9/goliteql/schema"
 )
 
+func generateApplyResponseFuncDeclFromOperationDefinition(definition *schema.OperationDefinition, typePrefix string, indexes *schema.Indexes) []ast.Decl {
+	ret := make([]ast.Decl, 0, len(definition.Fields))
+	for _, field := range definition.Fields {
+		ret = append(ret, generateApplyResponseFuncDeclFromFieldDefinition(field, typePrefix, indexes))
+	}
+
+	return ret
+}
+
+func generateApplyResponseFuncDeclFromFieldDefinition(fieldDefinition *schema.FieldDefinition, typePrefix string, indexes *schema.Indexes) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent(fmt.Sprintf("apply%sQueryResponse", fieldDefinition.Name)),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{ast.NewIdent("r")},
+					Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{ast.NewIdent("resolverRet")},
+						Type:  generateTypeExprFromFieldTypeForReturn(typePrefix, fieldDefinition.Type, indexes),
+					},
+					{
+						Names: []*ast.Ident{ast.NewIdent("node")},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("Node"),
+							},
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: generateNestedArrayTypeForResponse(fieldDefinition.Type, indexes, true),
+					},
+					{
+						Type: ast.NewIdent("error"),
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: generateFieldTypeApplyBodyStmts(fieldDefinition.Type, indexes, typePrefix),
+		},
+	}
+}
+
+type Responsible interface {
+	*schema.TypeDefinition |
+		*schema.InterfaceDefinition |
+		*schema.UnionDefinition |
+		*schema.EnumDefinition |
+		*schema.ScalarDefinition
+}
+
+func generateApplyResponseFuncDecl[T Responsible](definitions []T, indexes *schema.Indexes, typePrefix string) []ast.Decl {
+	ret := make([]ast.Decl, 0, len(definitions))
+
+	for _, definition := range definitions {
+		switch def := any(definition).(type) {
+		case *schema.TypeDefinition:
+			if def.IsIntrospection() {
+				continue
+			}
+			ret = append(ret, generateTypeApplyResponseFuncDecl(def, indexes, typePrefix))
+		case *schema.InterfaceDefinition:
+			ret = append(ret, generateInterfaceApplyResponseFuncDecl(def, indexes, typePrefix))
+		case *schema.UnionDefinition:
+			ret = append(ret, generateUnionApplyResponseFuncDecl(def, indexes, typePrefix))
+		case *schema.EnumDefinition:
+			ret = append(ret, generateEnumApplyResponseFuncDecl(def, indexes, typePrefix))
+		case *schema.ScalarDefinition:
+			ret = append(ret, generateScalarApplyResponseFuncDecl(def, indexes, typePrefix))
+		}
+	}
+
+	return ret
+}
+
+func generateTypeApplyResponseFuncDecl(definition *schema.TypeDefinition, indexes *schema.Indexes, typePrefix string) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent(fmt.Sprintf("apply%sResponse", definition.Name)),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{ast.NewIdent("r")},
+					Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{ast.NewIdent("resolverRet")},
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent(typePrefix),
+							Sel: ast.NewIdent(string(definition.Name)),
+						},
+					},
+					{
+						Names: []*ast.Ident{ast.NewIdent("node")},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("Node"),
+							},
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: ast.NewIdent(fmt.Sprintf("%sResponse", definition.Name)),
+					},
+					{
+						Type: ast.NewIdent("error"),
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: generateTypeApplyResponseFuncBody(definition, indexes),
+		},
+	}
+}
+
+func generateTypeApplyResponseFuncBody(definition *schema.TypeDefinition, indexes *schema.Indexes) []ast.Stmt {
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("ret"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CompositeLit{
+					Type: ast.NewIdent(fmt.Sprintf("%sResponse", definition.Name)),
+				},
+			},
+		},
+		&ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Value: ast.NewIdent("child"),
+			Tok:   token.DEFINE,
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("node"),
+				Sel: ast.NewIdent("Children"),
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.IfStmt{
+						Cond: &ast.CallExpr{
+							Fun: &ast.SelectorExpr{X: ast.NewIdent("node"), Sel: ast.NewIdent("HasFragment")},
+						},
+						Body: &ast.BlockStmt{
+							List: []ast.Stmt{
+								&ast.IfStmt{
+									Cond: &ast.BinaryExpr{
+										X: &ast.CallExpr{
+											Fun: &ast.SelectorExpr{X: ast.NewIdent("node"), Sel: ast.NewIdent("FragmentType")},
+										},
+										Op: token.NEQ,
+										Y:  ast.NewIdent(fmt.Sprintf("%q", definition.Name)),
+									},
+									Body: &ast.BlockStmt{
+										List: []ast.Stmt{
+											&ast.ReturnStmt{
+												Results: []ast.Expr{
+													ast.NewIdent("ret"),
+													&ast.CallExpr{
+														Fun: &ast.SelectorExpr{
+															X:   ast.NewIdent("fmt"),
+															Sel: ast.NewIdent("Errorf"),
+														},
+														Args: []ast.Expr{
+															ast.NewIdent(fmt.Sprintf(`"node type mismatch: expected %s"`, definition.Name)),
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+								generateFragmentApplyResponseStmt(definition, indexes),
+							},
+						},
+					},
+					generateFieldApplyResponseStmts(definition, indexes),
+				},
+			},
+		},
+		&ast.ReturnStmt{
+			Results: []ast.Expr{
+				ast.NewIdent("ret"),
+				ast.NewIdent("nil"),
+			},
+		},
+	}
+}
+
+func generateFragmentApplyResponseStmt(definition *schema.TypeDefinition, indexes *schema.Indexes) ast.Stmt {
+	return &ast.RangeStmt{
+		Key:   ast.NewIdent("_"),
+		Value: ast.NewIdent("fragmentChild"),
+		Tok:   token.DEFINE,
+		X: &ast.SelectorExpr{
+			X:   ast.NewIdent("child"),
+			Sel: ast.NewIdent("Children"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.SwitchStmt{
+					Tag: &ast.CallExpr{
+						Fun: ast.NewIdent("string"),
+						Args: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("fragmentChild"),
+								Sel: ast.NewIdent("Name"),
+							},
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: generateCaseStmtsForTypeDefinition(definition, indexes, ast.NewIdent("fragmentChild")),
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateFieldApplyResponseStmts(definition *schema.TypeDefinition, indexes *schema.Indexes) ast.Stmt {
+	return &ast.SwitchStmt{
+		Tag: &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("child"),
+					Sel: ast.NewIdent("Name"),
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: generateCaseStmtsForTypeDefinition(definition, indexes, ast.NewIdent("child")),
+		},
+	}
+}
+
+func generateCaseStmtsForTypeDefinition(definition *schema.TypeDefinition, indexes *schema.Indexes, nestExpr ast.Expr) []ast.Stmt {
+	ret := make([]ast.Stmt, 0, len(definition.Fields)+1)
+	ret = append(ret, &ast.CaseClause{
+		List: []ast.Expr{
+			ast.NewIdent(`"__typename"`),
+		},
+		Body: []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("ret"),
+						Sel: ast.NewIdent("GraphQLTypeName"),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("NewNullable"),
+						},
+						Args: []ast.Expr{
+							&ast.BasicLit{
+								Kind:  token.STRING,
+								Value: fmt.Sprintf(`"%s"`, definition.Name),
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	for _, field := range definition.Fields {
+		ret = append(ret, &ast.CaseClause{
+			List: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%q", string(field.Name))),
+			},
+			Body: generateCaseBodyStmts(field, indexes, nestExpr),
+		})
+	}
+
+	return ret
+}
+
+func generateCaseBodyStmts(field *schema.FieldDefinition, indexes *schema.Indexes, nestExpr ast.Expr) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0)
+
+	if field.Type.IsList {
+		stmts = append(stmts, generateAssignMakeSliceForResponse(field))
+		stmts = append(stmts, generateNestedArrayRangeStmts(field, field.Type, indexes, nestExpr, 0)...)
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent(fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))),
+					},
+				},
+			},
+		})
+	} else {
+		stmts = append(stmts, generateCaseRetAssignStmts(field, indexes, nestExpr)...)
+	}
+
+	return stmts
+}
+
+func generateNestedArrayRangeStmts(field *schema.FieldDefinition, fieldType *schema.FieldType, indexes *schema.Indexes, nestExpr ast.Expr, nestCount int) []ast.Stmt {
+	if fieldType.IsList {
+		var xExpr ast.Expr = &ast.SelectorExpr{
+			X:   ast.NewIdent("resolverRet"),
+			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+		}
+		if nestCount != 0 {
+			xExpr = ast.NewIdent(fmt.Sprintf("v%d", nestCount-1))
+		}
+
+		if fieldType.Nullable {
+			xExpr = &ast.StarExpr{
+				X: xExpr,
+			}
+		}
+
+		var sliceMakeStmt ast.Stmt = &ast.EmptyStmt{}
+		var sliceAppendStmt ast.Stmt = &ast.EmptyStmt{}
+		if nestCount > 0 {
+			sliceMakeStmt = &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent(fmt.Sprintf("ret%d", nestCount)),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("make"),
+						Args: []ast.Expr{
+							&ast.ArrayType{
+								Elt: generateResponseTypeExpr(fieldType.ListType),
+							},
+							ast.NewIdent("0"),
+							&ast.CallExpr{
+								Fun: ast.NewIdent("len"),
+								Args: []ast.Expr{
+									xExpr,
+								},
+							},
+						},
+					},
+				},
+			}
+
+			sliceAppendTarget := fmt.Sprintf("ret%d", nestCount)
+			if nestCount == 1 {
+				sliceAppendTarget = fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))
+			}
+
+			sliceAppendStmt = &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent(sliceAppendTarget),
+				},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("append"),
+						Args: []ast.Expr{
+							ast.NewIdent(sliceAppendTarget),
+							ast.NewIdent(fmt.Sprintf("ret%d", nestCount)),
+						},
+					},
+				},
+			}
+		}
+
+		return []ast.Stmt{
+			sliceMakeStmt,
+			&ast.RangeStmt{
+				X:     xExpr,
+				Tok:   token.DEFINE,
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent(fmt.Sprintf("v%d", nestCount)),
+				Body: &ast.BlockStmt{
+					List: generateNestedArrayRangeStmts(field, fieldType.ListType, indexes, nestExpr, nestCount+1),
+				},
+			},
+			sliceAppendStmt,
+		}
+	}
+
+	return generateCaseNestedRetAssignStmts(field, indexes, nestExpr, nestCount)
+}
+
+func generateCaseNestedRetAssignStmts(field *schema.FieldDefinition, indexes *schema.Indexes, nestExpr ast.Expr, nestCount int) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0)
+	_, isObject := indexes.TypeIndex[string(field.Type.GetRootType().Name)]
+	_, isInterface := indexes.InterfaceIndex[string(field.Type.GetRootType().Name)]
+	_, isUnion := indexes.UnionIndex[string(field.Type.GetRootType().Name)]
+	if isObject || isInterface || isUnion {
+		var argExpr ast.Expr = ast.NewIdent(fmt.Sprintf("v%d", nestCount-1))
+		if field.Type.Nullable {
+			argExpr = &ast.StarExpr{
+				X: argExpr,
+			}
+		}
+
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("ret%s", string(field.Type.GetRootType().Name))),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", field.Type.GetRootType().Name)),
+					},
+					Args: []ast.Expr{
+						argExpr,
+						nestExpr,
+					},
+				},
+			},
+		})
+		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}))
+
+		appendTarget := fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))
+		if nestCount > 1 {
+			appendTarget = fmt.Sprintf("ret%d", nestCount-1)
+		}
+
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(appendTarget),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("append"),
+					Args: []ast.Expr{
+						ast.NewIdent(appendTarget),
+						ast.NewIdent(fmt.Sprintf("ret%s", string(field.Type.GetRootType().Name))),
+					},
+				},
+			},
+		})
+	} else {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
+					},
+					Args: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("resolverRet"),
+							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return stmts
+}
+
+func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.Indexes, nestExpr ast.Expr) []ast.Stmt {
+	stmts := make([]ast.Stmt, 0)
+	_, isObject := indexes.TypeIndex[string(field.Type.GetRootType().Name)]
+	_, isInterface := indexes.InterfaceIndex[string(field.Type.GetRootType().Name)]
+	_, isUnion := indexes.UnionIndex[string(field.Type.GetRootType().Name)]
+	if isObject || isInterface || isUnion {
+		var argExpr ast.Expr = &ast.SelectorExpr{
+			X:   ast.NewIdent("resolverRet"),
+			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+		}
+		if field.Type.Nullable {
+			argExpr = &ast.StarExpr{
+				X: argExpr,
+			}
+		}
+
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", field.Type.GetRootType().Name)),
+					},
+					Args: []ast.Expr{
+						argExpr,
+						nestExpr,
+					},
+				},
+			},
+		})
+		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}))
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent(fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))),
+					},
+				},
+			},
+		})
+	} else {
+		stmts = append(stmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
+					},
+					Args: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("resolverRet"),
+							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return stmts
+}
+
+func generateAssignMakeSliceForResponse(fieldDefinition *schema.FieldDefinition) ast.Stmt {
+	var retExpr ast.Expr = ast.NewIdent(fmt.Sprintf("ret%s", toUpperCase(string(fieldDefinition.Name))))
+
+	var argExpr ast.Expr = &ast.SelectorExpr{
+		X:   ast.NewIdent("resolverRet"),
+		Sel: ast.NewIdent(toUpperCase(string(fieldDefinition.Name))),
+	}
+	if fieldDefinition.Type.Nullable {
+		argExpr = &ast.StarExpr{
+			X: argExpr,
+		}
+	}
+
+	return &ast.AssignStmt{
+		Lhs: []ast.Expr{retExpr},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: ast.NewIdent("make"),
+				Args: []ast.Expr{
+					generateResponseTypeExpr(fieldDefinition.Type),
+					ast.NewIdent("0"),
+					&ast.CallExpr{
+						Fun: ast.NewIdent("len"),
+						Args: []ast.Expr{
+							argExpr,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateResponseTypeExpr(fieldType *schema.FieldType) ast.Expr {
+	if fieldType.IsList {
+		return &ast.ArrayType{
+			Elt: generateResponseTypeExpr(fieldType.ListType),
+		}
+	}
+
+	return ast.NewIdent(fmt.Sprintf("%sResponse", fieldType.Name))
+}
+
+func generateFieldTypeApplyBodyStmts(fieldType *schema.FieldType, indexes *schema.Indexes, typePrefix string) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	if fieldType.IsList {
+		ret = append(ret, generateFieldTypeRangeBodyStmts(fieldType, indexes, 0)...)
+		ret = append(ret, &ast.ReturnStmt{
+			Results: []ast.Expr{
+				ast.NewIdent("ret"),
+				ast.NewIdent("nil"),
+			},
+		})
+	}
+
+	return ret
+}
+
+func generateFieldTypeRangeBodyStmts(fieldType *schema.FieldType, indexes *schema.Indexes, nestCount int) []ast.Stmt {
+	var xExpr ast.Expr = ast.NewIdent("resolverRet")
+	var retExpr ast.Expr = ast.NewIdent("ret")
+	if nestCount != 0 {
+		xExpr = ast.NewIdent(fmt.Sprintf("v%d", nestCount-1))
+		retExpr = ast.NewIdent(fmt.Sprintf("ret%d", nestCount))
+	}
+
+	var nestValueExpr ast.Expr = ast.NewIdent(fmt.Sprintf("v%d", nestCount))
+	var appendStmt ast.Stmt = &ast.EmptyStmt{}
+	if nestCount > 0 {
+		ret := fmt.Sprintf("ret%d", nestCount)
+		if nestCount == 1 {
+			ret = "ret"
+		}
+
+		appendStmt = &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(ret),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("append"),
+					Args: []ast.Expr{
+						ast.NewIdent(ret),
+						ast.NewIdent(fmt.Sprintf("ret%d", nestCount)),
+					},
+				},
+			},
+		}
+	}
+
+	if fieldType.Nullable && fieldType.IsList {
+		if _, ok := indexes.TypeIndex[string(fieldType.GetRootType().Name)]; ok {
+			xExpr = &ast.StarExpr{X: xExpr}
+		}
+
+		return []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{retExpr},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("make"),
+						Args: []ast.Expr{
+							&ast.ArrayType{
+								Elt: generateNestedArrayTypeForResponse(fieldType.ListType, indexes, false),
+							},
+							ast.NewIdent("0"),
+							&ast.CallExpr{
+								Fun: ast.NewIdent("len"),
+								Args: []ast.Expr{
+									xExpr,
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: nestValueExpr,
+				X:     xExpr,
+				Tok:   token.DEFINE,
+				Body: &ast.BlockStmt{
+					List: generateFieldTypeRangeBodyStmts(fieldType.ListType, indexes, nestCount+1),
+				},
+			},
+			appendStmt,
+		}
+	}
+	if fieldType.IsList {
+		return []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{retExpr},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: ast.NewIdent("make"),
+						Args: []ast.Expr{
+							&ast.ArrayType{
+								Elt: generateNestedArrayTypeForResponse(fieldType.ListType, indexes, false),
+							},
+							ast.NewIdent("0"),
+							&ast.CallExpr{
+								Fun: ast.NewIdent("len"),
+								Args: []ast.Expr{
+									xExpr,
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: nestValueExpr,
+				X:     xExpr,
+				Tok:   token.DEFINE,
+				Body: &ast.BlockStmt{
+					List: generateFieldTypeRangeBodyStmts(fieldType.ListType, indexes, nestCount+1),
+				},
+			},
+			appendStmt,
+		}
+	}
+
+	var argExpr ast.Expr = ast.NewIdent(fmt.Sprintf("v%d", nestCount-1))
+	if fieldType.Nullable {
+		argExpr = &ast.StarExpr{
+			X: argExpr,
+		}
+	}
+
+	return []ast.Stmt{
+		&ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("ret%d", nestCount)),
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("r"),
+						Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", fieldType.Name)),
+					},
+					Args: []ast.Expr{
+						argExpr,
+						ast.NewIdent("node"),
+					},
+				},
+			},
+		},
+		generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}),
+		appendStmt,
+	}
+}
+
+func generateInterfaceApplyResponseFuncDecl(definition *schema.InterfaceDefinition, indexes *schema.Indexes, typePrefix string) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent(fmt.Sprintf("apply%sResponse", definition.Name)),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{ast.NewIdent("r")},
+					Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{},
+		},
+	}
+}
+
+func generateUnionApplyResponseFuncDecl(definition *schema.UnionDefinition, indexes *schema.Indexes, typePrefix string) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent(fmt.Sprintf("apply%sResponse", definition.Name)),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{ast.NewIdent("r")},
+					Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
+				},
+			},
+		},
+
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{},
+		},
+	}
+}
+
+func generateScalarApplyResponseFuncDecl(definition *schema.ScalarDefinition, indexes *schema.Indexes, typePrefix string) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent(fmt.Sprintf("apply%sResponse", definition.Name)),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{ast.NewIdent("r")},
+					Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{},
+		},
+	}
+}
+
+func generateEnumApplyResponseFuncDecl(definition *schema.EnumDefinition, indexes *schema.Indexes, typePrefix string) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent(fmt.Sprintf("apply%sResponse", definition.Name)),
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{ast.NewIdent("r")},
+					Type:  &ast.StarExpr{X: ast.NewIdent("resolver")},
+				},
+			},
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{},
+		},
+	}
+}
+
 func generateApplyQueryResponseFuncDeclFromField(field *schema.FieldDefinition, indexes *schema.Indexes, typePrefix, operationPrefix string, isRoot bool) ast.Decl {
 	nestCount := getNestCount(field.Type, 0)
 
@@ -223,12 +1089,6 @@ func generateNestedArrayTypeForResponse(fieldType *schema.FieldType, indexes *sc
 	if fieldType.IsList {
 		return &ast.ArrayType{
 			Elt: generateNestedArrayTypeForResponse(fieldType.ListType, indexes, false),
-		}
-	}
-
-	if fieldType.Nullable {
-		return &ast.StarExpr{
-			X: ast.NewIdent(fmt.Sprintf("%sResponse", fieldType.Name)),
 		}
 	}
 
@@ -932,6 +1792,12 @@ func generateApplyQueryResponseCaseStmts(typeDefinition *schema.TypeDefinition, 
 		// 	}
 		// }
 
+		if field.Type.IsList && field.Type.Nullable {
+			arg = &ast.StarExpr{
+				X: arg,
+			}
+		}
+
 		_, isScalar := indexes.ScalarIndex[string(field.Type.GetRootType().Name)]
 		if field.Type.IsPrimitive() || isScalar {
 			rh = generateNewNullableExpr(rh)
@@ -1187,6 +2053,17 @@ func generateApplyQueryResponseCaseStmtsForObjectFragment(typeDefinition *schema
 			_, isScalar := indexes.ScalarIndex[string(field.Type.GetRootType().Name)]
 			_, isEnum := indexes.EnumIndex[string(field.Type.GetRootType().Name)]
 			if !field.Type.GetRootType().IsPrimitive() && !isScalar && !isEnum {
+				var firstArg ast.Expr = &ast.SelectorExpr{
+					X:   ast.NewIdent(valueName),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				}
+
+				if field.Type.IsList {
+					firstArg = &ast.StarExpr{
+						X: firstArg,
+					}
+				}
+
 				caseBody = append(caseBody, &ast.AssignStmt{
 					Lhs: []ast.Expr{
 						ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
@@ -1201,10 +2078,7 @@ func generateApplyQueryResponseCaseStmtsForObjectFragment(typeDefinition *schema
 									string(field.Name))),
 							},
 							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   ast.NewIdent(valueName),
-									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-								},
+								firstArg,
 								ast.NewIdent("child"),
 							},
 						},
@@ -1403,6 +2277,16 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 			_, isScalar := indexes.ScalarIndex[string(field.Type.GetRootType().Name)]
 			_, isEnum := indexes.EnumIndex[string(field.Type.GetRootType().Name)]
 			if !field.Type.GetRootType().IsPrimitive() && !isScalar && !isEnum {
+				var valueExpr ast.Expr = &ast.SelectorExpr{
+					X:   ast.NewIdent(valueName),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				}
+				if field.Type.IsList {
+					valueExpr = &ast.StarExpr{
+						X: valueExpr,
+					}
+				}
+
 				caseBody = append(caseBody, &ast.AssignStmt{
 					Lhs: []ast.Expr{
 						ast.NewIdent(fmt.Sprintf("ret%s", field.Name)),
@@ -1417,10 +2301,7 @@ func generateApplyQueryResponseCaseStmtsForFragment(typeDefinition *schema.TypeD
 									string(field.Name))),
 							},
 							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   ast.NewIdent(valueName),
-									Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-								},
+								valueExpr,
 								ast.NewIdent("child"),
 							},
 						},

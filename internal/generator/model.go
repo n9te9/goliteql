@@ -158,49 +158,6 @@ func generateExprForResponse(fieldType *schema.FieldType) ast.Expr {
 	return ast.NewIdent(graphQLType.golangType())
 }
 
-func generateExprWithPrefix(prefix string, fieldType *schema.FieldType) ast.Expr {
-	graphQLType := GraphQLType(fieldType.Name)
-	if fieldType.Nullable {
-		if graphQLType.IsPrimitive() {
-			return &ast.StarExpr{
-				X: &ast.Ident{
-					Name: graphQLType.golangType(),
-				},
-			}
-		} else {
-			if fieldType.IsList {
-				return &ast.ArrayType{
-					Elt: generateExprWithPrefix(prefix, fieldType.ListType),
-				}
-			}
-
-			return &ast.StarExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent(prefix),
-					Sel: ast.NewIdent(graphQLType.golangType()),
-				},
-			}
-		}
-	} else {
-		if graphQLType.IsPrimitive() {
-			return &ast.Ident{
-				Name: graphQLType.golangType(),
-			}
-		} else {
-			if fieldType.IsList {
-				return &ast.ArrayType{
-					Elt: generateExprWithPrefix(prefix, fieldType.ListType),
-				}
-			}
-
-			return &ast.SelectorExpr{
-				X:   ast.NewIdent(prefix),
-				Sel: ast.NewIdent(graphQLType.golangType()),
-			}
-		}
-	}
-}
-
 func generateExprForMapper(fieldType *schema.FieldType) ast.Expr {
 	graphQLType := GraphQLType(fieldType.Name)
 	if graphQLType.IsPrimitive() {

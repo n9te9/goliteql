@@ -3,13 +3,14 @@ package schema
 import "bytes"
 
 type InterfaceDefinition struct {
-	Name []byte
-	Fields FieldDefinitions
+	Name       []byte
+	Fields     FieldDefinitions
 	Extentions []*InterfaceDefinition
+	Interfaces []*InterfaceDefinition
 	Directives []*Directive
 }
 
-func (i *InterfaceDefinition) Location () *Location {
+func (i *InterfaceDefinition) Location() *Location {
 	return &Location{
 		Name: []byte("INTERFACE"),
 	}

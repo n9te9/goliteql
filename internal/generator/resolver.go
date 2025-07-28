@@ -245,37 +245,6 @@ func generateTypeExprFromFieldTypeForReturn(typePrefix string, fieldType *schema
 	return baseTypeExpr
 }
 
-func generateTypeExprFromFieldTypeForResponse(typePrefix string, fieldType *schema.FieldType) ast.Expr {
-	if fieldType.IsList {
-		return &ast.ArrayType{
-			Elt: generateTypeExprFromFieldTypeForResponse(typePrefix, fieldType.ListType),
-		}
-	}
-
-	graphQLType := GraphQLType(fieldType.Name)
-
-	var baseTypeExpr ast.Expr = ast.NewIdent(graphQLType.golangType())
-	if !graphQLType.IsPrimitive() {
-		if typePrefix != "" {
-			baseTypeExpr = &ast.SelectorExpr{
-				X:   ast.NewIdent(typePrefix),
-				Sel: ast.NewIdent(graphQLType.golangType()),
-			}
-		} else {
-			baseTypeExpr = ast.NewIdent(graphQLType.golangType() + "Response")
-		}
-	}
-
-	if fieldType.Nullable && !fieldType.IsPrimitive() {
-		return &ast.SelectorExpr{
-			X:   ast.NewIdent("executor"),
-			Sel: ast.NewIdent("Nullable"),
-		}
-	}
-
-	return baseTypeExpr
-}
-
 func generateApplyQueryResponseFuncDecls(operationDefinition *schema.OperationDefinition, indexes *schema.Indexes, nestCount int, typePrefix string) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 	for _, field := range operationDefinition.Fields {

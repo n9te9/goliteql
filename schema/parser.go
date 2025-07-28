@@ -116,7 +116,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 			continue
 		case Interface:
-			interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur)
+			interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur, schema)
 			if err != nil {
 				return nil, err
 			}
@@ -248,7 +248,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 
 		t.Extentions = append(t.Extentions, enumDefinition)
 	case Interface:
-		interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur)
+		interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur, schema)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -844,7 +844,7 @@ func (p *Parser) parseArgument(tokens Tokens, cur int) (*ArgumentDefinition, int
 	return arg, cur, nil
 }
 
-func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDefinition, int, error) {
+func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int, schema *Schema) (*InterfaceDefinition, int, error) {
 	cur++
 	if tokens[cur].Type != Identifier {
 		return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Type))
@@ -855,6 +855,36 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int) (*InterfaceDef
 		Fields: make([]*FieldDefinition, 0),
 	}
 	cur++
+
+	if tokens[cur].Type == Implements {
+		cur++
+		if tokens[cur].Type != Identifier {
+			return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+		}
+
+		for tokens[cur].Type != CurlyOpen {
+			if tokens[cur].Type == And {
+				cur++
+				continue
+			}
+
+			if tokens[cur].Type == At {
+				break
+			}
+
+			if tokens[cur].Type != Identifier {
+				return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
+			}
+
+			i := get(schema.Indexes, string(tokens[cur].Value), &InterfaceDefinition{})
+			if i == nil {
+				return nil, 0, fmt.Errorf("%s is not defined", tokens[cur].Value)
+			}
+
+			interfaceDefinition.Interfaces = append(interfaceDefinition.Interfaces, i)
+			cur++
+		}
+	}
 
 	if tokens[cur].Type == At {
 		directives, newCur, err := p.parseDirectives(tokens, cur)

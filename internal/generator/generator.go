@@ -493,17 +493,25 @@ func (g *Generator) generateResolver() error {
 
 	modelPrefix := filepath.Base(g.modelPackagePath)
 
+	g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDecl(g.Schema.Types, g.Schema.Indexes, modelPrefix)...)
+	g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDecl(g.Schema.Interfaces, g.Schema.Indexes, modelPrefix)...)
+	g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDecl(g.Schema.Unions, g.Schema.Indexes, modelPrefix)...)
+	g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDecl(g.Schema.Scalars, g.Schema.Indexes, modelPrefix)...)
+	g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDecl(g.Schema.Enums, g.Schema.Indexes, modelPrefix)...)
+
 	if q := g.Schema.GetQuery(); q != nil {
 		queryFields = q.Fields
 		g.generatedAST.Decls = append(g.generatedAST.Decls, generateQueryExecutor(q))
-		g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyQueryResponseFuncDecls(q, g.Schema.Indexes, 0, modelPrefix)...)
+		// g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyQueryResponseFuncDecls(q, g.Schema.Indexes, 0, modelPrefix)...)
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDeclFromOperationDefinition(q, modelPrefix, g.Schema.Indexes)...)
 		g.generatedAST.Decls = append(g.generatedAST.Decls, generateOperationArgumentDecls(modelPrefix, q, g.Schema.Indexes)...)
 	}
 
 	if m := g.Schema.GetMutation(); m != nil {
 		mutationFields = m.Fields
 		g.generatedAST.Decls = append(g.generatedAST.Decls, generateMutationExecutor(m))
-		g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyQueryResponseFuncDecls(m, g.Schema.Indexes, 0, modelPrefix)...)
+		// g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyQueryResponseFuncDecls(m, g.Schema.Indexes, 0, modelPrefix)...)
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDeclFromOperationDefinition(m, modelPrefix, g.Schema.Indexes)...)
 		g.generatedAST.Decls = append(g.generatedAST.Decls, generateOperationArgumentDecls(modelPrefix, m, g.Schema.Indexes)...)
 	}
 
