@@ -49,7 +49,7 @@ func generateApplyResponseFuncDeclFromFieldDefinition(fieldDefinition *schema.Fi
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Type: generateNestedArrayTypeForResponse(fieldDefinition.Type, indexes, true),
+						Type: generateResponseNullable(fieldDefinition.Type),
 					},
 					{
 						Type: ast.NewIdent("error"),
@@ -60,6 +60,19 @@ func generateApplyResponseFuncDeclFromFieldDefinition(fieldDefinition *schema.Fi
 		Body: &ast.BlockStmt{
 			List: generateFieldTypeApplyBodyStmts(fieldDefinition.Type, indexes, typePrefix),
 		},
+	}
+}
+
+func generateResponseNullable(fieldType *schema.FieldType) ast.Expr {
+	if fieldType.IsList {
+		return &ast.ArrayType{
+			Elt: generateResponseNullable(fieldType.ListType),
+		}
+	}
+
+	return &ast.SelectorExpr{
+		X:   ast.NewIdent("executor"),
+		Sel: ast.NewIdent("Nullable"),
 	}
 }
 
@@ -130,7 +143,10 @@ func generateTypeApplyResponseFuncDecl(definition *schema.TypeDefinition, indexe
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Type: ast.NewIdent(fmt.Sprintf("%sResponse", definition.Name)),
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("Nullable"),
+						},
 					},
 					{
 						Type: ast.NewIdent("error"),
@@ -185,7 +201,7 @@ func generateTypeApplyResponseFuncBody(definition *schema.TypeDefinition, indexe
 										List: []ast.Stmt{
 											&ast.ReturnStmt{
 												Results: []ast.Expr{
-													ast.NewIdent("ret"),
+													ast.NewIdent("nil"),
 													&ast.CallExpr{
 														Fun: &ast.SelectorExpr{
 															X:   ast.NewIdent("fmt"),
@@ -210,7 +226,15 @@ func generateTypeApplyResponseFuncBody(definition *schema.TypeDefinition, indexe
 		},
 		&ast.ReturnStmt{
 			Results: []ast.Expr{
-				ast.NewIdent("ret"),
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ret"),
+					},
+				},
 				ast.NewIdent("nil"),
 			},
 		},
@@ -457,7 +481,7 @@ func generateCaseNestedRetAssignStmts(field *schema.FieldDefinition, indexes *sc
 				},
 			},
 		})
-		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}))
+		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
 
 		appendTarget := fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))
 		if nestCount > 1 {
@@ -543,7 +567,7 @@ func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.I
 				},
 			},
 		})
-		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}))
+		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
 		stmts = append(stmts, &ast.AssignStmt{
 			Lhs: []ast.Expr{
 				&ast.SelectorExpr{
@@ -613,7 +637,7 @@ func generateAssignMakeSliceForResponse(fieldDefinition *schema.FieldDefinition)
 			&ast.CallExpr{
 				Fun: ast.NewIdent("make"),
 				Args: []ast.Expr{
-					generateResponseTypeExpr(fieldDefinition.Type),
+					generateResponseNullable(fieldDefinition.Type),
 					ast.NewIdent("0"),
 					&ast.CallExpr{
 						Fun: ast.NewIdent("len"),
@@ -653,13 +677,75 @@ func generateFieldTypeApplyBodyStmts(fieldType *schema.FieldType, indexes *schem
 		_, isInterface := indexes.InterfaceIndex[string(fieldType.GetRootType().Name)]
 		_, isUnion := indexes.UnionIndex[string(fieldType.GetRootType().Name)]
 		if isObject || isInterface || isUnion {
+			var nilAssignStmt ast.Stmt = &ast.EmptyStmt{}
+
 			var arg ast.Expr = ast.NewIdent("resolverRet")
 			if isObject && fieldType.Nullable {
+				nilAssignStmt = &ast.IfStmt{
+					Cond: &ast.BinaryExpr{
+						X:  ast.NewIdent("resolverRet"),
+						Op: token.EQL,
+						Y: &ast.BasicLit{
+							Kind:  token.STRING,
+							Value: "nil",
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.ReturnStmt{
+								Results: []ast.Expr{
+									&ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X:   ast.NewIdent("executor"),
+											Sel: ast.NewIdent("NewNullable"),
+										},
+										Args: []ast.Expr{
+											ast.NewIdent("nil"),
+										},
+									},
+									ast.NewIdent("nil"),
+								},
+							},
+						},
+					},
+				}
 				arg = &ast.StarExpr{
 					X: arg,
 				}
 			}
 
+			if isInterface || isUnion {
+				nilAssignStmt = &ast.IfStmt{
+					Cond: &ast.BinaryExpr{
+						X:  ast.NewIdent("resolverRet"),
+						Op: token.EQL,
+						Y: &ast.BasicLit{
+							Kind:  token.STRING,
+							Value: "nil",
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.ReturnStmt{
+								Results: []ast.Expr{
+									&ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X:   ast.NewIdent("executor"),
+											Sel: ast.NewIdent("NewNullable"),
+										},
+										Args: []ast.Expr{
+											ast.NewIdent("nil"),
+										},
+									},
+									ast.NewIdent("nil"),
+								},
+							},
+						},
+					},
+				}
+			}
+
+			ret = append(ret, nilAssignStmt)
 			ret = append(ret, &ast.AssignStmt{
 				Lhs: []ast.Expr{
 					ast.NewIdent("ret"),
@@ -679,7 +765,7 @@ func generateFieldTypeApplyBodyStmts(fieldType *schema.FieldType, indexes *schem
 					},
 				},
 			})
-			ret = append(ret, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}))
+			ret = append(ret, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
 			ret = append(ret, &ast.ReturnStmt{
 				Results: []ast.Expr{
 					ast.NewIdent("ret"),
@@ -739,7 +825,7 @@ func generateFieldTypeRangeBodyStmts(fieldType *schema.FieldType, indexes *schem
 						Fun: ast.NewIdent("make"),
 						Args: []ast.Expr{
 							&ast.ArrayType{
-								Elt: generateNestedArrayTypeForResponse(fieldType.ListType, indexes, false),
+								Elt: generateResponseNullable(fieldType.ListType),
 							},
 							ast.NewIdent("0"),
 							&ast.CallExpr{
@@ -774,7 +860,7 @@ func generateFieldTypeRangeBodyStmts(fieldType *schema.FieldType, indexes *schem
 						Fun: ast.NewIdent("make"),
 						Args: []ast.Expr{
 							&ast.ArrayType{
-								Elt: generateNestedArrayTypeForResponse(fieldType.ListType, indexes, false),
+								Elt: generateResponseNullable(fieldType.ListType),
 							},
 							ast.NewIdent("0"),
 							&ast.CallExpr{
@@ -847,7 +933,7 @@ func generateFieldTypeRangeBodyStmts(fieldType *schema.FieldType, indexes *schem
 				},
 			},
 		},
-		generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("ret")}),
+		generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}),
 		appendCheckStmt,
 	}
 }
@@ -887,7 +973,10 @@ func generateInterfaceApplyResponseFuncDecl(definition *schema.InterfaceDefiniti
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Type: ast.NewIdent(fmt.Sprintf("%sResponse", definition.Name)),
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("Nullable"),
+						},
 					},
 					{
 						Type: ast.NewIdent("error"),
@@ -1044,9 +1133,37 @@ func generateInterfaceApplySwitchStmtsForInterfaceDefinition(definition *schema.
 				List: typeCases,
 			},
 		},
+		&ast.IfStmt{
+			Cond: &ast.BinaryExpr{
+				X:  ast.NewIdent("ret"),
+				Op: token.EQL,
+				Y: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: "nil",
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							ast.NewIdent("nil"),
+							ast.NewIdent("nil"),
+						},
+					},
+				},
+			},
+		},
 		&ast.ReturnStmt{
 			Results: []ast.Expr{
-				ast.NewIdent("ret"),
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ret"),
+					},
+				},
 				ast.NewIdent("nil"),
 			},
 		},
@@ -1180,6 +1297,35 @@ func generateInterfaceApplySwitchStmtsForUnionDefinition(definition *schema.Unio
 	}
 
 	return []ast.Stmt{
+		&ast.IfStmt{
+			Cond: &ast.BinaryExpr{
+				X:  ast.NewIdent("resolverRet"),
+				Op: token.EQL,
+				Y: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: "nil",
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("NewNullable"),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent("nil"),
+								},
+							},
+							ast.NewIdent("nil"),
+						},
+					},
+				},
+			},
+		},
+
 		&ast.DeclStmt{
 			Decl: &ast.GenDecl{
 				Tok: token.VAR,
@@ -1222,9 +1368,37 @@ func generateInterfaceApplySwitchStmtsForUnionDefinition(definition *schema.Unio
 				},
 			},
 		},
+		&ast.IfStmt{
+			Cond: &ast.BinaryExpr{
+				X:  ast.NewIdent("ret"),
+				Op: token.EQL,
+				Y: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: "nil",
+				},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.ReturnStmt{
+						Results: []ast.Expr{
+							ast.NewIdent("nil"),
+							ast.NewIdent("nil"),
+						},
+					},
+				},
+			},
+		},
 		&ast.ReturnStmt{
 			Results: []ast.Expr{
-				ast.NewIdent("ret"),
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("ret"),
+					},
+				},
 				ast.NewIdent("nil"),
 			},
 		},
@@ -1267,7 +1441,10 @@ func generateUnionApplyResponseFuncDecl(definition *schema.UnionDefinition, inde
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Type: ast.NewIdent(fmt.Sprintf("%sResponse", definition.Name)),
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("Nullable"),
+						},
 					},
 					{
 						Type: ast.NewIdent("error"),
