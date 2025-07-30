@@ -4,9 +4,11 @@ import (
 	"github.com/n9te9/goliteql/query"
 )
 
+type Directives []*query.Directive
+
 type Node struct {
 	Name       string
-	Directives []*query.Directive
+	Directives Directives
 	Arguments  []*query.Argument
 	Type       string
 	Parent     *Node

@@ -940,6 +940,7 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 						Args: []ast.Expr{
 							ast.NewIdent("resolverRet"),
 							ast.NewIdent("node"),
+							ast.NewIdent("variables"),
 						},
 					},
 				},

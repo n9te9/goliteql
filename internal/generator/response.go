@@ -44,6 +44,16 @@ func generateApplyResponseFuncDeclFromFieldDefinition(fieldDefinition *schema.Fi
 							},
 						},
 					},
+					{
+						Names: []*ast.Ident{ast.NewIdent("variables")},
+						Type: &ast.MapType{
+							Key: ast.NewIdent("string"),
+							Value: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("RawMessage"),
+							},
+						},
+					},
 				},
 			},
 			Results: &ast.FieldList{
@@ -135,6 +145,16 @@ func generateTypeApplyResponseFuncDecl(definition *schema.TypeDefinition, indexe
 							X: &ast.SelectorExpr{
 								X:   ast.NewIdent("executor"),
 								Sel: ast.NewIdent("Node"),
+							},
+						},
+					},
+					{
+						Names: []*ast.Ident{ast.NewIdent("variables")},
+						Type: &ast.MapType{
+							Key: ast.NewIdent("string"),
+							Value: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("RawMessage"),
 							},
 						},
 					},
@@ -467,6 +487,7 @@ func generateCaseNestedRetAssignStmts(field *schema.FieldDefinition, indexes *sc
 					Args: []ast.Expr{
 						argExpr,
 						nestExpr,
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -553,6 +574,7 @@ func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.I
 					Args: []ast.Expr{
 						argExpr,
 						nestExpr,
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -751,6 +773,7 @@ func generateFieldTypeApplyBodyStmts(fieldType *schema.FieldType, indexes *schem
 						Args: []ast.Expr{
 							arg,
 							ast.NewIdent("node"),
+							ast.NewIdent("variables"),
 						},
 					},
 				},
@@ -919,6 +942,7 @@ func generateFieldTypeRangeBodyStmts(fieldType *schema.FieldType, indexes *schem
 					Args: []ast.Expr{
 						argExpr,
 						ast.NewIdent("node"),
+						ast.NewIdent("variables"),
 					},
 				},
 			},
@@ -955,6 +979,16 @@ func generateInterfaceApplyResponseFuncDecl(definition *schema.InterfaceDefiniti
 							X: &ast.SelectorExpr{
 								X:   ast.NewIdent("executor"),
 								Sel: ast.NewIdent("Node"),
+							},
+						},
+					},
+					{
+						Names: []*ast.Ident{ast.NewIdent("variables")},
+						Type: &ast.MapType{
+							Key: ast.NewIdent("string"),
+							Value: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("RawMessage"),
 							},
 						},
 					},
@@ -1032,6 +1066,7 @@ func generateInterfaceApplySwitchStmtsForInterfaceDefinition(definition *schema.
 							Args: []ast.Expr{
 								ast.NewIdent("resolverRet"),
 								ast.NewIdent("node"),
+								ast.NewIdent("variables"),
 							},
 						},
 					},
@@ -1076,6 +1111,7 @@ func generateInterfaceApplySwitchStmtsForInterfaceDefinition(definition *schema.
 									X: ast.NewIdent("resolverRet"),
 								},
 								ast.NewIdent("node"),
+								ast.NewIdent("variables"),
 							},
 						},
 					},
@@ -1202,6 +1238,7 @@ func generateInterfaceApplySwitchStmtsForUnionDefinition(definition *schema.Unio
 										Args: []ast.Expr{
 											ast.NewIdent("resolverRet"),
 											ast.NewIdent("child"),
+											ast.NewIdent("variables"),
 										},
 									},
 								},
@@ -1265,6 +1302,7 @@ func generateInterfaceApplySwitchStmtsForUnionDefinition(definition *schema.Unio
 												X: ast.NewIdent("resolverRet"),
 											},
 											ast.NewIdent("child"),
+											ast.NewIdent("variables"),
 										},
 									},
 								},
@@ -1423,6 +1461,16 @@ func generateUnionApplyResponseFuncDecl(definition *schema.UnionDefinition, inde
 							X: &ast.SelectorExpr{
 								X:   ast.NewIdent("executor"),
 								Sel: ast.NewIdent("Node"),
+							},
+						},
+					},
+					{
+						Names: []*ast.Ident{ast.NewIdent("variables")},
+						Type: &ast.MapType{
+							Key: ast.NewIdent("string"),
+							Value: &ast.SelectorExpr{
+								X:   ast.NewIdent("json"),
+								Sel: ast.NewIdent("RawMessage"),
 							},
 						},
 					},
