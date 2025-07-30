@@ -5,7 +5,7 @@ import (
 )
 
 type Node struct {
-	Name       []byte
+	Name       string
 	Directives []*query.Directive
 	Arguments  []*query.Argument
 	Type       string
@@ -55,7 +55,7 @@ func PlanExecution(selections []query.Selection, fragmentDefinitions query.Fragm
 		switch s := sel.(type) {
 		case *query.Field:
 			node := &Node{
-				Name:       s.Name,
+				Name:       string(s.Name),
 				Directives: s.Directives,
 				Children:   make([]*Node, 0, len(s.Selections)),
 				Arguments:  s.Arguments,
@@ -76,7 +76,7 @@ func digExecution(selectSet query.Selection, fragmentDefinitions query.FragmentD
 	switch s := selectSet.(type) {
 	case *query.Field:
 		node := &Node{
-			Name:       s.Name,
+			Name:       string(s.Name),
 			Directives: s.Directives,
 			Arguments:  s.Arguments,
 			Children:   make([]*Node, 0, len(s.Selections)),
