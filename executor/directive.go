@@ -8,41 +8,8 @@ import (
 
 type Directives []*query.Directive
 
-func (d Directives) HasInclude() bool {
-	for _, dir := range d {
-		if isIncludeDirective(dir) {
-			return true
-		}
-	}
-	return false
-}
-
-func (d Directives) HasSkip() bool {
-	for _, dir := range d {
-		if isSkipDirective(dir) {
-			return true
-		}
-	}
-	return false
-}
-
-func (d Directives) Include() *query.Directive {
-	for _, dir := range d {
-		if isIncludeDirective(dir) {
-			return dir
-		}
-	}
-	return nil
-
-}
-
-func (d Directives) Skip() *query.Directive {
-	for _, dir := range d {
-		if isSkipDirective(dir) {
-			return dir
-		}
-	}
-	return nil
+func (d Directives) ShouldInclude(variables map[string]json.RawMessage) bool {
+	return isIncluded(d, variables) && !isSkipped(d, variables)
 }
 
 func isIncludeDirective(dir *query.Directive) bool {
@@ -57,31 +24,7 @@ func isIncludeDirective(dir *query.Directive) bool {
 	return false
 }
 
-func Include(directives Directives, v map[string]json.RawMessage, value Nullable, next func(Nullable) Nullable) Nullable {
-	includeDirective := directives.Include()
-	if includeDirective == nil {
-		return next(value)
-	}
-
-	if len(includeDirective.Arguments) != 1 {
-		return nil
-	}
-
-	if includeDirective.Arguments[0].IsVariable {
-		if string(includeDirective.Arguments[0].Name) != "if" {
-			return nil
-		}
-
-		flag, ok := v[string(dir.Arguments[0].Name)].(bool)
-		if !ok {
-			return true
-		}
-	}
-
-	return next(value)
-}
-
-func IsIncluded(directives []*query.Directive, v json.RawMessage) bool {
+func isIncluded(directives []*query.Directive, variables map[string]json.RawMessage) bool {
 	for _, dir := range directives {
 		if isIncludeDirective(dir) {
 			if len(dir.Arguments) != 1 {
@@ -93,17 +36,12 @@ func IsIncluded(directives []*query.Directive, v json.RawMessage) bool {
 					return false
 				}
 
-				variables := make(map[string]any)
-				if err := json.Unmarshal(v, &variables); err != nil {
-					return false
-				}
-
-				flag, ok := variables[string(dir.Arguments[0].Name)].(bool)
+				flag, ok := variables[string(dir.Arguments[0].Name)]
 				if !ok {
 					return true
 				}
 
-				return flag
+				return string(flag) == "true"
 			}
 
 			if string(dir.Arguments[0].Value) == "true" {
@@ -129,34 +67,33 @@ func isSkipDirective(dir *query.Directive) bool {
 	return false
 }
 
-func IsSkipped(directives []*query.Directive, v json.RawMessage) bool {
+func isSkipped(directives []*query.Directive, variables map[string]json.RawMessage) bool {
 	for _, dir := range directives {
-		if isSkipDirective(dir) {
+		if isIncludeDirective(dir) {
 			if len(dir.Arguments) != 1 {
 				return false
 			}
 
 			if dir.Arguments[0].IsVariable {
 				if string(dir.Arguments[0].Name) != "if" {
-					return true
-				}
-
-				variables := make(map[string]any)
-				if err := json.Unmarshal(v, &variables); err != nil {
 					return false
 				}
 
-				flag, ok := variables[string(dir.Arguments[0].Name)].(bool)
+				flag, ok := variables[string(dir.Arguments[0].Name)]
 				if !ok {
 					return true
 				}
 
-				return flag
+				return string(flag) == "true"
 			}
 
-			return string(dir.Arguments[0].Value) == "true"
+			if string(dir.Arguments[0].Value) == "true" {
+				return true
+			}
+
+			return false
 		}
 	}
 
-	return false
+	return true
 }

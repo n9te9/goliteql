@@ -305,24 +305,42 @@ func generateCaseStmtsForTypeDefinition(definition *schema.TypeDefinition, index
 			ast.NewIdent(`"__typename"`),
 		},
 		Body: []ast.Stmt{
-			&ast.AssignStmt{
-				Lhs: []ast.Expr{
-					&ast.SelectorExpr{
-						X:   ast.NewIdent("ret"),
-						Sel: ast.NewIdent("GraphQLTypeName"),
+			&ast.IfStmt{
+				Cond: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X: &ast.SelectorExpr{
+							X:   nestExpr,
+							Sel: ast.NewIdent("Directives"),
+						},
+						Sel: ast.NewIdent("ShouldInclude"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("variables"),
 					},
 				},
-				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("executor"),
-							Sel: ast.NewIdent("NewNullable"),
-						},
-						Args: []ast.Expr{
-							&ast.BasicLit{
-								Kind:  token.STRING,
-								Value: fmt.Sprintf(`"%s"`, definition.Name),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("ret"),
+									Sel: ast.NewIdent("GraphQLTypeName"),
+								},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent("executor"),
+										Sel: ast.NewIdent("NewNullable"),
+									},
+									Args: []ast.Expr{
+										&ast.BasicLit{
+											Kind:  token.STRING,
+											Value: fmt.Sprintf(`"%s"`, definition.Name),
+										},
+									},
+								},
 							},
 						},
 					},
@@ -349,22 +367,40 @@ func generateCaseBodyStmts(field *schema.FieldDefinition, indexes *schema.Indexe
 	if field.Type.IsList {
 		stmts = append(stmts, generateAssignMakeSliceForResponse(field))
 		stmts = append(stmts, generateNestedArrayRangeStmts(field, field.Type, indexes, nestExpr, 0)...)
-		stmts = append(stmts, &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				&ast.SelectorExpr{
-					X:   ast.NewIdent("ret"),
-					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+		stmts = append(stmts, &ast.IfStmt{
+			Cond: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X: &ast.SelectorExpr{
+						X:   nestExpr,
+						Sel: ast.NewIdent("Directives"),
+					},
+					Sel: ast.NewIdent("ShouldInclude"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("variables"),
 				},
 			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("executor"),
-						Sel: ast.NewIdent("NewNullable"),
-					},
-					Args: []ast.Expr{
-						ast.NewIdent(fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))),
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("ret"),
+								Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+							},
+						},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("NewNullable"),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent(fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))),
+								},
+							},
+						},
 					},
 				},
 			},
@@ -515,24 +551,42 @@ func generateCaseNestedRetAssignStmts(field *schema.FieldDefinition, indexes *sc
 			},
 		})
 	} else {
-		stmts = append(stmts, &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				&ast.SelectorExpr{
-					X:   ast.NewIdent("ret"),
-					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+		stmts = append(stmts, &ast.IfStmt{
+			Cond: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X: &ast.SelectorExpr{
+						X:   nestExpr,
+						Sel: ast.NewIdent("Directives"),
+					},
+					Sel: ast.NewIdent("ShouldInclude"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("variables"),
 				},
 			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("executor"),
-						Sel: ast.NewIdent("NewNullable"),
-					},
-					Args: []ast.Expr{
-						&ast.SelectorExpr{
-							X:   ast.NewIdent("resolverRet"),
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("ret"),
+								Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+							},
+						},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("NewNullable"),
+								},
+								Args: []ast.Expr{
+									&ast.SelectorExpr{
+										X:   ast.NewIdent("resolverRet"),
+										Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+									},
+								},
+							},
 						},
 					},
 				},
@@ -580,45 +634,81 @@ func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.I
 			},
 		})
 		stmts = append(stmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
-		stmts = append(stmts, &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				&ast.SelectorExpr{
-					X:   ast.NewIdent("ret"),
-					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+		stmts = append(stmts, &ast.IfStmt{
+			Cond: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X: &ast.SelectorExpr{
+						X:   nestExpr,
+						Sel: ast.NewIdent("Directives"),
+					},
+					Sel: ast.NewIdent("ShouldInclude"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("variables"),
 				},
 			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("executor"),
-						Sel: ast.NewIdent("NewNullable"),
-					},
-					Args: []ast.Expr{
-						ast.NewIdent(fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))),
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("ret"),
+								Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+							},
+						},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("NewNullable"),
+								},
+								Args: []ast.Expr{
+									ast.NewIdent(fmt.Sprintf("ret%s", toUpperCase(string(field.Name)))),
+								},
+							},
+						},
 					},
 				},
 			},
 		})
 	} else {
-		stmts = append(stmts, &ast.AssignStmt{
-			Lhs: []ast.Expr{
-				&ast.SelectorExpr{
-					X:   ast.NewIdent("ret"),
-					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+		stmts = append(stmts, &ast.IfStmt{
+			Cond: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X: &ast.SelectorExpr{
+						X:   nestExpr,
+						Sel: ast.NewIdent("Directives"),
+					},
+					Sel: ast.NewIdent("ShouldInclude"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("variables"),
 				},
 			},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("executor"),
-						Sel: ast.NewIdent("NewNullable"),
-					},
-					Args: []ast.Expr{
-						&ast.SelectorExpr{
-							X:   ast.NewIdent("resolverRet"),
-							Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{
+							&ast.SelectorExpr{
+								X:   ast.NewIdent("ret"),
+								Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+							},
+						},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent("executor"),
+									Sel: ast.NewIdent("NewNullable"),
+								},
+								Args: []ast.Expr{
+									&ast.SelectorExpr{
+										X:   ast.NewIdent("resolverRet"),
+										Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+									},
+								},
+							},
 						},
 					},
 				},

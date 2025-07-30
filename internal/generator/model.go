@@ -28,7 +28,7 @@ func generateModelImport(inputs []*schema.InputDefinition) *ast.GenDecl {
 		},
 	}
 
-	if hasNullables {
+	if !hasNullables {
 		specs = append(specs, &ast.ImportSpec{
 			Path: &ast.BasicLit{
 				Kind:  token.STRING,
