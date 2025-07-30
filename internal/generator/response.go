@@ -405,7 +405,7 @@ func generateNestedArrayRangeStmts(field *schema.FieldDefinition, fieldType *sch
 						Fun: ast.NewIdent("make"),
 						Args: []ast.Expr{
 							&ast.ArrayType{
-								Elt: generateResponseTypeExpr(fieldType.ListType),
+								Elt: generateResponseNullable(fieldType.ListType),
 							},
 							ast.NewIdent("0"),
 							&ast.CallExpr{
@@ -802,9 +802,11 @@ func generateFieldTypeRangeBodyStmts(fieldType *schema.FieldType, indexes *schem
 	var nestValueExpr ast.Expr = ast.NewIdent(fmt.Sprintf("v%d", nestCount))
 	var appendStmt ast.Stmt = &ast.EmptyStmt{}
 	if nestCount > 0 {
-		ret := fmt.Sprintf("ret%d", nestCount)
+		ret := fmt.Sprintf("ret%d", nestCount-1)
+		appendArg := fmt.Sprintf("ret%d", nestCount)
 		if nestCount == 1 {
 			ret = "ret"
+			appendArg = "ret1"
 		}
 
 		appendStmt = &ast.AssignStmt{
@@ -817,7 +819,7 @@ func generateFieldTypeRangeBodyStmts(fieldType *schema.FieldType, indexes *schem
 					Fun: ast.NewIdent("append"),
 					Args: []ast.Expr{
 						ast.NewIdent(ret),
-						ast.NewIdent(fmt.Sprintf("ret%d", nestCount)),
+						ast.NewIdent(appendArg),
 					},
 				},
 			},
