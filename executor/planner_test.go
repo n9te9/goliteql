@@ -28,10 +28,10 @@ func TestPlanExecution(t *testing.T) {
 			},
 			resultTree: []*executor.Node{
 				{
-					Name: []byte("field1"),
+					Name: "field1",
 					Children: []*executor.Node{
 						{
-							Name:     []byte("childField1"),
+							Name:     "childField1",
 							Children: []*executor.Node{},
 						},
 					},
@@ -62,16 +62,16 @@ func TestPlanExecution(t *testing.T) {
 			},
 			resultTree: []*executor.Node{
 				{
-					Name: []byte("level1"),
+					Name: "level1",
 					Children: []*executor.Node{
 						{
-							Name: []byte("level2"),
+							Name: "level2",
 							Children: []*executor.Node{
 								{
-									Name: []byte("level3"),
+									Name: "level3",
 									Children: []*executor.Node{
 										{
-											Name:     []byte("leafField"),
+											Name:     "leafField",
 											Children: []*executor.Node{},
 										},
 									},
@@ -100,13 +100,13 @@ func TestPlanExecution(t *testing.T) {
 			},
 			resultTree: []*executor.Node{
 				{
-					Name: []byte("field"),
+					Name: "field",
 					Children: []*executor.Node{
 						{
 							Type: "TypeName",
 							Children: []*executor.Node{
 								{
-									Name:     []byte("subfield"),
+									Name:     "subfield",
 									Children: []*executor.Node{},
 								},
 							},
@@ -143,7 +143,7 @@ func TestPlanExecution(t *testing.T) {
 			},
 			resultTree: []*executor.Node{
 				{
-					Name: []byte("field"),
+					Name: "field",
 					Children: []*executor.Node{
 						{
 							Type: "TypeName1",
@@ -155,7 +155,7 @@ func TestPlanExecution(t *testing.T) {
 											Type: "TypeName3",
 											Children: []*executor.Node{
 												{
-													Name:     []byte("subfield"),
+													Name:     "subfield",
 													Children: []*executor.Node{},
 												},
 											},

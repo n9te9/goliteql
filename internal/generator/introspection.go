@@ -46,6 +46,31 @@ func generateIntrospectionModelAST(types []*schema.TypeDefinition) []ast.Decl {
 	return decls
 }
 
+func generateModelFieldForResponse(field schema.FieldDefinitions) *ast.FieldList {
+	fields := make([]*ast.Field, 0, len(field))
+
+	for _, f := range field {
+		fieldTypeExpr := generateExprForResponse(f.Type)
+
+		fields = append(fields, &ast.Field{
+			Names: []*ast.Ident{
+				{
+					Name: toUpperCase(string(f.Name)),
+				},
+			},
+			Type: fieldTypeExpr,
+			Tag: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("`json:\"%s,omitempty\"`", string(f.Name)),
+			},
+		})
+	}
+
+	return &ast.FieldList{
+		List: fields,
+	}
+}
+
 func generateIntrospectionTypeResponseDataModelAST() ast.Decl {
 	return &ast.GenDecl{
 		Tok: token.TYPE,
