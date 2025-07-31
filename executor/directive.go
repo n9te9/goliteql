@@ -69,7 +69,7 @@ func isSkipDirective(dir *query.Directive) bool {
 
 func isSkipped(directives []*query.Directive, variables map[string]json.RawMessage) bool {
 	for _, dir := range directives {
-		if isIncludeDirective(dir) {
+		if isSkipDirective(dir) {
 			if len(dir.Arguments) != 1 {
 				return false
 			}
@@ -95,5 +95,5 @@ func isSkipped(directives []*query.Directive, variables map[string]json.RawMessa
 		}
 	}
 
-	return true
+	return false
 }
