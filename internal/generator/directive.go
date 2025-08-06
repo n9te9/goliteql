@@ -158,7 +158,19 @@ func generateDirectiveFuncDecl(directive *schema.DirectiveDefinition) *ast.FuncD
 		Name: ast.NewIdent(toUpperCase(string(directive.Name))),
 		Type: generateFuncType(directive),
 		Body: &ast.BlockStmt{
-			List: []ast.Stmt{},
+			List: []ast.Stmt{
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: ast.NewIdent("panic"),
+						Args: []ast.Expr{
+							&ast.BasicLit{
+								Kind:  token.STRING,
+								Value: `"not implemented"`,
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
