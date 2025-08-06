@@ -939,6 +939,7 @@ func generateExecutorBody(op *schema.OperationDefinition, operationType string) 
 							Sel: ast.NewIdent(fmt.Sprintf("apply%sQueryResponse", field.Name)),
 						},
 						Args: []ast.Expr{
+							ast.NewIdent("ctx"),
 							ast.NewIdent("resolverRet"),
 							ast.NewIdent("node"),
 							ast.NewIdent("variables"),

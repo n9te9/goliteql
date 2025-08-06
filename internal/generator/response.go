@@ -32,6 +32,15 @@ func generateApplyResponseFuncDeclFromFieldDefinition(fieldDefinition *schema.Fi
 			Params: &ast.FieldList{
 				List: []*ast.Field{
 					{
+						Names: []*ast.Ident{
+							ast.NewIdent("ctx"),
+						},
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent("context"),
+							Sel: ast.NewIdent("Context"),
+						},
+					},
+					{
 						Names: []*ast.Ident{ast.NewIdent("resolverRet")},
 						Type:  generateTypeExprFromFieldTypeForReturn(typePrefix, fieldDefinition.Type, indexes),
 					},
@@ -132,6 +141,13 @@ func generateTypeApplyResponseFuncDecl(definition *schema.TypeDefinition, indexe
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{ast.NewIdent("ctx")},
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent("context"),
+							Sel: ast.NewIdent("Context"),
+						},
+					},
 					{
 						Names: []*ast.Ident{ast.NewIdent("resolverRet")},
 						Type: &ast.SelectorExpr{
@@ -521,6 +537,7 @@ func generateCaseNestedRetAssignStmts(field *schema.FieldDefinition, indexes *sc
 						Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", field.Type.GetRootType().Name)),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						argExpr,
 						nestExpr,
 						ast.NewIdent("variables"),
@@ -626,6 +643,7 @@ func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.I
 						Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", field.Type.GetRootType().Name)),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						argExpr,
 						nestExpr,
 						ast.NewIdent("variables"),
@@ -861,6 +879,7 @@ func generateFieldTypeApplyBodyStmts(fieldType *schema.FieldType, indexes *schem
 							Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", fieldType.Name)),
 						},
 						Args: []ast.Expr{
+							ast.NewIdent("ctx"),
 							arg,
 							ast.NewIdent("node"),
 							ast.NewIdent("variables"),
@@ -1032,6 +1051,7 @@ func generateFieldTypeRangeBodyStmts(fieldType *schema.FieldType, indexes *schem
 						Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", fieldType.Name)),
 					},
 					Args: []ast.Expr{
+						ast.NewIdent("ctx"),
 						argExpr,
 						ast.NewIdent("node"),
 						ast.NewIdent("variables"),
@@ -1058,6 +1078,13 @@ func generateInterfaceApplyResponseFuncDecl(definition *schema.InterfaceDefiniti
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{ast.NewIdent("ctx")},
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent("context"),
+							Sel: ast.NewIdent("Context"),
+						},
+					},
 					{
 						Names: []*ast.Ident{ast.NewIdent("resolverRet")},
 						Type: &ast.SelectorExpr{
@@ -1156,6 +1183,7 @@ func generateInterfaceApplySwitchStmtsForInterfaceDefinition(definition *schema.
 								Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", typeDef.Name)),
 							},
 							Args: []ast.Expr{
+								ast.NewIdent("ctx"),
 								ast.NewIdent("resolverRet"),
 								ast.NewIdent("node"),
 								ast.NewIdent("variables"),
@@ -1199,6 +1227,7 @@ func generateInterfaceApplySwitchStmtsForInterfaceDefinition(definition *schema.
 								Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", typeDef.Name)),
 							},
 							Args: []ast.Expr{
+								ast.NewIdent("ctx"),
 								&ast.StarExpr{
 									X: ast.NewIdent("resolverRet"),
 								},
@@ -1328,6 +1357,7 @@ func generateInterfaceApplySwitchStmtsForUnionDefinition(definition *schema.Unio
 											Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", typeDef.Name)),
 										},
 										Args: []ast.Expr{
+											ast.NewIdent("ctx"),
 											ast.NewIdent("resolverRet"),
 											ast.NewIdent("child"),
 											ast.NewIdent("variables"),
@@ -1390,6 +1420,7 @@ func generateInterfaceApplySwitchStmtsForUnionDefinition(definition *schema.Unio
 											Sel: ast.NewIdent(fmt.Sprintf("apply%sResponse", typeDef.Name)),
 										},
 										Args: []ast.Expr{
+											ast.NewIdent("ctx"),
 											&ast.StarExpr{
 												X: ast.NewIdent("resolverRet"),
 											},
@@ -1541,6 +1572,13 @@ func generateUnionApplyResponseFuncDecl(definition *schema.UnionDefinition, inde
 			Params: &ast.FieldList{
 				List: []*ast.Field{
 					{
+						Names: []*ast.Ident{ast.NewIdent("ctx")},
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent("context"),
+							Sel: ast.NewIdent("Context"),
+						},
+					},
+					{
 						Names: []*ast.Ident{ast.NewIdent("resolverRet")},
 						Type: &ast.SelectorExpr{
 							X:   ast.NewIdent(typePrefix),
@@ -1625,15 +1663,5 @@ func generateEnumApplyResponseFuncDecl(definition *schema.EnumDefinition, indexe
 		Body: &ast.BlockStmt{
 			List: []ast.Stmt{},
 		},
-	}
-}
-
-func generateNewNullableExpr(expr ast.Expr) ast.Expr {
-	return &ast.CallExpr{
-		Fun: &ast.SelectorExpr{
-			X:   ast.NewIdent("executor"),
-			Sel: ast.NewIdent("NewNullable"),
-		},
-		Args: []ast.Expr{expr},
 	}
 }
