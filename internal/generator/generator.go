@@ -42,6 +42,10 @@ type Generator struct {
 	resolverGeneratedOutput io.Writer
 	generatedAST            *ast.File
 
+	directiveOutput      io.Writer
+	directiveAST         *ast.File
+	directivePackagePath string
+
 	enumOutput io.Writer
 	enumAST    *ast.File
 
@@ -69,6 +73,8 @@ type Config struct {
 	ScalarOutputFile            string         `yaml:"scalar_output_file"`
 	ModelPackageName            string         `yaml:"model_package_name"`
 	ResolverPackageName         string         `yaml:"resolver_package_name"`
+	DirectivePackageName        string         `yaml:"directive_package_name"`
+	DirectiveOutputFile         string         `yaml:"directive_output_file"`
 	Scalars                     []ScalarConfig `yaml:"scalars"`
 }
 
@@ -94,6 +100,10 @@ func createDirectories(conf *Config) {
 	if err := os.MkdirAll(filepath.Dir(conf.RootResolverOutputFile), 0755); err != nil {
 		log.Fatalf("error creating root resolver output directory: %v", err)
 	}
+
+	if err := os.MkdirAll(filepath.Dir(conf.DirectiveOutputFile), 0755); err != nil {
+		log.Fatalf("error creating directive output directory: %v", err)
+	}
 }
 
 func createFile(filePath string) (*os.File, error) {
@@ -111,6 +121,7 @@ func NewGenerator(config *Config) (*Generator, error) {
 	schemaDirectory := config.SchemaDirectory
 	modelPackagePath := config.ModelPackageName
 	resolverPackagePath := config.ResolverPackageName
+	directivePackagePath := config.DirectivePackageName
 
 	gqlFilePaths := make([]string, 0)
 
@@ -160,7 +171,7 @@ func NewGenerator(config *Config) (*Generator, error) {
 		return nil, fmt.Errorf("error merging schema: %w", err)
 	}
 
-	var modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, resolverGeneratedOutput, enumOutput, scalarOutput io.Writer
+	var modelOutput, queryResolverOutput, mutationResolverOutput, rootResolverOutput, resolverGeneratedOutput, enumOutput, scalarOutput, directiveOutput io.Writer
 	if len(extractUserEnumDefinitions(s.Enums)) > 0 {
 		enumOutput, err = createFile(config.EnumOutputFile)
 		if err != nil {
@@ -193,6 +204,13 @@ func NewGenerator(config *Config) (*Generator, error) {
 		rootResolverOutput, err = createFile(config.RootResolverOutputFile)
 		if err != nil {
 			return nil, fmt.Errorf("error creating root resolver output file: %w", err)
+		}
+	}
+
+	if len(s.Directives) > 0 {
+		directiveOutput, err = createFile(config.DirectiveOutputFile)
+		if err != nil {
+			return nil, fmt.Errorf("error creating directive output file: %w", err)
 		}
 	}
 
@@ -235,6 +253,10 @@ func NewGenerator(config *Config) (*Generator, error) {
 			Name:  ast.NewIdent(filepath.Base(resolverPackagePath)),
 			Decls: []ast.Decl{},
 		},
+		directiveAST: &ast.File{
+			Name:  ast.NewIdent(filepath.Base(config.DirectivePackageName)),
+			Decls: []ast.Decl{},
+		},
 		modelOutput:                     modelOutput,
 		modelPackagePath:                modelPackagePath,
 		queryResolverOutput:             queryResolverOutput,
@@ -248,6 +270,8 @@ func NewGenerator(config *Config) (*Generator, error) {
 		rootResolverOutputFilePath:      config.RootResolverOutputFile,
 		resolverGeneratedOutput:         resolverGeneratedOutput,
 		resolverGeneratedOutputFilePath: config.ResolverGeneratedOutputFile,
+		directiveOutput:                 directiveOutput,
+		directivePackagePath:            directivePackagePath,
 		config:                          config,
 	}
 
@@ -476,6 +500,15 @@ func (g *Generator) generateResolver() error {
 			},
 		}
 
+		if len(g.Schema.Directives) > 0 {
+			importSpecs = append(importSpecs, &ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf(`"%s"`, g.directivePackagePath),
+				},
+			})
+		}
+
 		importSpecs = append(importSpecs, generateResolverImport().Specs...)
 
 		// generate import statement
@@ -537,7 +570,7 @@ func (g *Generator) generateResolver() error {
 		g.mutationResolverAST.Decls = append(g.mutationResolverAST.Decls, generateInterfaceField(modelPrefix, g.Schema.GetMutation(), g.Schema.Indexes))
 	}
 
-	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementationStruct()...)
+	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementationStruct(g)...)
 	g.resolverAST.Decls = append(g.resolverAST.Decls, generateResolverImplementation(modelPrefix, fields, g.Schema.Indexes)...)
 
 	g.queryResolverAST.Decls = append(g.queryResolverAST.Decls, generateResolverImplementation(modelPrefix, queryFields, g.Schema.Indexes)...)
@@ -567,6 +600,24 @@ func (g *Generator) generateResolver() error {
 	var generatedBuffer bytes.Buffer
 	if err := format.Node(&generatedBuffer, token.NewFileSet(), g.generatedAST); err != nil {
 		return fmt.Errorf("error formatting generated resolver: %w", err)
+	}
+
+	if len(g.Schema.Directives) > 0 {
+		var directiveBuffer bytes.Buffer
+		g.directiveAST.Decls = append(g.directiveAST.Decls, generateDirectiveDecls(g.Schema.Directives)...)
+
+		if err := format.Node(&directiveBuffer, token.NewFileSet(), g.directiveAST); err != nil {
+			return fmt.Errorf("error formatting directive: %w", err)
+		}
+
+		fixed, err := imports.Process(g.directivePackagePath, directiveBuffer.Bytes(), nil)
+		if err != nil {
+			return fmt.Errorf("error processing directive imports: %w", err)
+		}
+
+		if _, err := g.directiveOutput.Write(fixed); err != nil {
+			return fmt.Errorf("error writing directive output: %w", err)
+		}
 	}
 
 	fixed, err := imports.Process(g.rootResolverOutputFilePath, rootResolverBuffer.Bytes(), nil)

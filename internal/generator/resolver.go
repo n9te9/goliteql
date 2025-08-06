@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"path/filepath"
 
 	"github.com/n9te9/goliteql/internal/generator/introspection"
 	"github.com/n9te9/goliteql/schema"
@@ -2225,7 +2226,43 @@ func isUsedDefinedType(operation *schema.OperationDefinition) bool {
 	return false
 }
 
-func generateResolverImplementationStruct() []ast.Decl {
+func generateResolverImplementationStruct(g *Generator) []ast.Decl {
+	specs := make([]*ast.Field, 0)
+	specs = append(specs, &ast.Field{
+		Names: []*ast.Ident{
+			ast.NewIdent("parser"),
+		},
+		Type: &ast.StarExpr{
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("query"),
+				Sel: ast.NewIdent("Parser"),
+			},
+		},
+	})
+	specs = append(specs, &ast.Field{
+		Names: []*ast.Ident{
+			ast.NewIdent("pool"),
+		},
+		Type: &ast.StarExpr{
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("sync"),
+				Sel: ast.NewIdent("Pool"),
+			},
+		},
+	})
+
+	if len(g.Schema.Directives) > 0 {
+		specs = append(specs, &ast.Field{
+			Names: []*ast.Ident{
+				ast.NewIdent("directive"),
+			},
+			Type: &ast.SelectorExpr{
+				X:   ast.NewIdent(filepath.Base(g.directivePackagePath)),
+				Sel: ast.NewIdent("Directive"),
+			},
+		})
+	}
+
 	return []ast.Decl{
 		&ast.GenDecl{
 			Tok: token.TYPE,
@@ -2236,30 +2273,7 @@ func generateResolverImplementationStruct() []ast.Decl {
 					},
 					Type: &ast.StructType{
 						Fields: &ast.FieldList{
-							List: []*ast.Field{
-								{
-									Names: []*ast.Ident{
-										ast.NewIdent("parser"),
-									},
-									Type: &ast.StarExpr{
-										X: &ast.SelectorExpr{
-											X:   ast.NewIdent("query"),
-											Sel: ast.NewIdent("Parser"),
-										},
-									},
-								},
-								{
-									Names: []*ast.Ident{
-										ast.NewIdent("pool"),
-									},
-									Type: &ast.StarExpr{
-										X: &ast.SelectorExpr{
-											X:   ast.NewIdent("sync"),
-											Sel: ast.NewIdent("Pool"),
-										},
-									},
-								},
-							},
+							List: specs,
 						},
 					},
 				},
@@ -2319,6 +2333,15 @@ func generateResolverImplementationStruct() []ast.Decl {
 											Fun: &ast.SelectorExpr{
 												X:   ast.NewIdent("executor"),
 												Sel: ast.NewIdent("NewPool"),
+											},
+										},
+									},
+									&ast.KeyValueExpr{
+										Key: ast.NewIdent("directive"),
+										Value: &ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   ast.NewIdent(filepath.Base(g.directivePackagePath)),
+												Sel: ast.NewIdent("NewDirective"),
 											},
 										},
 									},

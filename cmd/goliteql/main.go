@@ -66,7 +66,9 @@ var initConfig = generator.Config{
 	EnumOutputFile:             "./graphql/model/enum.go",
 	ModelPackageName:           "example.com/graphql/model",
 	ResolverPackageName:        "example.com/graphql/resolver",
-	ScalarOutputFile:           "./graphql/scalar/scalar.go",
+	DirectivePackageName:       "example.com/graphql/directive",
+	DirectiveOutputFile:        "./graphql/directive/directives.go",
+	ScalarOutputFile:           "./graphql/model/scalar.go",
 	Scalars: []generator.ScalarConfig{
 		{
 			Name: "DateTime",
