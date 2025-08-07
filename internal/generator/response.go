@@ -315,7 +315,8 @@ func generateFieldApplyResponseStmts(definition *schema.TypeDefinition, indexes 
 }
 
 func generateCaseStmtsForTypeDefinition(definition *schema.TypeDefinition, indexes *schema.Indexes, nestExpr ast.Expr) []ast.Stmt {
-	ret := make([]ast.Stmt, 0, len(definition.Fields)+1)
+	ret := make([]ast.Stmt, 0)
+
 	ret = append(ret, &ast.CaseClause{
 		List: []ast.Expr{
 			ast.NewIdent(`"__typename"`),
@@ -691,6 +692,61 @@ func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.I
 			},
 		})
 	} else {
+		applyStmts := make([]ast.Stmt, 0)
+		var lastAssigned ast.Expr = &ast.SelectorExpr{
+			X:   ast.NewIdent("resolverRet"),
+			Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+		}
+		for _, directive := range field.Directives {
+			if _, ok := builtinDirectiveNames[string(directive.Name)]; ok {
+				continue
+			}
+			applyStmts = append(applyStmts, &ast.AssignStmt{
+				Lhs: []ast.Expr{
+					ast.NewIdent(fmt.Sprintf("ret%s", directive.Name)),
+					ast.NewIdent("err"),
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent("r"),
+								Sel: ast.NewIdent("directive"),
+							},
+							Sel: ast.NewIdent(toUpperCase(string(directive.Name))),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("ctx"),
+							lastAssigned,
+						},
+					},
+				},
+			})
+			applyStmts = append(applyStmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
+			lastAssigned = ast.NewIdent(fmt.Sprintf("ret%s", directive.Name))
+		}
+
+		applyStmts = append(applyStmts, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("ret"),
+					Sel: ast.NewIdent(toUpperCase(string(field.Name))),
+				},
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("executor"),
+						Sel: ast.NewIdent("NewNullable"),
+					},
+					Args: []ast.Expr{
+						lastAssigned,
+					},
+				},
+			},
+		})
 		stmts = append(stmts, &ast.IfStmt{
 			Cond: &ast.CallExpr{
 				Fun: &ast.SelectorExpr{
@@ -705,31 +761,7 @@ func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.I
 				},
 			},
 			Body: &ast.BlockStmt{
-				List: []ast.Stmt{
-					&ast.AssignStmt{
-						Lhs: []ast.Expr{
-							&ast.SelectorExpr{
-								X:   ast.NewIdent("ret"),
-								Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-							},
-						},
-						Tok: token.ASSIGN,
-						Rhs: []ast.Expr{
-							&ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   ast.NewIdent("executor"),
-									Sel: ast.NewIdent("NewNullable"),
-								},
-								Args: []ast.Expr{
-									&ast.SelectorExpr{
-										X:   ast.NewIdent("resolverRet"),
-										Sel: ast.NewIdent(toUpperCase(string(field.Name))),
-									},
-								},
-							},
-						},
-					},
-				},
+				List: applyStmts,
 			},
 		})
 	}
@@ -769,16 +801,6 @@ func generateAssignMakeSliceForResponse(fieldDefinition *schema.FieldDefinition)
 			},
 		},
 	}
-}
-
-func generateResponseTypeExpr(fieldType *schema.FieldType) ast.Expr {
-	if fieldType.IsList {
-		return &ast.ArrayType{
-			Elt: generateResponseTypeExpr(fieldType.ListType),
-		}
-	}
-
-	return ast.NewIdent(fmt.Sprintf("%sResponse", fieldType.Name))
 }
 
 func generateFieldTypeApplyBodyStmts(fieldType *schema.FieldType, indexes *schema.Indexes, typePrefix string) []ast.Stmt {
