@@ -526,6 +526,9 @@ func (g *Generator) generateResolver() error {
 
 	modelPrefix := filepath.Base(g.modelPackagePath)
 
+	if len(g.Schema.Directives) > 0 {
+		g.generatedAST.Decls = append(g.generatedAST.Decls, generateExtractDirectiveArgFuncs(modelPrefix, g.Schema.Directives, g.Schema.Indexes)...)
+	}
 	g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDecl(g.Schema.Types, g.Schema.Indexes, modelPrefix)...)
 	g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDecl(g.Schema.Interfaces, g.Schema.Indexes, modelPrefix)...)
 	g.generatedAST.Decls = append(g.generatedAST.Decls, generateApplyResponseFuncDecl(g.Schema.Unions, g.Schema.Indexes, modelPrefix)...)

@@ -12,7 +12,7 @@ func generateModelImport(inputs []*schema.InputDefinition) *ast.GenDecl {
 	hasNullables := false
 	for _, t := range inputs {
 		for _, f := range t.Fields {
-			if f.Type.Nullable {
+			if f.Type.HasNullable() {
 				hasNullables = true
 				break
 			}
@@ -28,7 +28,7 @@ func generateModelImport(inputs []*schema.InputDefinition) *ast.GenDecl {
 		},
 	}
 
-	if !hasNullables {
+	if hasNullables {
 		specs = append(specs, &ast.ImportSpec{
 			Path: &ast.BasicLit{
 				Kind:  token.STRING,

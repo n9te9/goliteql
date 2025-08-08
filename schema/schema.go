@@ -140,6 +140,18 @@ func (f *FieldType) GetNestFieldType(nestCount, currentNestCount int) *FieldType
 	return nil
 }
 
+func (f *FieldType) HasNullable() bool {
+	if f.Nullable {
+		return true
+	}
+
+	if f.IsList {
+		return f.ListType.HasNullable()
+	}
+
+	return f.Nullable
+}
+
 type OperationDefinition struct {
 	OperationType OperationType
 	Name          []byte
