@@ -259,7 +259,7 @@ func generateExtractDirectiveArgFuncs(typePrefix string, directives schema.Direc
 func generateExtractDirectiveFuncArgFunc(typePrefix string, directive *schema.DirectiveDefinition, indexes *schema.Indexes) ast.Decl {
 	stmts := make([]ast.Stmt, 0)
 	stmts = append(stmts, generateExtractArgumentBody(typePrefix, directive.Arguments)...)
-	stmts = append(stmts, generateExtractDirectiveArgumentBody(directive.Arguments, indexes))
+	stmts = append(stmts, generateExtractDirectiveArgumentBody(typePrefix, directive.Arguments, indexes))
 	stmts = append(stmts, generateDirectiveReturnStmt(directive.Arguments))
 
 	return &ast.FuncDecl{
@@ -379,7 +379,7 @@ func generateExtractArgumentVarDeclaration(typePrefix string, argumentDefinition
 	}
 }
 
-func generateExtractDirectiveArgumentBody(args schema.ArgumentDefinitions, indexes *schema.Indexes) ast.Stmt {
+func generateExtractDirectiveArgumentBody(typePrefix string, args schema.ArgumentDefinitions, indexes *schema.Indexes) ast.Stmt {
 	return &ast.RangeStmt{
 		Key:   ast.NewIdent("_"),
 		Value: ast.NewIdent("arg"),
@@ -390,13 +390,13 @@ func generateExtractDirectiveArgumentBody(args schema.ArgumentDefinitions, index
 		Tok: token.DEFINE,
 		Body: &ast.BlockStmt{
 			List: []ast.Stmt{
-				generateExtractDirectiveSwitchStmt(args, indexes),
+				generateExtractDirectiveSwitchStmt(typePrefix, args, indexes),
 			},
 		},
 	}
 }
 
-func generateExtractDirectiveSwitchStmt(args schema.ArgumentDefinitions, indexes *schema.Indexes) ast.Stmt {
+func generateExtractDirectiveSwitchStmt(typePrefix string, args schema.ArgumentDefinitions, indexes *schema.Indexes) ast.Stmt {
 	return &ast.SwitchStmt{
 		Tag: &ast.CallExpr{
 			Fun: ast.NewIdent("string"),
@@ -408,12 +408,12 @@ func generateExtractDirectiveSwitchStmt(args schema.ArgumentDefinitions, indexes
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: generateExtractDirectiveCaseStmts(args, indexes),
+			List: generateExtractDirectiveCaseStmts(typePrefix, args, indexes),
 		},
 	}
 }
 
-func generateExtractDirectiveCaseStmts(args schema.ArgumentDefinitions, indexes *schema.Indexes) []ast.Stmt {
+func generateExtractDirectiveCaseStmts(typePrefix string, args schema.ArgumentDefinitions, indexes *schema.Indexes) []ast.Stmt {
 	ret := make([]ast.Stmt, 0, len(args))
 
 	for _, arg := range args {
@@ -424,16 +424,28 @@ func generateExtractDirectiveCaseStmts(args schema.ArgumentDefinitions, indexes 
 					Value: fmt.Sprintf(`"%s"`, string(arg.Name)),
 				},
 			},
-			Body: generateExtractDirectiveMap(arg, indexes),
+			Body: []ast.Stmt{
+				generateExtractDirectiveMap(typePrefix, arg, indexes),
+			},
 		})
 	}
 
 	return ret
 }
 
-func generateExtractDirectiveMap(arg *schema.ArgumentDefinition, indexes *schema.Indexes) []ast.Stmt {
-	ret := make([]ast.Stmt, 0)
-	ret = append(ret, &ast.IfStmt{
+func generateExtractDirectiveMap(typePrefix string, arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {
+	var variableStmts, builtInStmts []ast.Stmt
+	if d, ok := indexes.ScalarIndex[string(arg.Type.GetRootType().Name)]; ok {
+		variableStmts = generateExtractDirectiveArgumentForVariable(arg, d)
+		builtInStmts = generateExtractDirectiveArgumentForBuiltInVariable(arg, d)
+	}
+
+	if d, ok := indexes.EnumIndex[string(arg.Type.GetRootType().Name)]; ok {
+		variableStmts = append(variableStmts, generateExtractDirectiveEnumArgumentForVariable(typePrefix, arg, d)...)
+		builtInStmts = append(builtInStmts, generateExtractDirectiveEnumArgumentForBuiltInVariable(typePrefix, arg, d)...)
+	}
+
+	return &ast.IfStmt{
 		Cond: &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
 				X:   ast.NewIdent("arg"),
@@ -441,23 +453,260 @@ func generateExtractDirectiveMap(arg *schema.ArgumentDefinition, indexes *schema
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: []ast.Stmt{},
+			List: variableStmts,
 		},
 		Else: &ast.BlockStmt{
-			List: []ast.Stmt{},
+			List: builtInStmts,
+		},
+	}
+}
+
+func generateExtractDirectiveArgumentForVariable[T *schema.ScalarDefinition | *schema.EnumDefinition | *schema.InputDefinition](arg *schema.ArgumentDefinition, definition T) []ast.Stmt {
+	switch d := any(definition).(type) {
+	case *schema.ScalarDefinition:
+		return generateExtractDirectiveScalarArgumentForVariable(arg, d)
+	case *schema.EnumDefinition:
+
+	case *schema.InputDefinition:
+
+	}
+
+	return nil
+}
+
+func generateExtractDirectiveScalarArgumentForVariable(arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+			ast.NewIdent("ok"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.IndexExpr{
+				X: ast.NewIdent("variables"),
+				Index: &ast.CallExpr{
+					Fun: ast.NewIdent("string"),
+					Args: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent("arg"),
+							Sel: ast.NewIdent("VariableAnnotation"),
+						},
+					},
+				},
+			},
 		},
 	})
 
 	return ret
 }
 
-func generateExtractDirectiveArgumentForVariable(arg *schema.ArgumentDefinition, indexes *schema.Indexes) []ast.Stmt {
+func generateExtractDirectiveEnumArgumentForVariable(typePrefix string, arg *schema.ArgumentDefinition, definition *schema.EnumDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+			ast.NewIdent("ok"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.IndexExpr{
+				X: ast.NewIdent("variables"),
+				Index: &ast.CallExpr{
+					Fun: ast.NewIdent("string"),
+					Args: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("arg"),
+								Sel: ast.NewIdent("VariableAnnotation"),
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	ret = append(ret, &ast.IfStmt{
+		Cond: &ast.UnaryExpr{
+			Op: token.NOT,
+			X:  ast.NewIdent("ok"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent(string(arg.Name)),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("fmt"),
+								Sel: ast.NewIdent("Errorf"),
+							},
+							Args: []ast.Expr{
+								&ast.BasicLit{
+									Kind:  token.STRING,
+									Value: fmt.Sprintf("`%s is required`", string(arg.Name)),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	caseStmts := make([]ast.Stmt, 0, len(definition.Values))
+	for _, value := range definition.Values {
+		var rhs ast.Expr = &ast.SelectorExpr{
+			X:   ast.NewIdent(typePrefix),
+			Sel: ast.NewIdent(string(value.Name)),
+		}
+		if arg.Type.Nullable {
+			rhs = pointerExpr(&ast.SelectorExpr{
+				X:   ast.NewIdent(typePrefix),
+				Sel: ast.NewIdent(string(definition.Name)),
+			}, rhs)
+		}
+
+		caseStmts = append(caseStmts, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf(`"%s"`, string(value.Name)),
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent(string(arg.Name)),
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						rhs,
+					},
+				},
+			},
+		})
+	}
+
+	ret = append(ret, &ast.SwitchStmt{
+		Tag: &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: caseStmts,
+		},
+	})
+
+	return ret
+}
+
+func generateExtractDirectiveInputArgumentForVariable(arg *schema.ArgumentDefinition, definition *schema.EnumDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
 	return ret
 }
 
-func generateExtractDirectiveArgumentForBuildInVariable(arg *schema.ArgumentDefinition, indexes *schema.Indexes) []ast.Stmt {
+func generateExtractDirectiveArgumentForBuiltInVariable[T *schema.ScalarDefinition | *schema.UnionDefinition | *schema.InputDefinition](arg *schema.ArgumentDefinition, definition T) []ast.Stmt {
+	switch any(definition).(type) {
+	case *schema.ScalarDefinition:
+
+	case *schema.UnionDefinition:
+
+	case *schema.InputDefinition:
+
+	}
+
+	return nil
+}
+
+func generateExtractDirectiveScalarArgumentForBuiltInVariable(arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	return ret
+}
+
+func generateExtractDirectiveEnumArgumentForBuiltInVariable(typePrefix string, arg *schema.ArgumentDefinition, definition *schema.EnumDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	caseStmts := make([]ast.Stmt, 0, len(definition.Values))
+	for _, value := range definition.Values {
+		var rhs ast.Expr = &ast.SelectorExpr{
+			X:   ast.NewIdent(typePrefix),
+			Sel: ast.NewIdent(string(value.Name)),
+		}
+		if arg.Type.Nullable {
+			rhs = pointerExpr(&ast.SelectorExpr{
+				X:   ast.NewIdent(typePrefix),
+				Sel: ast.NewIdent(string(definition.Name)),
+			}, rhs)
+		}
+
+		caseStmts = append(caseStmts, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf(`"%s"`, string(value.Name)),
+				},
+			},
+			Body: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent(string(arg.Name)),
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						rhs,
+					},
+				},
+			},
+		})
+	}
+
+	ret = append(ret, &ast.SwitchStmt{
+		Tag: &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("arg"),
+					Sel: ast.NewIdent("Value"),
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: caseStmts,
+		},
+	})
+
+	return ret
+}
+
+func pointerExpr(typeExpr, valueExpr ast.Expr) ast.Expr {
+	return &ast.UnaryExpr{
+		Op: token.AND,
+		X: &ast.IndexExpr{
+			X: &ast.CompositeLit{
+				Type: &ast.ArrayType{
+					Elt: typeExpr,
+				},
+				Elts: []ast.Expr{
+					valueExpr,
+				},
+			},
+			Index: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: "0",
+			},
+		},
+	}
+}
+
+func generateExtractDirectiveInputArgumentForBuiltInVariable(arg *schema.ArgumentDefinition, definition *schema.InputDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
 	return ret
