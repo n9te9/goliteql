@@ -701,6 +701,7 @@ func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.I
 			if _, ok := builtinDirectiveNames[string(directive.Name)]; ok {
 				continue
 			}
+
 			applyStmts = append(applyStmts, &ast.AssignStmt{
 				Lhs: []ast.Expr{
 					ast.NewIdent(fmt.Sprintf("ret%s", directive.Name)),

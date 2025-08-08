@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -28,15 +29,15 @@ var builtinDirectiveNames = map[string]struct{}{
 	"specifiedBy": {},
 }
 
-func generateDirectiveDecls(directives schema.DirectiveDefinitions) []ast.Decl {
+func generateDirectiveDecls(typePrefix string, directives schema.DirectiveDefinitions) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 
 	ret = append(ret, generateDirectiveImport())
-	ret = append(ret, generateDirectiveInterfaceDecl(directives))
+	ret = append(ret, generateDirectiveInterfaceDecl(typePrefix, directives))
 	ret = append(ret, generateDirectiveImplementationDecl())
 	ret = append(ret, generateVarDirectiveDecl())
 	ret = append(ret, generateNewDirectiveFuncDecl())
-	ret = append(ret, generateDirectiveFuncDecls(directives)...)
+	ret = append(ret, generateDirectiveFuncDecls(typePrefix, directives)...)
 
 	return ret
 }
@@ -98,7 +99,7 @@ func generateNewDirectiveFuncDecl() ast.Decl {
 	}
 }
 
-func generateDirectiveInterfaceDecl(directives schema.DirectiveDefinitions) *ast.GenDecl {
+func generateDirectiveInterfaceDecl(typePrefix string, directives schema.DirectiveDefinitions) *ast.GenDecl {
 	return &ast.GenDecl{
 		Tok: token.TYPE,
 		Specs: []ast.Spec{
@@ -106,7 +107,7 @@ func generateDirectiveInterfaceDecl(directives schema.DirectiveDefinitions) *ast
 				Name: ast.NewIdent("Directive"),
 				Type: &ast.InterfaceType{
 					Methods: &ast.FieldList{
-						List: generateInterfaceDirectiveMethods(directives),
+						List: generateInterfaceDirectiveMethods(typePrefix, directives),
 					},
 				},
 			},
@@ -130,7 +131,7 @@ func generateDirectiveImplementationDecl() *ast.GenDecl {
 	}
 }
 
-func generateDirectiveFuncDecls(directives schema.DirectiveDefinitions) []ast.Decl {
+func generateDirectiveFuncDecls(typePrefix string, directives schema.DirectiveDefinitions) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 
 	for _, directive := range directives {
@@ -138,12 +139,12 @@ func generateDirectiveFuncDecls(directives schema.DirectiveDefinitions) []ast.De
 			continue
 		}
 
-		ret = append(ret, generateDirectiveFuncDecl(directive))
+		ret = append(ret, generateDirectiveFuncDecl(typePrefix, directive))
 	}
 	return ret
 }
 
-func generateDirectiveFuncDecl(directive *schema.DirectiveDefinition) *ast.FuncDecl {
+func generateDirectiveFuncDecl(typePrefix string, directive *schema.DirectiveDefinition) *ast.FuncDecl {
 	return &ast.FuncDecl{
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
@@ -156,7 +157,7 @@ func generateDirectiveFuncDecl(directive *schema.DirectiveDefinition) *ast.FuncD
 			},
 		},
 		Name: ast.NewIdent(toUpperCase(string(directive.Name))),
-		Type: generateFuncType(directive),
+		Type: generateFuncType(typePrefix, directive),
 		Body: &ast.BlockStmt{
 			List: []ast.Stmt{
 				&ast.ExprStmt{
@@ -175,7 +176,7 @@ func generateDirectiveFuncDecl(directive *schema.DirectiveDefinition) *ast.FuncD
 	}
 }
 
-func generateInterfaceDirectiveMethods(directives schema.DirectiveDefinitions) []*ast.Field {
+func generateInterfaceDirectiveMethods(typePrefix string, directives schema.DirectiveDefinitions) []*ast.Field {
 	methods := make([]*ast.Field, 0, len(directives))
 
 	for _, directive := range directives {
@@ -187,32 +188,42 @@ func generateInterfaceDirectiveMethods(directives schema.DirectiveDefinitions) [
 			Names: []*ast.Ident{
 				ast.NewIdent(toUpperCase(string(directive.Name))),
 			},
-			Type: generateFuncType(directive),
+			Type: generateFuncType(typePrefix, directive),
 		})
 	}
 
 	return methods
 }
 
-func generateFuncType(directive *schema.DirectiveDefinition) *ast.FuncType {
+func generateFuncType(typePrefix string, directive *schema.DirectiveDefinition) *ast.FuncType {
+	argsFields := make([]*ast.Field, 0)
+	argsFields = append(argsFields, &ast.Field{
+		Names: []*ast.Ident{
+			ast.NewIdent("ctx"),
+		},
+		Type: &ast.SelectorExpr{
+			X:   ast.NewIdent("context"),
+			Sel: ast.NewIdent("Context"),
+		},
+	}, &ast.Field{
+		Names: []*ast.Ident{
+			ast.NewIdent("ret"),
+		},
+		Type: ast.NewIdent("any"),
+	})
+
+	for _, arg := range directive.Arguments {
+		argsFields = append(argsFields, &ast.Field{
+			Names: []*ast.Ident{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Type: generateTypeExprFromFieldType(typePrefix, arg.Type),
+		})
+	}
+
 	return &ast.FuncType{
 		Params: &ast.FieldList{
-			List: []*ast.Field{
-				{
-					Names: []*ast.Ident{
-						ast.NewIdent("ctx"),
-					},
-					Type: &ast.SelectorExpr{
-						X:   ast.NewIdent("context"),
-						Sel: ast.NewIdent("Context"),
-					},
-				}, {
-					Names: []*ast.Ident{
-						ast.NewIdent("ret"),
-					},
-					Type: ast.NewIdent("any"),
-				},
-			},
+			List: argsFields,
 		},
 		Results: &ast.FieldList{
 			List: []*ast.Field{
@@ -225,4 +236,54 @@ func generateFuncType(directive *schema.DirectiveDefinition) *ast.FuncType {
 			},
 		},
 	}
+}
+
+func generateExtractDirectiveFuncArgFuncs(directive *schema.DirectiveDefinition) []ast.Decl {
+	ret := make([]ast.Decl, 0)
+
+	ret = append(ret, generateExtractDirectiveFuncArgFunc(directive))
+	return ret
+}
+
+func generateExtractDirectiveFuncArgFunc(directive *schema.DirectiveDefinition) ast.Decl {
+	return &ast.FuncDecl{
+		Name: ast.NewIdent(fmt.Sprintf("extract%sArgs", toUpperCase(string(directive.Name)))),
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("node"),
+						},
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent("executor"),
+							Sel: ast.NewIdent("Node"),
+						},
+					},
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("variables"),
+						},
+						Type: &ast.MapType{
+							Key:   ast.NewIdent("string"),
+							Value: ast.NewIdent("json.RawMessage"),
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: generateArgumentResultTypeFieldSets(directive.Arguments),
+			},
+		},
+	}
+}
+
+func generateArgumentResultTypeFieldSets(args schema.ArgumentDefinitions) []*ast.Field {
+	fields := make([]*ast.Field, 0, len(args)+1)
+
+	fields = append(fields, &ast.Field{
+		Type: ast.NewIdent("error"),
+	})
+
+	return fields
 }
