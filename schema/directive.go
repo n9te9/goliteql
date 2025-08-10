@@ -14,7 +14,18 @@ type Location struct {
 type Directive struct {
 	Name      []byte
 	Arguments []*DirectiveArgument
-	Locations []*Location
+	Locations Locations
+}
+
+type Locations []*Location
+
+func (l Locations) HasField() bool {
+	for _, loc := range l {
+		if bytes.Equal(loc.Name, []byte("FIELD")) {
+			return true
+		}
+	}
+	return false
 }
 
 type Directives []*Directive
@@ -38,7 +49,7 @@ type DirectiveDefinition struct {
 	Description []byte
 	Arguments   []*ArgumentDefinition
 	Repeatable  bool
-	Locations   []*Location
+	Locations   Locations
 }
 
 func (d *DirectiveDefinition) IsAllowedApplySchema() bool {

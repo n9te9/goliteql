@@ -702,28 +702,82 @@ func generateCaseRetAssignStmts(field *schema.FieldDefinition, indexes *schema.I
 				continue
 			}
 
-			applyStmts = append(applyStmts, &ast.AssignStmt{
-				Lhs: []ast.Expr{
-					ast.NewIdent(fmt.Sprintf("ret%s", directive.Name)),
-					ast.NewIdent("err"),
-				},
-				Tok: token.DEFINE,
-				Rhs: []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X: &ast.SelectorExpr{
+			if d, ok := indexes.DirectiveIndexes[string(directive.Name)]; ok {
+				if !d.Locations.HasField() {
+					continue
+				}
+			}
+			arguments := []ast.Expr{
+				ast.NewIdent("ctx"),
+				lastAssigned,
+			}
+			if len(directive.Arguments) > 0 {
+				directiveLhs := make([]ast.Expr, 0, len(directive.Arguments))
+				for _, arg := range directive.Arguments {
+					directiveLhs = append(directiveLhs, ast.NewIdent(string(arg.Name)))
+					arguments = append(arguments, ast.NewIdent(string(arg.Name)))
+				}
+				directiveLhs = append(directiveLhs, ast.NewIdent("err"))
+
+				applyStmts = append(applyStmts, &ast.AssignStmt{
+					Lhs: directiveLhs,
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
 								X:   ast.NewIdent("r"),
-								Sel: ast.NewIdent("directive"),
+								Sel: ast.NewIdent(fmt.Sprintf("extract%sDirectiveArgs", toUpperCase(string(directive.Name)))),
 							},
-							Sel: ast.NewIdent(toUpperCase(string(directive.Name))),
-						},
-						Args: []ast.Expr{
-							ast.NewIdent("ctx"),
-							lastAssigned,
+							Args: []ast.Expr{
+								ast.NewIdent("ctx"),
+								nestExpr,
+								ast.NewIdent("variables"),
+							},
 						},
 					},
-				},
-			})
+				})
+				applyStmts = append(applyStmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
+				applyStmts = append(applyStmts, &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent(fmt.Sprintf("ret%s", directive.Name)),
+						ast.NewIdent("err"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X: &ast.SelectorExpr{
+									X:   ast.NewIdent("r"),
+									Sel: ast.NewIdent("directive"),
+								},
+								Sel: ast.NewIdent(toUpperCase(string(directive.Name))),
+							},
+							Args: arguments,
+						},
+					},
+				})
+			} else {
+				applyStmts = append(applyStmts, &ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent(fmt.Sprintf("ret%s", directive.Name)),
+						ast.NewIdent("err"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X: &ast.SelectorExpr{
+									X:   ast.NewIdent("r"),
+									Sel: ast.NewIdent("directive"),
+								},
+								Sel: ast.NewIdent(toUpperCase(string(directive.Name))),
+							},
+							Args: arguments,
+						},
+					},
+				})
+			}
+
 			applyStmts = append(applyStmts, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent("nil")}))
 			lastAssigned = ast.NewIdent(fmt.Sprintf("ret%s", directive.Name))
 		}

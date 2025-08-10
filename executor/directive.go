@@ -8,6 +8,15 @@ import (
 
 type Directives []*query.Directive
 
+func (d Directives) FindByName(name string) *query.Directive {
+	for _, dir := range d {
+		if dir.Name != nil && string(dir.Name) == name {
+			return dir
+		}
+	}
+	return nil
+}
+
 func (d Directives) ShouldInclude(variables map[string]json.RawMessage) bool {
 	return isIncluded(d, variables) && !isSkipped(d, variables)
 }
@@ -31,7 +40,7 @@ func isIncluded(directives []*query.Directive, variables map[string]json.RawMess
 				return false
 			}
 
-			if dir.Arguments[0].IsVariable {
+			if dir.Arguments[0].IsVariable() {
 				if string(dir.Arguments[0].Name) != "if" {
 					return false
 				}
@@ -74,7 +83,7 @@ func isSkipped(directives []*query.Directive, variables map[string]json.RawMessa
 				return false
 			}
 
-			if dir.Arguments[0].IsVariable {
+			if dir.Arguments[0].IsVariable() {
 				if string(dir.Arguments[0].Name) != "if" {
 					return false
 				}

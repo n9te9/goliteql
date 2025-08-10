@@ -579,9 +579,8 @@ func TestQueryParse(t *testing.T) {
 												Name: []byte("skip"),
 												Arguments: []*query.DirectiveArgument{
 													{
-														Name:       []byte("if"),
-														Value:      []byte("true"),
-														IsVariable: false,
+														Name:  []byte("if"),
+														Value: []byte("true"),
 													},
 												},
 											},

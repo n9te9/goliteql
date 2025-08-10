@@ -607,7 +607,7 @@ func (g *Generator) generateResolver() error {
 
 	if len(g.Schema.Directives) > 0 {
 		var directiveBuffer bytes.Buffer
-		g.directiveAST.Decls = append(g.directiveAST.Decls, generateDirectiveDecls(modelPrefix, g.Schema.Directives)...)
+		g.directiveAST.Decls = append(g.directiveAST.Decls, generateDirectiveDecls(modelPrefix, g.modelPackagePath, g.Schema.Directives)...)
 
 		if err := format.Node(&directiveBuffer, token.NewFileSet(), g.directiveAST); err != nil {
 			return fmt.Errorf("error formatting directive: %w", err)

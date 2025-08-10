@@ -95,9 +95,19 @@ func (a *Argument) VariableAnnotation() string {
 }
 
 type DirectiveArgument struct {
-	Name       []byte
-	Value      []byte
-	IsVariable bool
+	Name  []byte
+	Value []byte
+}
+
+func (d *DirectiveArgument) IsVariable() bool {
+	return len(d.Value) > 0 && d.Value[0] == '$'
+}
+
+func (d *DirectiveArgument) VariableAnnotation() string {
+	if d.IsVariable() {
+		return string(d.Value[1:])
+	}
+	return ""
 }
 
 type Field struct {
@@ -485,9 +495,7 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 	}
 	cur++
 
-	var isVariable bool
 	if tokens[cur].Type == Dollar {
-		isVariable = true
 		cur++
 
 		if tokens[cur].Type != Name {
@@ -495,17 +503,15 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		}
 
 		return &DirectiveArgument{
-			Name:       name,
-			Value:      tokens[cur].Value,
-			IsVariable: isVariable,
+			Name:  name,
+			Value: tokens[cur].Value,
 		}, cur, nil
 	}
 
 	if tokens[cur].Type == Value || tokens[cur].Type == Name {
 		return &DirectiveArgument{
-			Name:       name,
-			Value:      tokens[cur].Value,
-			IsVariable: isVariable,
+			Name:  name,
+			Value: tokens[cur].Value,
 		}, cur + 1, nil
 	}
 
@@ -516,9 +522,8 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		}
 
 		return &DirectiveArgument{
-			Name:       name,
-			Value:      newValue,
-			IsVariable: isVariable,
+			Name:  name,
+			Value: newValue,
 		}, newCur, nil
 	}
 
@@ -529,9 +534,8 @@ func (p *Parser) parseDirectiveArgument(tokens Tokens, cur int) (*DirectiveArgum
 		}
 
 		return &DirectiveArgument{
-			Name:       name,
-			Value:      newValue,
-			IsVariable: isVariable,
+			Name:  name,
+			Value: newValue,
 		}, newCur, nil
 	}
 

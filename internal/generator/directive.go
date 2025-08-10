@@ -8,7 +8,7 @@ import (
 	"github.com/n9te9/goliteql/schema"
 )
 
-func generateDirectiveImport() *ast.GenDecl {
+func generateDirectiveImport(modelPath string) *ast.GenDecl {
 	return &ast.GenDecl{
 		Tok: token.IMPORT,
 		Specs: []ast.Spec{
@@ -16,6 +16,12 @@ func generateDirectiveImport() *ast.GenDecl {
 				Path: &ast.BasicLit{
 					Kind:  token.STRING,
 					Value: `"context"`,
+				},
+			},
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: fmt.Sprintf(`"%s"`, modelPath),
 				},
 			},
 		},
@@ -29,10 +35,10 @@ var builtinDirectiveNames = map[string]struct{}{
 	"specifiedBy": {},
 }
 
-func generateDirectiveDecls(typePrefix string, directives schema.DirectiveDefinitions) []ast.Decl {
+func generateDirectiveDecls(typePrefix, modelPath string, directives schema.DirectiveDefinitions) []ast.Decl {
 	ret := make([]ast.Decl, 0)
 
-	ret = append(ret, generateDirectiveImport())
+	ret = append(ret, generateDirectiveImport(modelPath))
 	ret = append(ret, generateDirectiveInterfaceDecl(typePrefix, directives))
 	ret = append(ret, generateDirectiveImplementationDecl())
 	ret = append(ret, generateVarDirectiveDecl())
@@ -256,9 +262,36 @@ func generateExtractDirectiveArgFuncs(typePrefix string, directives schema.Direc
 	return ret
 }
 
+func generateGetDirectiveStmt(directive *schema.DirectiveDefinition) ast.Stmt {
+	return &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("dir"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("node"),
+						Sel: ast.NewIdent("Directives"),
+					},
+					Sel: ast.NewIdent("FindByName"),
+				},
+				Args: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: fmt.Sprintf(`"%s"`, string(directive.Name)),
+					},
+				},
+			},
+		},
+	}
+}
+
 func generateExtractDirectiveFuncArgFunc(typePrefix string, directive *schema.DirectiveDefinition, indexes *schema.Indexes) ast.Decl {
 	stmts := make([]ast.Stmt, 0)
 	stmts = append(stmts, generateExtractArgumentBody(typePrefix, directive.Arguments)...)
+	stmts = append(stmts, generateGetDirectiveStmt(directive))
 	stmts = append(stmts, generateExtractDirectiveArgumentBody(typePrefix, directive.Arguments, indexes))
 	stmts = append(stmts, generateDirectiveReturnStmt(directive.Arguments))
 
@@ -292,9 +325,11 @@ func generateExtractDirectiveFuncArgFunc(typePrefix string, directive *schema.Di
 						Names: []*ast.Ident{
 							ast.NewIdent("node"),
 						},
-						Type: &ast.SelectorExpr{
-							X:   ast.NewIdent("executor"),
-							Sel: ast.NewIdent("Node"),
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent("executor"),
+								Sel: ast.NewIdent("Node"),
+							},
 						},
 					},
 					{
@@ -384,7 +419,7 @@ func generateExtractDirectiveArgumentBody(typePrefix string, args schema.Argumen
 		Key:   ast.NewIdent("_"),
 		Value: ast.NewIdent("arg"),
 		X: &ast.SelectorExpr{
-			X:   ast.NewIdent("node"),
+			X:   ast.NewIdent("dir"),
 			Sel: ast.NewIdent("Arguments"),
 		},
 		Tok: token.DEFINE,
@@ -436,13 +471,13 @@ func generateExtractDirectiveCaseStmts(typePrefix string, args schema.ArgumentDe
 func generateExtractDirectiveMap(typePrefix string, arg *schema.ArgumentDefinition, indexes *schema.Indexes) ast.Stmt {
 	var variableStmts, builtInStmts []ast.Stmt
 	if d, ok := indexes.ScalarIndex[string(arg.Type.GetRootType().Name)]; ok {
-		variableStmts = generateExtractDirectiveArgumentForVariable(arg, d)
-		builtInStmts = generateExtractDirectiveArgumentForBuiltInVariable(arg, d)
+		variableStmts = generateExtractDirectiveArgumentForVariable(typePrefix, arg, d)
+		builtInStmts = generateExtractDirectiveArgumentForBuiltInVariable(typePrefix, arg, d)
 	}
 
 	if d, ok := indexes.EnumIndex[string(arg.Type.GetRootType().Name)]; ok {
-		variableStmts = append(variableStmts, generateExtractDirectiveEnumArgumentForVariable(typePrefix, arg, d)...)
-		builtInStmts = append(builtInStmts, generateExtractDirectiveEnumArgumentForBuiltInVariable(typePrefix, arg, d)...)
+		variableStmts = generateExtractDirectiveArgumentForVariable(typePrefix, arg, d)
+		builtInStmts = generateExtractDirectiveArgumentForBuiltInVariable(typePrefix, arg, d)
 	}
 
 	return &ast.IfStmt{
@@ -461,12 +496,12 @@ func generateExtractDirectiveMap(typePrefix string, arg *schema.ArgumentDefiniti
 	}
 }
 
-func generateExtractDirectiveArgumentForVariable[T *schema.ScalarDefinition | *schema.EnumDefinition | *schema.InputDefinition](arg *schema.ArgumentDefinition, definition T) []ast.Stmt {
+func generateExtractDirectiveArgumentForVariable[T *schema.ScalarDefinition | *schema.EnumDefinition | *schema.InputDefinition](typePrefix string, arg *schema.ArgumentDefinition, definition T) []ast.Stmt {
 	switch d := any(definition).(type) {
 	case *schema.ScalarDefinition:
-		return generateExtractDirectiveScalarArgumentForVariable(arg, d)
+		return generateExtractDirectiveScalarArgumentForVariable(typePrefix, arg, d)
 	case *schema.EnumDefinition:
-
+		return generateExtractDirectiveEnumArgumentForVariable(typePrefix, arg, d)
 	case *schema.InputDefinition:
 
 	}
@@ -474,7 +509,7 @@ func generateExtractDirectiveArgumentForVariable[T *schema.ScalarDefinition | *s
 	return nil
 }
 
-func generateExtractDirectiveScalarArgumentForVariable(arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
+func generateExtractDirectiveScalarArgumentForVariable(typePrefix string, arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
 	ret = append(ret, &ast.AssignStmt{
@@ -489,15 +524,219 @@ func generateExtractDirectiveScalarArgumentForVariable(arg *schema.ArgumentDefin
 				Index: &ast.CallExpr{
 					Fun: ast.NewIdent("string"),
 					Args: []ast.Expr{
-						&ast.SelectorExpr{
-							X:   ast.NewIdent("arg"),
-							Sel: ast.NewIdent("VariableAnnotation"),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("arg"),
+								Sel: ast.NewIdent("VariableAnnotation"),
+							},
 						},
 					},
 				},
 			},
 		},
 	})
+
+	ret = append(ret, &ast.IfStmt{
+		Cond: &ast.UnaryExpr{
+			Op: token.NOT,
+			X:  ast.NewIdent("ok"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent(string(arg.Name)),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("fmt"),
+								Sel: ast.NewIdent("Errorf"),
+							},
+							Args: []ast.Expr{
+								&ast.BasicLit{
+									Kind:  token.STRING,
+									Value: fmt.Sprintf("`%s is required`", string(arg.Name)),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	if arg.Type.IsBoolean() {
+		var rhExpr ast.Expr = &ast.BinaryExpr{
+			X:  ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+			Op: token.EQL,
+			Y: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"true"`,
+			},
+		}
+
+		if arg.Type.Nullable {
+			rhExpr = pointerExpr(ast.NewIdent("bool"), rhExpr)
+		}
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rhExpr,
+			},
+		})
+	}
+
+	if arg.Type.IsString() || arg.Type.IsID() {
+		var rhExpr ast.Expr = &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				&ast.SliceExpr{
+					X: ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+					Low: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "1",
+					},
+					High: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "len(req" + toUpperCase(string(arg.Name)) + ") - 1",
+					},
+				},
+			},
+		}
+
+		if arg.Type.Nullable {
+			rhExpr = pointerExpr(ast.NewIdent("string"), rhExpr)
+		}
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rhExpr,
+			},
+		})
+	}
+
+	if arg.Type.IsInt() {
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.SliceExpr{
+					X: ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+					Low: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "1",
+					},
+					High: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "len(arg.Value) - 1",
+					},
+				},
+			},
+		})
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sInt", arg.Name)),
+				ast.NewIdent("_"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("strconv.Atoi"),
+					Args: []ast.Expr{
+						&ast.CallExpr{
+							Fun: ast.NewIdent("string"),
+							Args: []ast.Expr{
+								ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
+							},
+						},
+					},
+				},
+			},
+		})
+
+		var rh ast.Expr = ast.NewIdent(fmt.Sprintf("%sInt", arg.Name))
+		if arg.Type.Nullable {
+			rh = pointerExpr(ast.NewIdent("int"), rh)
+		}
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rh,
+			},
+		})
+	}
+
+	if arg.Type.IsFloat() {
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.SliceExpr{
+					X: ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+					Low: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "1",
+					},
+					High: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "len(arg.Value) - 1",
+					},
+				},
+			},
+		})
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sFloat", arg.Name)),
+				ast.NewIdent("_"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("strconv.ParseFloat"),
+					Args: []ast.Expr{
+						&ast.CallExpr{
+							Fun: ast.NewIdent("string"),
+							Args: []ast.Expr{
+								ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
+							},
+						},
+					},
+				},
+			},
+		})
+
+		var rh ast.Expr = ast.NewIdent(fmt.Sprintf("%sFloat", arg.Name))
+		if arg.Type.Nullable {
+			rh = pointerExpr(ast.NewIdent("float64"), rh)
+		}
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rh,
+			},
+		})
+	}
 
 	return ret
 }
@@ -612,12 +851,12 @@ func generateExtractDirectiveInputArgumentForVariable(arg *schema.ArgumentDefini
 	return ret
 }
 
-func generateExtractDirectiveArgumentForBuiltInVariable[T *schema.ScalarDefinition | *schema.UnionDefinition | *schema.InputDefinition](arg *schema.ArgumentDefinition, definition T) []ast.Stmt {
-	switch any(definition).(type) {
+func generateExtractDirectiveArgumentForBuiltInVariable[T *schema.ScalarDefinition | *schema.EnumDefinition | *schema.InputDefinition](typePrefix string, arg *schema.ArgumentDefinition, definition T) []ast.Stmt {
+	switch d := any(definition).(type) {
 	case *schema.ScalarDefinition:
-
-	case *schema.UnionDefinition:
-
+		return generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix, arg, d)
+	case *schema.EnumDefinition:
+		return generateExtractDirectiveEnumArgumentForBuiltInVariable(typePrefix, arg, d)
 	case *schema.InputDefinition:
 
 	}
@@ -625,8 +864,184 @@ func generateExtractDirectiveArgumentForBuiltInVariable[T *schema.ScalarDefiniti
 	return nil
 }
 
-func generateExtractDirectiveScalarArgumentForBuiltInVariable(arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
+func generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix string, arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
+
+	if arg.Type.IsBoolean() {
+		var rhExpr ast.Expr = &ast.BinaryExpr{
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("arg"),
+				Sel: ast.NewIdent("Value"),
+			},
+			Op: token.EQL,
+			Y: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"true"`,
+			},
+		}
+
+		if arg.Type.Nullable {
+			rhExpr = pointerExpr(ast.NewIdent("bool"), rhExpr)
+		}
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rhExpr,
+			},
+		})
+	}
+
+	if arg.Type.IsString() || arg.Type.IsID() {
+		var rhExpr ast.Expr = &ast.CallExpr{
+			Fun: ast.NewIdent("string"),
+			Args: []ast.Expr{
+				&ast.SelectorExpr{
+					X:   ast.NewIdent("arg"),
+					Sel: ast.NewIdent("Value"),
+				},
+			},
+		}
+
+		if arg.Type.Nullable {
+			rhExpr = pointerExpr(ast.NewIdent("string"), rhExpr)
+		}
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rhExpr,
+			},
+		})
+	}
+
+	if arg.Type.IsInt() {
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.SliceExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("arg"),
+						Sel: ast.NewIdent("Value"),
+					},
+					Low: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "1",
+					},
+					High: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "len(arg.Value) - 1",
+					},
+				},
+			},
+		})
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sInt", arg.Name)),
+				ast.NewIdent("_"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("strconv.Atoi"),
+					Args: []ast.Expr{
+						&ast.CallExpr{
+							Fun: ast.NewIdent("string"),
+							Args: []ast.Expr{
+								ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
+							},
+						},
+					},
+				},
+			},
+		})
+
+		var rh ast.Expr = ast.NewIdent(fmt.Sprintf("%sInt", arg.Name))
+		if arg.Type.Nullable {
+			rh = pointerExpr(ast.NewIdent("int"), rh)
+		}
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rh,
+			},
+		})
+	}
+
+	if arg.Type.IsFloat() {
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.SliceExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("arg"),
+						Sel: ast.NewIdent("Value"),
+					},
+					Low: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "1",
+					},
+					High: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "len(arg.Value) - 1",
+					},
+				},
+			},
+		})
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(fmt.Sprintf("%sFloat", arg.Name)),
+				ast.NewIdent("_"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: ast.NewIdent("strconv.ParseFloat"),
+					Args: []ast.Expr{
+						&ast.CallExpr{
+							Fun: ast.NewIdent("string"),
+							Args: []ast.Expr{
+								ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
+							},
+						},
+					},
+				},
+			},
+		})
+
+		var rh ast.Expr = ast.NewIdent(fmt.Sprintf("%sFloat", arg.Name))
+		if arg.Type.Nullable {
+			rh = pointerExpr(ast.NewIdent("float64"), rh)
+		}
+
+		ret = append(ret, &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent(string(arg.Name)),
+			},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{
+				rh,
+			},
+		})
+	}
 
 	return ret
 }

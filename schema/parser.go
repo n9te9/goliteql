@@ -102,6 +102,7 @@ func (p *Parser) Parse(input []byte) (*Schema, error) {
 			}
 
 			schema.Directives = append(schema.Directives, definition)
+			schema.Indexes, err = add(schema.Indexes, definition)
 			cur = newCur
 		case Enum:
 			enumDefinition, newCur, err := p.parseEnumDefinition(tokens, cur)

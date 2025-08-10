@@ -2557,7 +2557,7 @@ func generateCaseAssignStmts(arg *schema.ArgumentDefinition, indexes *schema.Ind
 	var body []ast.Stmt = generateValueParserLiteralCaseAssignStmts(arg, indexes)
 
 	scalar, isScalar := indexes.ScalarIndex[string(arg.Type.Name)]
-	if isScalar {
+	if isScalar && !arg.Type.IsPrimitive() {
 		caseSelector = "ValueParserLiteral"
 		body = generateScalarValueParserLiteralCaseAssignStmts(arg, scalar, typePrefix)
 	}
