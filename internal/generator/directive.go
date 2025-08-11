@@ -480,6 +480,11 @@ func generateExtractDirectiveMap(typePrefix string, arg *schema.ArgumentDefiniti
 		builtInStmts = generateExtractDirectiveArgumentForBuiltInVariable(typePrefix, arg, d)
 	}
 
+	if d, ok := indexes.InputIndex[string(arg.Type.GetRootType().Name)]; ok {
+		variableStmts = generateExtractDirectiveArgumentForVariable(typePrefix, arg, d)
+		builtInStmts = generateExtractDirectiveArgumentForBuiltInVariable(typePrefix, arg, d)
+	}
+
 	return &ast.IfStmt{
 		Cond: &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
@@ -503,7 +508,7 @@ func generateExtractDirectiveArgumentForVariable[T *schema.ScalarDefinition | *s
 	case *schema.EnumDefinition:
 		return generateExtractDirectiveEnumArgumentForVariable(typePrefix, arg, d)
 	case *schema.InputDefinition:
-
+		return generateExtractDirectiveInputArgumentForVariable(arg, d)
 	}
 
 	return nil
@@ -567,7 +572,7 @@ func generateExtractDirectiveScalarArgumentForVariable(typePrefix string, arg *s
 	if arg.Type.IsPrimitive() {
 		ret = append(ret, generateExtractDirectivePremitiveScalarArgumentForVariable(typePrefix, arg, definition)...)
 	} else {
-		ret = append(ret, generateExtractDirectiveCustomScalarArgumentForVariable(arg)...)
+		ret = append(ret, generateExtractDirectiveUnmarshalJSONArgumentForVariable(arg)...)
 	}
 
 	return ret
@@ -754,7 +759,7 @@ func generateExtractDirectivePremitiveScalarArgumentForVariable(typePrefix strin
 	return ret
 }
 
-func generateExtractDirectiveCustomScalarArgumentForVariable(arg *schema.ArgumentDefinition) []ast.Stmt {
+func generateExtractDirectiveUnmarshalJSONArgumentForVariable(arg *schema.ArgumentDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
 	ret = append(ret, &ast.IfStmt{
@@ -991,10 +996,62 @@ func generateExtractDirectiveEnumArgumentForVariable(typePrefix string, arg *sch
 	return ret
 }
 
-func generateExtractDirectiveInputArgumentForVariable(arg *schema.ArgumentDefinition, definition *schema.EnumDefinition) []ast.Stmt {
+func generateExtractDirectiveInputArgumentForVariable(arg *schema.ArgumentDefinition, definition *schema.InputDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
-	return ret
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+			ast.NewIdent("ok"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.IndexExpr{
+				X: ast.NewIdent("variables"),
+				Index: &ast.CallExpr{
+					Fun: ast.NewIdent("string"),
+					Args: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("arg"),
+								Sel: ast.NewIdent("VariableAnnotation"),
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	ret = append(ret, &ast.IfStmt{
+		Cond: &ast.UnaryExpr{
+			Op: token.NOT,
+			X:  ast.NewIdent("ok"),
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent(string(arg.Name)),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("fmt"),
+								Sel: ast.NewIdent("Errorf"),
+							},
+							Args: []ast.Expr{
+								&ast.BasicLit{
+									Kind:  token.STRING,
+									Value: fmt.Sprintf("`%s is required`", string(arg.Name)),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	return append(ret, generateExtractDirectiveUnmarshalJSONArgumentForVariable(arg)...)
 }
 
 func generateExtractDirectiveArgumentForBuiltInVariable[T *schema.ScalarDefinition | *schema.EnumDefinition | *schema.InputDefinition](typePrefix string, arg *schema.ArgumentDefinition, definition T) []ast.Stmt {
@@ -1004,7 +1061,7 @@ func generateExtractDirectiveArgumentForBuiltInVariable[T *schema.ScalarDefiniti
 	case *schema.EnumDefinition:
 		return generateExtractDirectiveEnumArgumentForBuiltInVariable(typePrefix, arg, d)
 	case *schema.InputDefinition:
-
+		return generateExtractDirectiveArgumentForBuiltIn(arg)
 	}
 
 	return nil
@@ -1016,7 +1073,7 @@ func generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix string,
 	if arg.Type.IsPrimitive() {
 		ret = append(ret, generateExtractDirectivePremitiveScalarArgumentForBuiltIn(typePrefix, arg, definition)...)
 	} else {
-		ret = append(ret, generateExtractDirectiveCustomScalarArgumentForBuiltIn(arg)...)
+		ret = append(ret, generateExtractDirectiveArgumentForBuiltIn(arg)...)
 	}
 
 	return ret
@@ -1256,7 +1313,7 @@ func generateExtractDirectivePremitiveScalarArgumentForBuiltIn(typePrefix string
 	return ret
 }
 
-func generateExtractDirectiveCustomScalarArgumentForBuiltIn(arg *schema.ArgumentDefinition) []ast.Stmt {
+func generateExtractDirectiveArgumentForBuiltIn(arg *schema.ArgumentDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
 	ret = append(ret, &ast.AssignStmt{
