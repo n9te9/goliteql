@@ -24,11 +24,13 @@ const (
 
 type ValueParserExpr interface {
 	Type() ValueParserExprType
+	JSONBytes() ([]byte, error)
 }
 
 type ValueParserLiteral struct {
 	Value     []byte
 	TokenType ValueLexerTokenType
+	IsField   bool
 }
 
 func (v *ValueParserLiteral) Type() ValueParserExprType {
@@ -101,7 +103,7 @@ func (vp *ValueParser) Parse(input []byte) (ValueParserExpr, error) {
 		return nil, err
 	}
 
-	expr, _, err := vp.parseValue(tokens)
+	expr, _, err := vp.parseValue(tokens, false)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing value: %w", err)
 	}
@@ -109,7 +111,7 @@ func (vp *ValueParser) Parse(input []byte) (ValueParserExpr, error) {
 	return expr, nil
 }
 
-func (vp *ValueParser) parseValue(tokens []*ValueLexerToken) (ValueParserExpr, int, error) {
+func (vp *ValueParser) parseValue(tokens []*ValueLexerToken, isField bool) (ValueParserExpr, int, error) {
 	if len(tokens) == 0 {
 		return nil, -1, nil
 	}
@@ -120,11 +122,12 @@ func (vp *ValueParser) parseValue(tokens []*ValueLexerToken) (ValueParserExpr, i
 	case LBRACKET:
 		return vp.parseArray(tokens)
 	default:
-		return vp.parseLiteral(tokens)
+		fmt.Println(isField)
+		return vp.parseLiteral(tokens, isField)
 	}
 }
 
-func (vp *ValueParser) parseLiteral(tokens []*ValueLexerToken) (ValueParserExpr, int, error) {
+func (vp *ValueParser) parseLiteral(tokens []*ValueLexerToken, isField bool) (ValueParserExpr, int, error) {
 	if len(tokens) == 0 {
 		return nil, -1, fmt.Errorf("expected value token")
 	}
@@ -136,7 +139,26 @@ func (vp *ValueParser) parseLiteral(tokens []*ValueLexerToken) (ValueParserExpr,
 	return &ValueParserLiteral{
 		Value:     tokens[0].Value,
 		TokenType: tokens[0].Type,
+		IsField:   isField,
 	}, 1, nil
+}
+
+func (vpl *ValueParserLiteral) JSONBytes() ([]byte, error) {
+	switch vpl.TokenType {
+	case STRING:
+		if !vpl.IsField {
+			return []byte(fmt.Sprintf(`"%s"`, vpl.IDValue())), nil
+		}
+		return []byte(vpl.StringValue()), nil
+	case INT, FLOAT:
+		return vpl.Value, nil
+	case BOOL:
+		return []byte(fmt.Sprintf("%t", vpl.BoolValue())), nil
+	case NULL:
+		return []byte("null"), nil
+	default:
+		return nil, fmt.Errorf("unsupported literal type: %v", vpl.TokenType)
+	}
 }
 
 func (vp *ValueParser) parseObject(tokens []*ValueLexerToken) (ValueParserExpr, int, error) {
@@ -156,7 +178,7 @@ func (vp *ValueParser) parseObject(tokens []*ValueLexerToken) (ValueParserExpr, 
 		}
 		i++
 
-		value, nextIndex, err := vp.parseValue(tokens[i:])
+		value, nextIndex, err := vp.parseValue(tokens[i:], true)
 		if err != nil {
 			return nil, -1, err
 		}
@@ -174,12 +196,34 @@ func (vp *ValueParser) parseObject(tokens []*ValueLexerToken) (ValueParserExpr, 
 	}, i + 1, nil
 }
 
+func (vpo *ValueParserObject) JSONBytes() ([]byte, error) {
+	result := "{"
+	first := true
+
+	for key, value := range vpo.Fields {
+		if !first {
+			result += ","
+		}
+		first = false
+
+		jsonValue, err := value.JSONBytes()
+		if err != nil {
+			return nil, err
+		}
+
+		result += fmt.Sprintf(`"%s":%s`, key, jsonValue)
+	}
+
+	result += "}"
+	return []byte(result), nil
+}
+
 func (vp *ValueParser) parseArray(tokens []*ValueLexerToken) (ValueParserExpr, int, error) {
 	items := make([]ValueParserExpr, 0)
 	i := 1
 
 	for i < len(tokens) && tokens[i].Type != RBRACKET {
-		value, nextIndex, err := vp.parseValue(tokens[i:])
+		value, nextIndex, err := vp.parseValue(tokens[i:], false)
 		if err != nil {
 			return nil, -1, err
 		}
@@ -195,4 +239,26 @@ func (vp *ValueParser) parseArray(tokens []*ValueLexerToken) (ValueParserExpr, i
 	return &ValueParserArray{
 		Items: items,
 	}, i + 1, nil
+}
+
+func (vpa *ValueParserArray) JSONBytes() ([]byte, error) {
+	result := "["
+	first := true
+
+	for _, item := range vpa.Items {
+		if !first {
+			result += ","
+		}
+		first = false
+
+		jsonValue, err := item.JSONBytes()
+		if err != nil {
+			return nil, err
+		}
+
+		result += string(jsonValue)
+	}
+
+	result += "]"
+	return []byte(result), nil
 }

@@ -564,6 +564,18 @@ func generateExtractDirectiveScalarArgumentForVariable(typePrefix string, arg *s
 		},
 	})
 
+	if arg.Type.IsPrimitive() {
+		ret = append(ret, generateExtractDirectivePremitiveScalarArgumentForVariable(typePrefix, arg, definition)...)
+	} else {
+		ret = append(ret, generateExtractDirectiveCustomScalarArgumentForVariable(arg)...)
+	}
+
+	return ret
+}
+
+func generateExtractDirectivePremitiveScalarArgumentForVariable(typePrefix string, arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
 	if arg.Type.IsBoolean() {
 		var rhExpr ast.Expr = &ast.BinaryExpr{
 			X:  ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
@@ -717,6 +729,7 @@ func generateExtractDirectiveScalarArgumentForVariable(typePrefix string, arg *s
 								ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
 							},
 						},
+						ast.NewIdent("64"),
 					},
 				},
 			},
@@ -737,6 +750,139 @@ func generateExtractDirectiveScalarArgumentForVariable(typePrefix string, arg *s
 			},
 		})
 	}
+
+	return ret
+}
+
+func generateExtractDirectiveCustomScalarArgumentForVariable(arg *schema.ArgumentDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	ret = append(ret, &ast.IfStmt{
+		Init: &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("json"),
+						Sel: ast.NewIdent("Unmarshal"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent(fmt.Sprintf("req%s", toUpperCase(string(arg.Name)))),
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X:  ast.NewIdent(string(arg.Name)),
+						},
+					},
+				},
+			},
+		},
+		Cond: &ast.BinaryExpr{
+			X:  ast.NewIdent("err"),
+			Op: token.NEQ,
+			Y: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `nil`,
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent(string(arg.Name)),
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   ast.NewIdent("fmt"),
+								Sel: ast.NewIdent("Errorf"),
+							},
+							Args: []ast.Expr{
+								&ast.BasicLit{
+									Kind:  token.STRING,
+									Value: fmt.Sprintf("`%s is required`", string(arg.Name)),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	return ret
+}
+
+func generateExtractDirectiveBuiltinCustomScalarArgument(arg *schema.ArgumentDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("ast"),
+			ast.NewIdent("err"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X: &ast.SelectorExpr{
+						X: &ast.SelectorExpr{
+							X:   ast.NewIdent("r"),
+							Sel: ast.NewIdent("parser"),
+						},
+						Sel: ast.NewIdent("ValueParser"),
+					},
+					Sel: ast.NewIdent("Parse"),
+				},
+				Args: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("arg"),
+						Sel: ast.NewIdent("Value"),
+					},
+				},
+			},
+		},
+	})
+	ret = append(ret, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent(string(arg.Name))}))
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("jsonBytes"),
+			ast.NewIdent("err"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("ast"),
+					Sel: ast.NewIdent("JSONMarshal"),
+				},
+			},
+		},
+	})
+	ret = append(ret, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent(string(arg.Name))}))
+	ret = append(ret, &ast.IfStmt{
+		Init: &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("json"),
+						Sel: ast.NewIdent("Unmarshal"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("jsonBytes"),
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X:  ast.NewIdent(string(arg.Name)),
+						},
+					},
+				},
+			},
+		},
+	})
 
 	return ret
 }
@@ -867,11 +1013,28 @@ func generateExtractDirectiveArgumentForBuiltInVariable[T *schema.ScalarDefiniti
 func generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix string, arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
 	ret := make([]ast.Stmt, 0)
 
+	if arg.Type.IsPrimitive() {
+		ret = append(ret, generateExtractDirectivePremitiveScalarArgumentForBuiltIn(typePrefix, arg, definition)...)
+	} else {
+		ret = append(ret, generateExtractDirectiveCustomScalarArgumentForBuiltIn(arg)...)
+	}
+
+	return ret
+}
+
+func generateExtractDirectivePremitiveScalarArgumentForBuiltIn(typePrefix string, arg *schema.ArgumentDefinition, definition *schema.ScalarDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
 	if arg.Type.IsBoolean() {
 		var rhExpr ast.Expr = &ast.BinaryExpr{
-			X: &ast.SelectorExpr{
-				X:   ast.NewIdent("arg"),
-				Sel: ast.NewIdent("Value"),
+			X: &ast.CallExpr{
+				Fun: ast.NewIdent("string"),
+				Args: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("arg"),
+						Sel: ast.NewIdent("Value"),
+					},
+				},
 			},
 			Op: token.EQL,
 			Y: &ast.BasicLit{
@@ -899,9 +1062,31 @@ func generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix string,
 		var rhExpr ast.Expr = &ast.CallExpr{
 			Fun: ast.NewIdent("string"),
 			Args: []ast.Expr{
-				&ast.SelectorExpr{
-					X:   ast.NewIdent("arg"),
-					Sel: ast.NewIdent("Value"),
+				&ast.SliceExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("arg"),
+						Sel: ast.NewIdent("Value"),
+					},
+					Low: &ast.BasicLit{
+						Kind:  token.INT,
+						Value: "1",
+					},
+					High: &ast.BinaryExpr{
+						X: &ast.CallExpr{
+							Fun: ast.NewIdent("len"),
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("arg"),
+									Sel: ast.NewIdent("Value"),
+								},
+							},
+						},
+						Op: token.SUB,
+						Y: &ast.BasicLit{
+							Kind:  token.INT,
+							Value: "1",
+						},
+					},
 				},
 			},
 		}
@@ -937,9 +1122,21 @@ func generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix string,
 						Kind:  token.INT,
 						Value: "1",
 					},
-					High: &ast.BasicLit{
-						Kind:  token.INT,
-						Value: "len(arg.Value) - 1",
+					High: &ast.BinaryExpr{
+						X: &ast.CallExpr{
+							Fun: ast.NewIdent("len"),
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("arg"),
+									Sel: ast.NewIdent("Value"),
+								},
+							},
+						},
+						Op: token.SUB,
+						Y: &ast.BasicLit{
+							Kind:  token.INT,
+							Value: "1",
+						},
 					},
 				},
 			},
@@ -998,9 +1195,21 @@ func generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix string,
 						Kind:  token.INT,
 						Value: "1",
 					},
-					High: &ast.BasicLit{
-						Kind:  token.INT,
-						Value: "len(arg.Value) - 1",
+					High: &ast.BinaryExpr{
+						X: &ast.CallExpr{
+							Fun: ast.NewIdent("len"),
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   ast.NewIdent("arg"),
+									Sel: ast.NewIdent("Value"),
+								},
+							},
+						},
+						Op: token.SUB,
+						Y: &ast.BasicLit{
+							Kind:  token.INT,
+							Value: "1",
+						},
 					},
 				},
 			},
@@ -1022,6 +1231,7 @@ func generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix string,
 								ast.NewIdent(fmt.Sprintf("%sStr", arg.Name)),
 							},
 						},
+						ast.NewIdent("64"),
 					},
 				},
 			},
@@ -1042,6 +1252,99 @@ func generateExtractDirectiveScalarArgumentForBuiltInVariable(typePrefix string,
 			},
 		})
 	}
+
+	return ret
+}
+
+func generateExtractDirectiveCustomScalarArgumentForBuiltIn(arg *schema.ArgumentDefinition) []ast.Stmt {
+	ret := make([]ast.Stmt, 0)
+
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("ast"),
+			ast.NewIdent("err"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X: &ast.SelectorExpr{
+						X: &ast.SelectorExpr{
+							X:   ast.NewIdent("r"),
+							Sel: ast.NewIdent("parser"),
+						},
+						Sel: ast.NewIdent("ValueParser"),
+					},
+					Sel: ast.NewIdent("Parse"),
+				},
+				Args: []ast.Expr{
+					&ast.SelectorExpr{
+						X:   ast.NewIdent("arg"),
+						Sel: ast.NewIdent("Value"),
+					},
+				},
+			},
+		},
+	})
+	ret = append(ret, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent(string(arg.Name))}))
+	ret = append(ret, &ast.AssignStmt{
+		Lhs: []ast.Expr{
+			ast.NewIdent("jsonBytes"),
+			ast.NewIdent("err"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("ast"),
+					Sel: ast.NewIdent("JSONBytes"),
+				},
+				Args: []ast.Expr{},
+			},
+		},
+	})
+	ret = append(ret, generateReturnErrorHandlingStmt([]ast.Expr{ast.NewIdent(string(arg.Name))}))
+	ret = append(ret, &ast.IfStmt{
+		Init: &ast.AssignStmt{
+			Lhs: []ast.Expr{
+				ast.NewIdent("err"),
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("json"),
+						Sel: ast.NewIdent("Unmarshal"),
+					},
+					Args: []ast.Expr{
+						ast.NewIdent("jsonBytes"),
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X:  ast.NewIdent(string(arg.Name)),
+						},
+					},
+				},
+			},
+		},
+		Cond: &ast.BinaryExpr{
+			X:  ast.NewIdent("err"),
+			Op: token.NEQ,
+			Y: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `nil`,
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent(string(arg.Name)),
+						ast.NewIdent("err"),
+					},
+				},
+			},
+		},
+	})
 
 	return ret
 }
