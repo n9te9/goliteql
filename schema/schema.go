@@ -170,7 +170,7 @@ func (o *OperationDefinition) GetFieldByName(name []byte) *FieldDefinition {
 }
 
 type DefinitionType interface {
-	*TypeDefinition | *OperationDefinition | *EnumDefinition | *UnionDefinition | *InterfaceDefinition | *InputDefinition | *ScalarDefinition
+	*TypeDefinition | *OperationDefinition | *EnumDefinition | *UnionDefinition | *InterfaceDefinition | *InputDefinition | *ScalarDefinition | *DirectiveDefinition
 }
 
 type Indexes struct {
@@ -181,6 +181,7 @@ type Indexes struct {
 	InputIndex       map[string]*InputDefinition
 	OperationIndexes map[OperationType]map[string]*OperationDefinition
 	ScalarIndex      map[string]*ScalarDefinition
+	DirectiveIndex   map[string]*DirectiveDefinition
 }
 
 func (i *Indexes) GetTypeDefinition(name string) *TypeDefinition {
@@ -675,6 +676,10 @@ func get[T DefinitionType](indexes *Indexes, key string, t T) T {
 		return any(indexes.InterfaceIndex[key]).(T)
 	case *InputDefinition:
 		return any(indexes.InputIndex[key]).(T)
+	case *ScalarDefinition:
+		return any(indexes.ScalarIndex[key]).(T)
+	case *DirectiveDefinition:
+		return any(indexes.DirectiveIndex[key]).(T)
 	}
 
 	return nil
@@ -683,6 +688,7 @@ func get[T DefinitionType](indexes *Indexes, key string, t T) T {
 type ScalarDefinition struct {
 	Name       []byte
 	Directives []*Directive
+	Extentions []*ScalarDefinition
 }
 
 type SchemaDefinition struct {

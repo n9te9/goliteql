@@ -272,7 +272,28 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 
 		t.Extentions = append(t.Extentions, unionDefinition)
 	case Scalar:
-		// TODO: Support
+		scalarDefinition, newCur, err := p.parseScalarDefinition(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		cur = newCur
+		t := get(schema.Indexes, string(scalarDefinition.Name), scalarDefinition)
+		if t == nil {
+			return nil, 0, fmt.Errorf("%s is not defined", scalarDefinition.Name)
+		}
+
+		t.Extentions = append(t.Extentions, scalarDefinition)
+	case At:
+		directive, newCur, err := p.parseDirectiveDefinition(tokens, cur)
+		if err != nil {
+			return nil, 0, err
+		}
+		cur = newCur
+		t := get(schema.Indexes, string(directive.Name), directive)
+		if t == nil {
+			return nil, 0, fmt.Errorf("%s is not defined", directive.Name)
+		}
+		t.Extentions = append(t.Extentions, directive)
 	}
 
 	return schema, cur, nil

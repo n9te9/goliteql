@@ -12,9 +12,10 @@ type Location struct {
 }
 
 type Directive struct {
-	Name      []byte
-	Arguments []*DirectiveArgument
-	Locations []*Location
+	Name       []byte
+	Arguments  []*DirectiveArgument
+	Locations  []*Location
+	Extentions []*Directive
 }
 
 type Directives []*Directive
@@ -39,6 +40,7 @@ type DirectiveDefinition struct {
 	Arguments   []*ArgumentDefinition
 	Repeatable  bool
 	Locations   []*Location
+	Extentions  []*DirectiveDefinition
 }
 
 func (d *DirectiveDefinition) IsAllowedApplySchema() bool {
