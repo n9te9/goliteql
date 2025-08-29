@@ -29,3 +29,7 @@ func (i *InterfaceDefinition) GetFieldByName(name []byte) *FieldDefinition {
 func (i *InterfaceDefinition) TypeName() []byte {
 	return i.Name
 }
+
+func (i *InterfaceDefinition) IsDefinition() bool {
+	return true
+}

@@ -99,6 +99,10 @@ func (d *DirectiveDefinition) ValidateArguments(args []*query.DirectiveArgument)
 	return nil
 }
 
+func (d *DirectiveDefinition) IsDefinition() bool {
+	return true
+}
+
 type DirectiveDefinitions []*DirectiveDefinition
 
 func (d DirectiveDefinitions) IsAllowedApplySchema(fieldName []byte) bool {

@@ -42,6 +42,10 @@ type TypeDefinition struct {
 	Extentions        []*TypeDefinition
 }
 
+func (t *TypeDefinition) IsDefinition() bool {
+	return true
+}
+
 type TypeDefinitions []*TypeDefinition
 
 func (t TypeDefinitions) WithoutMetaDefinition() TypeDefinitions {
@@ -147,6 +151,10 @@ type OperationDefinition struct {
 	Extentions    []*OperationDefinition
 }
 
+func (o *OperationDefinition) IsDefinition() bool {
+	return true
+}
+
 func (f FieldDefinitions) HasDeprecatedDirective() bool {
 	for _, field := range f {
 		for _, directive := range field.Directives {
@@ -182,6 +190,7 @@ type Indexes struct {
 	OperationIndexes map[OperationType]map[string]*OperationDefinition
 	ScalarIndex      map[string]*ScalarDefinition
 	DirectiveIndex   map[string]*DirectiveDefinition
+	ExtendIndex      map[string]ExtendDefinition
 }
 
 func (i *Indexes) GetTypeDefinition(name string) *TypeDefinition {
@@ -221,6 +230,7 @@ type Schema struct {
 	Directives DirectiveDefinitions
 	Inputs     []*InputDefinition
 	Scalars    []*ScalarDefinition
+	Extends    []ExtendDefinition
 
 	Indexes *Indexes
 }
@@ -246,6 +256,7 @@ func NewSchema(tokens Tokens) *Schema {
 			InterfaceIndex:   make(map[string]*InterfaceDefinition),
 			InputIndex:       make(map[string]*InputDefinition),
 			ScalarIndex:      make(map[string]*ScalarDefinition),
+			ExtendIndex:      make(map[string]ExtendDefinition),
 		},
 		Directives: NewBuildInDirectives(),
 	}
@@ -698,4 +709,8 @@ type SchemaDefinition struct {
 	Extentions   []*SchemaDefinition
 
 	Directives []*Directive
+}
+
+type ExtendDefinition interface {
+	IsDefinition() bool
 }
