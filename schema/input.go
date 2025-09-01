@@ -3,7 +3,6 @@ package schema
 type InputDefinition struct {
 	Name       []byte
 	Fields     FieldDefinitions
-	tokens     Tokens
 	Extentions []*InputDefinition
 }
 

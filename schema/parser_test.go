@@ -31,6 +31,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -47,6 +57,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("RootSubscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -61,6 +81,16 @@ func TestParser_Parse(t *testing.T) {
 					Mutation: []byte("RootMutation"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -114,9 +144,20 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 			wantErr: nil,
-		}, {
+		},
+		{
 			name: "type with list fields",
 			input: []byte(`type User {
 				friends: [User!]!
@@ -166,9 +207,20 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 			wantErr: nil,
-		}, {
+		},
+		{
 			name: "type with deeply nested list",
 			input: []byte(`type Data {
 				matrix: [[[Int!]!]!]!
@@ -208,6 +260,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 			wantErr: nil,
@@ -249,6 +311,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 			wantErr: nil,
 		},
@@ -270,6 +342,16 @@ func TestParser_Parse(t *testing.T) {
 							[]byte("Post"),
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 			wantErr: nil,
@@ -295,6 +377,16 @@ func TestParser_Parse(t *testing.T) {
 							[]byte("Comment"),
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 			wantErr: nil,
@@ -351,6 +443,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -382,6 +484,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -427,6 +539,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -443,7 +565,8 @@ func TestParser_Parse(t *testing.T) {
 				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
-						Name: []byte("Node"),
+						Name:       []byte("Node"),
+						Interfaces: [][]byte{},
 						Fields: []*schema.FieldDefinition{
 							{
 								Name: []byte("id"),
@@ -457,6 +580,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -474,7 +607,8 @@ func TestParser_Parse(t *testing.T) {
 				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
-						Name: []byte("Nested"),
+						Name:       []byte("Nested"),
+						Interfaces: [][]byte{},
 						Fields: []*schema.FieldDefinition{
 							{
 								Name: []byte("items"),
@@ -496,6 +630,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 			wantErr: nil,
 		},
@@ -511,9 +655,20 @@ func TestParser_Parse(t *testing.T) {
 				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
-						Name:   []byte("Empty"),
-						Fields: []*schema.FieldDefinition{},
+						Name:       []byte("Empty"),
+						Interfaces: [][]byte{},
+						Fields:     []*schema.FieldDefinition{},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 			wantErr: nil,
@@ -578,6 +733,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -619,6 +784,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -666,6 +841,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -715,6 +900,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -766,6 +961,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -816,6 +1021,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -860,6 +1075,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -912,6 +1137,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -960,6 +1195,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -1010,6 +1255,16 @@ func TestParser_Parse(t *testing.T) {
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -1070,6 +1325,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -1079,7 +1344,7 @@ func TestParser_Parse(t *testing.T) {
 				mutation: Mutation
 				subscription: Subscription
 			}
-			
+
 			extend schema {
 			  query: RootQuery
 			}`),
@@ -1088,13 +1353,24 @@ func TestParser_Parse(t *testing.T) {
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
-					Extentions: []*schema.SchemaDefinition{
-						{
-							Query: []byte("RootQuery"),
-						},
-					},
+					Extentions:   nil,
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.SchemaDefinition{
+						Query: []byte("RootQuery"),
+					},
+				},
 			},
 		},
 		{
@@ -1102,7 +1378,7 @@ func TestParser_Parse(t *testing.T) {
 			input: []byte(`type User {
 				id: ID!
 			}
-			
+
 			extend type User {
 			  created_at: String
 			}`),
@@ -1128,24 +1404,34 @@ func TestParser_Parse(t *testing.T) {
 								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
-						Extentions: []*schema.TypeDefinition{
+					},
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.TypeDefinition{
+						Name: []byte("User"),
+						Fields: []*schema.FieldDefinition{
 							{
-								Name: []byte("User"),
-								Fields: []*schema.FieldDefinition{
-									{
-										Name: []byte("created_at"),
-										Type: &schema.FieldType{
-											Name:     []byte("String"),
-											Nullable: true,
-											IsList:   false,
-										},
-										Directives: []*schema.Directive{},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-									},
+								Name: []byte("created_at"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+									IsList:   false,
 								},
+								Directives: []*schema.Directive{},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -1154,7 +1440,7 @@ func TestParser_Parse(t *testing.T) {
 			input: []byte(`type Query {
 				user(id: ID!): User!
 			}
-				
+
 			extend type Query {
 				user(id: ID!, isActive: Boolean! = false): User!
 				users(): [User]!
@@ -1193,61 +1479,72 @@ func TestParser_Parse(t *testing.T) {
 								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
-						Extentions: []*schema.OperationDefinition{
+						Extentions: nil,
+					},
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.OperationDefinition{
+						OperationType: schema.QueryOperation,
+						Name:          nil,
+						Fields: []*schema.FieldDefinition{
 							{
-								OperationType: schema.QueryOperation,
-								Name:          nil,
-								Fields: []*schema.FieldDefinition{
+								Name: []byte("user"),
+								Arguments: []*schema.ArgumentDefinition{
 									{
-										Name: []byte("user"),
-										Arguments: []*schema.ArgumentDefinition{
-											{
-												Name:    []byte(`id`),
-												Default: nil,
-												Type: &schema.FieldType{
-													Name:     []byte(`ID`),
-													Nullable: false,
-													IsList:   false,
-												},
-											},
-											{
-												Name:    []byte(`isActive`),
-												Default: []byte(`false`),
-												Type: &schema.FieldType{
-													Name:     []byte(`Boolean`),
-													Nullable: false,
-													IsList:   false,
-												},
-											},
-										},
+										Name:    []byte(`id`),
+										Default: nil,
 										Type: &schema.FieldType{
-											Name:     []byte(`User`),
+											Name:     []byte(`ID`),
 											Nullable: false,
 											IsList:   false,
 										},
-										Directives: []*schema.Directive{},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 									},
 									{
-										Name:      []byte("users"),
-										Arguments: []*schema.ArgumentDefinition{},
+										Name:    []byte(`isActive`),
+										Default: []byte(`false`),
 										Type: &schema.FieldType{
-											Name:     nil,
+											Name:     []byte(`Boolean`),
 											Nullable: false,
-											IsList:   true,
-											ListType: &schema.FieldType{
-												Name:     []byte(`User`),
-												Nullable: true,
-												IsList:   false,
-											},
+											IsList:   false,
 										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
 									},
 								},
+								Type: &schema.FieldType{
+									Name:     []byte(`User`),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
+							},
+							{
+								Name:      []byte("users"),
+								Arguments: []*schema.ArgumentDefinition{},
+								Type: &schema.FieldType{
+									Name:     nil,
+									Nullable: false,
+									IsList:   true,
+									ListType: &schema.FieldType{
+										Name:     []byte(`User`),
+										Nullable: true,
+										IsList:   false,
+									},
+								},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 			},
 		},
@@ -1256,7 +1553,7 @@ func TestParser_Parse(t *testing.T) {
 			input: []byte(`type Mutation {
 				createUser(name: String!): User!
 			}
-				
+
 			extend type Mutation {
 				createUser(name: String!, isActive: Boolean! = true): User!
 				updateUser(id: ID!, name: String): User!
@@ -1268,6 +1565,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -1295,72 +1602,73 @@ func TestParser_Parse(t *testing.T) {
 								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
-						Extentions: []*schema.OperationDefinition{
+						Extentions: nil,
+					},
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.OperationDefinition{
+						OperationType: schema.MutationOperation,
+						Name:          nil,
+						Fields: []*schema.FieldDefinition{
 							{
-								OperationType: schema.MutationOperation,
-								Name:          nil,
-								Fields: []*schema.FieldDefinition{
+								Name: []byte("createUser"),
+								Arguments: []*schema.ArgumentDefinition{
 									{
-										Name: []byte("createUser"),
-										Arguments: []*schema.ArgumentDefinition{
-											{
-												Name:    []byte(`name`),
-												Default: nil,
-												Type: &schema.FieldType{
-													Name:     []byte(`String`),
-													Nullable: false,
-													IsList:   false,
-												},
-											},
-											{
-												Name:    []byte(`isActive`),
-												Default: []byte(`true`),
-												Type: &schema.FieldType{
-													Name:     []byte(`Boolean`),
-													Nullable: false,
-													IsList:   false,
-												},
-											},
-										},
+										Name:    []byte(`name`),
+										Default: nil,
 										Type: &schema.FieldType{
-											Name:     []byte(`User`),
+											Name:     []byte(`String`),
 											Nullable: false,
 											IsList:   false,
 										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
 									},
 									{
-										Name: []byte("updateUser"),
-										Arguments: []*schema.ArgumentDefinition{
-											{
-												Name:    []byte(`id`),
-												Default: nil,
-												Type: &schema.FieldType{
-													Name:     []byte(`ID`),
-													Nullable: false,
-													IsList:   false,
-												},
-											},
-											{
-												Name:    []byte(`name`),
-												Default: nil,
-												Type: &schema.FieldType{
-													Name:     []byte(`String`),
-													Nullable: true,
-													IsList:   false,
-												},
-											},
-										},
+										Name:    []byte(`isActive`),
+										Default: []byte(`true`),
 										Type: &schema.FieldType{
-											Name:     []byte(`User`),
+											Name:     []byte(`Boolean`),
 											Nullable: false,
 											IsList:   false,
 										},
-										Directives: []*schema.Directive{},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 									},
 								},
+								Type: &schema.FieldType{
+									Name:     []byte(`User`),
+									Nullable: false,
+									IsList:   false,
+								},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("updateUser"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name:    []byte(`id`),
+										Default: nil,
+										Type: &schema.FieldType{
+											Name:     []byte(`ID`),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+									{
+										Name:    []byte(`name`),
+										Default: nil,
+										Type: &schema.FieldType{
+											Name:     []byte(`String`),
+											Nullable: true,
+											IsList:   false,
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte(`User`),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -1372,7 +1680,7 @@ func TestParser_Parse(t *testing.T) {
 			input: []byte(`type Subscription {
 				userCreated: User!
 			}
-				
+
 			extend type Subscription {
 				userCreated(isActive: Boolean! = false): User!
 				userUpdated(id: ID!): User!
@@ -1384,6 +1692,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -1401,54 +1719,55 @@ func TestParser_Parse(t *testing.T) {
 								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
-						Extentions: []*schema.OperationDefinition{
+						Extentions: nil,
+					},
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.OperationDefinition{
+						OperationType: schema.SubscriptionOperation,
+						Name:          nil,
+						Fields: []*schema.FieldDefinition{
 							{
-								OperationType: schema.SubscriptionOperation,
-								Name:          nil,
-								Fields: []*schema.FieldDefinition{
+								Name: []byte("userCreated"),
+								Arguments: []*schema.ArgumentDefinition{
 									{
-										Name: []byte("userCreated"),
-										Arguments: []*schema.ArgumentDefinition{
-											{
-												Name:    []byte(`isActive`),
-												Default: []byte(`false`),
-												Type: &schema.FieldType{
-													Name:     []byte(`Boolean`),
-													Nullable: false,
-													IsList:   false,
-												},
-											},
-										},
+										Name:    []byte(`isActive`),
+										Default: []byte(`false`),
 										Type: &schema.FieldType{
-											Name:     []byte(`User`),
+											Name:     []byte(`Boolean`),
 											Nullable: false,
 											IsList:   false,
 										},
-										Directives: []*schema.Directive{},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-									},
-									{
-										Name: []byte("userUpdated"),
-										Arguments: []*schema.ArgumentDefinition{
-											{
-												Name:    []byte(`id`),
-												Default: nil,
-												Type: &schema.FieldType{
-													Name:     []byte(`ID`),
-													Nullable: false,
-													IsList:   false,
-												},
-											},
-										},
-										Type: &schema.FieldType{
-											Name:     []byte(`User`),
-											Nullable: false,
-											IsList:   false,
-										},
-										Directives: []*schema.Directive{},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 									},
 								},
+								Type: &schema.FieldType{
+									Name:     []byte(`User`),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
+							},
+							{
+								Name: []byte("userUpdated"),
+								Arguments: []*schema.ArgumentDefinition{
+									{
+										Name:    []byte(`id`),
+										Default: nil,
+										Type: &schema.FieldType{
+											Name:     []byte(`ID`),
+											Nullable: false,
+											IsList:   false,
+										},
+									},
+								},
+								Type: &schema.FieldType{
+									Name:     []byte(`User`),
+									Nullable: false,
+									IsList:   false,
+								},
+								Directives: []*schema.Directive{},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -1488,21 +1807,32 @@ func TestParser_Parse(t *testing.T) {
 								Directives: nil,
 							},
 						},
-						Extentions: []*schema.EnumDefinition{
+						Extentions: nil,
+					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.EnumDefinition{
+						Name: []byte("Role"),
+						Values: []*schema.EnumElement{
 							{
-								Name: []byte("Role"),
-								Values: []*schema.EnumElement{
-									{
-										Name:       []byte("GUEST"),
-										Value:      []byte("GUEST"),
-										Directives: nil,
-									},
-									{
-										Name:       []byte("SUPERADMIN"),
-										Value:      []byte("SUPERADMIN"),
-										Directives: nil,
-									},
-								},
+								Name:       []byte("GUEST"),
+								Value:      []byte("GUEST"),
+								Directives: nil,
+							},
+							{
+								Name:       []byte("SUPERADMIN"),
+								Value:      []byte("SUPERADMIN"),
+								Directives: nil,
 							},
 						},
 					},
@@ -1550,29 +1880,40 @@ func TestParser_Parse(t *testing.T) {
 								Location:   &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 						},
-						Extentions: []*schema.InputDefinition{
+						Extentions: nil,
+					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.InputDefinition{
+						Name: []byte("UserInput"),
+						Fields: []*schema.FieldDefinition{
 							{
-								Name: []byte("UserInput"),
-								Fields: []*schema.FieldDefinition{
-									{
-										Name: []byte("age"),
-										Type: &schema.FieldType{
-											Name:     []byte("Int"),
-											Nullable: true,
-										},
-										Directives: []*schema.Directive{},
-										Location:   &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
-									},
-									{
-										Name: []byte("email"),
-										Type: &schema.FieldType{
-											Name:     []byte("String"),
-											Nullable: true,
-										},
-										Directives: []*schema.Directive{},
-										Location:   &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
-									},
+								Name: []byte("age"),
+								Type: &schema.FieldType{
+									Name:     []byte("Int"),
+									Nullable: true,
 								},
+								Directives: []*schema.Directive{},
+								Location:   &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
+							},
+							{
+								Name: []byte("email"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+								},
+								Directives: []*schema.Directive{},
+								Location:   &schema.Location{Name: []byte("INPUT_FIELD_DEFINITION")},
 							},
 						},
 					},
@@ -1598,7 +1939,8 @@ func TestParser_Parse(t *testing.T) {
 				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
-						Name: []byte("Node"),
+						Name:       []byte("Node"),
+						Interfaces: [][]byte{},
 						Fields: []*schema.FieldDefinition{
 							{
 								Name: []byte("id"),
@@ -1610,29 +1952,41 @@ func TestParser_Parse(t *testing.T) {
 								Directives: []*schema.Directive{},
 							},
 						},
-						Extentions: []*schema.InterfaceDefinition{
+						Extentions: nil,
+					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.InterfaceDefinition{
+						Name:       []byte("Node"),
+						Interfaces: [][]byte{},
+						Fields: []*schema.FieldDefinition{
 							{
-								Name: []byte("Node"),
-								Fields: []*schema.FieldDefinition{
-									{
-										Name: []byte("createdAt"),
-										Type: &schema.FieldType{
-											Name:     []byte("String"),
-											Nullable: true,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
-									{
-										Name: []byte("updatedAt"),
-										Type: &schema.FieldType{
-											Name:     []byte("String"),
-											Nullable: true,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
+								Name: []byte("createdAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
 								},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
+								Directives: []*schema.Directive{},
+							},
+							{
+								Name: []byte("updatedAt"),
+								Type: &schema.FieldType{
+									Name:     []byte("String"),
+									Nullable: true,
+								},
+								Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
+								Directives: []*schema.Directive{},
 							},
 						},
 					},
@@ -1658,14 +2012,25 @@ func TestParser_Parse(t *testing.T) {
 							[]byte("User"),
 							[]byte("Post"),
 						},
-						Extentions: []*schema.UnionDefinition{
-							{
-								Name: []byte("SearchResult"),
-								Types: [][]byte{
-									[]byte("Comment"),
-									[]byte("Page"),
-								},
-							},
+						Extentions: nil,
+					},
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.UnionDefinition{
+						Name: []byte("SearchResult"),
+						Types: [][]byte{
+							[]byte("Comment"),
+							[]byte("Page"),
 						},
 					},
 				},
@@ -1682,6 +2047,16 @@ func TestParser_Parse(t *testing.T) {
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
@@ -1710,7 +2085,7 @@ func TestParser_Parse(t *testing.T) {
 			name: "Directive on input field",
 			input: []byte(`
 				directive @length(max: Int) on FIELD_DEFINITION
-				
+
 				input Filter {
 					query: String @length(max: 50)
 				}`),
@@ -1719,6 +2094,16 @@ func TestParser_Parse(t *testing.T) {
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 				Directives: schema.DirectiveDefinitions{
 					{
@@ -1870,6 +2255,16 @@ func TestParser_Parse(t *testing.T) {
 						},
 					},
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -1917,6 +2312,16 @@ func TestParser_Parse(t *testing.T) {
 					})
 					return directives
 				}(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 			},
 		},
 		{
@@ -1934,6 +2339,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Enums: []*schema.EnumDefinition{
 					{
 						Name: []byte("Direction"),
@@ -1982,9 +2397,20 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Interfaces: []*schema.InterfaceDefinition{
 					{
-						Name: []byte("Node"),
+						Name:       []byte("Node"),
+						Interfaces: [][]byte{},
 						Fields: []*schema.FieldDefinition{
 							{
 								Name: []byte("id"),
@@ -2021,6 +2447,16 @@ func TestParser_Parse(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Directives: schema.NewBuildInDirectives(),
 				Unions: []*schema.UnionDefinition{
 					{
@@ -2050,6 +2486,16 @@ func TestParser_Parse(t *testing.T) {
 				query: RootQuery
 			}`),
 			want: &schema.Schema{
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Definition: &schema.SchemaDefinition{
 					Query: []byte("RootQuery"),
 					Directives: []*schema.Directive{
@@ -2074,9 +2520,20 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Interfaces: []*schema.InterfaceDefinition{
 					{
-						Name: []byte("Node"),
+						Name:       []byte("Node"),
+						Interfaces: [][]byte{},
 						Fields: []*schema.FieldDefinition{
 							{
 								Name: []byte("id"),
@@ -2120,6 +2577,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Enums: []*schema.EnumDefinition{
 					{
 						Name: []byte("Role"),
@@ -2145,7 +2612,7 @@ func TestParser_Parse(t *testing.T) {
 			},
 		},
 		{
-			name:  "Lex simple scalar definition",
+			name:  "Parse simple scalar definition",
 			input: []byte(`scalar DateTime`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
@@ -2154,6 +2621,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Scalars: []*schema.ScalarDefinition{
 					{
 						Name:       []byte("DateTime"),
@@ -2172,6 +2649,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Scalars: []*schema.ScalarDefinition{
 					{
 						Name: []byte("URL"),
@@ -2189,8 +2676,8 @@ func TestParser_Parse(t *testing.T) {
 		},
 		{
 			name: "Parse scalar with multiple directives",
-			input: []byte(`scalar JSON 
-				@specifiedBy(url: "https://example.com/json-spec") 
+			input: []byte(`scalar JSON
+				@specifiedBy(url: "https://example.com/json-spec")
 				@deprecated(reason: "Prefer using JSON2")`),
 			want: &schema.Schema{
 				Definition: &schema.SchemaDefinition{
@@ -2199,6 +2686,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Scalars: []*schema.ScalarDefinition{
 					{
 						Name: []byte("JSON"),
@@ -2221,7 +2718,7 @@ func TestParser_Parse(t *testing.T) {
 			},
 		},
 		{
-			name: "Lex that implements a single interface",
+			name: "Parse that implements a single interface",
 			input: []byte(`
 				interface Node {
 					id: ID!
@@ -2233,6 +2730,16 @@ func TestParser_Parse(t *testing.T) {
 				}
 			`),
 			want: &schema.Schema{
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Definition: &schema.SchemaDefinition{
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
@@ -2241,7 +2748,8 @@ func TestParser_Parse(t *testing.T) {
 				Directives: schema.NewBuildInDirectives(),
 				Interfaces: []*schema.InterfaceDefinition{
 					{
-						Name: []byte("Node"),
+						Name:       []byte("Node"),
+						Interfaces: [][]byte{},
 						Fields: []*schema.FieldDefinition{
 							{
 								Name: []byte("id"),
@@ -2281,22 +2789,8 @@ func TestParser_Parse(t *testing.T) {
 								Directives: []*schema.Directive{},
 							},
 						},
-						Interfaces: []*schema.InterfaceDefinition{
-							{
-								Name: []byte("Node"),
-								Fields: []*schema.FieldDefinition{
-									{
-										Name: []byte("id"),
-										Type: &schema.FieldType{
-											Name:     []byte("ID"),
-											Nullable: false,
-											IsList:   false,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
-								},
-							},
+						Interfaces: [][]byte{
+							[]byte("Node"),
 						},
 					},
 				},
@@ -2326,6 +2820,16 @@ func TestParser_Parse(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Interfaces: []*schema.InterfaceDefinition{
 					{
 						Name: []byte("Node"),
@@ -2341,6 +2845,7 @@ func TestParser_Parse(t *testing.T) {
 								Directives: []*schema.Directive{},
 							},
 						},
+						Interfaces: [][]byte{},
 					},
 					{
 						Name: []byte("Timestamp"),
@@ -2366,6 +2871,7 @@ func TestParser_Parse(t *testing.T) {
 								Directives: []*schema.Directive{},
 							},
 						},
+						Interfaces: [][]byte{},
 					},
 				},
 				Types: []*schema.TypeDefinition{
@@ -2413,52 +2919,15 @@ func TestParser_Parse(t *testing.T) {
 								Directives: []*schema.Directive{},
 							},
 						},
-						Interfaces: []*schema.InterfaceDefinition{
-							{
-								Name: []byte("Node"),
-								Fields: []*schema.FieldDefinition{
-									{
-										Name: []byte("id"),
-										Type: &schema.FieldType{
-											Name:     []byte("ID"),
-											Nullable: false,
-											IsList:   false,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
-								},
-							},
-							{
-								Name: []byte("Timestamp"),
-								Fields: []*schema.FieldDefinition{
-									{
-										Name: []byte("createdAt"),
-										Type: &schema.FieldType{
-											Name:     []byte("String"),
-											Nullable: true,
-											IsList:   false,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
-									{
-										Name: []byte("updatedAt"),
-										Type: &schema.FieldType{
-											Name:     []byte("String"),
-											Nullable: true,
-											IsList:   false,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
-								},
-							},
+						Interfaces: [][]byte{
+							[]byte("Node"),
+							[]byte("Timestamp"),
 						},
 					},
 				},
 			},
-		}, {
+		},
+		{
 			name: "Parse type implements multiple interfaces with directive",
 			input: []byte(`
 				interface Node {
@@ -2468,7 +2937,7 @@ func TestParser_Parse(t *testing.T) {
 					createdAt: String
 					updatedAt: String
 				}
-		
+
 				type User implements Node & Timestamp @anotherDirective {
 					id: ID!
 					name: String
@@ -2477,6 +2946,16 @@ func TestParser_Parse(t *testing.T) {
 				}
 			`),
 			want: &schema.Schema{
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Directives: schema.NewBuildInDirectives(),
 				Definition: &schema.SchemaDefinition{
 					Query:        []byte("Query"),
@@ -2498,6 +2977,7 @@ func TestParser_Parse(t *testing.T) {
 								Directives: []*schema.Directive{},
 							},
 						},
+						Interfaces: [][]byte{},
 					},
 					{
 						Name: []byte("Timestamp"),
@@ -2523,6 +3003,7 @@ func TestParser_Parse(t *testing.T) {
 								Directives: []*schema.Directive{},
 							},
 						},
+						Interfaces: [][]byte{},
 					},
 				},
 				Types: []*schema.TypeDefinition{
@@ -2569,47 +3050,9 @@ func TestParser_Parse(t *testing.T) {
 								Directives: []*schema.Directive{},
 							},
 						},
-						Interfaces: []*schema.InterfaceDefinition{
-							{
-								Name: []byte("Node"),
-								Fields: []*schema.FieldDefinition{
-									{
-										Name: []byte("id"),
-										Type: &schema.FieldType{
-											Name:     []byte("ID"),
-											Nullable: false,
-											IsList:   false,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
-								},
-							},
-							{
-								Name: []byte("Timestamp"),
-								Fields: []*schema.FieldDefinition{
-									{
-										Name: []byte("createdAt"),
-										Type: &schema.FieldType{
-											Name:     []byte("String"),
-											Nullable: true,
-											IsList:   false,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
-									{
-										Name: []byte("updatedAt"),
-										Type: &schema.FieldType{
-											Name:     []byte("String"),
-											Nullable: true,
-											IsList:   false,
-										},
-										Location:   &schema.Location{Name: []byte("FIELD_DEFINITION")},
-										Directives: []*schema.Directive{},
-									},
-								},
-							},
+						Interfaces: [][]byte{
+							[]byte("Node"),
+							[]byte("Timestamp"),
 						},
 						Directives: []*schema.Directive{
 							{
@@ -2620,7 +3063,8 @@ func TestParser_Parse(t *testing.T) {
 					},
 				},
 			},
-		}, {
+		},
+		{
 			name: "Parse comment out",
 			input: []byte(`type User {
 				# ID
@@ -2635,6 +3079,16 @@ func TestParser_Parse(t *testing.T) {
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 				Types: []*schema.TypeDefinition{
 					{
@@ -2667,12 +3121,6 @@ func TestParser_Parse(t *testing.T) {
 		},
 	}
 
-	ignores := []any{
-		schema.Schema{},
-		schema.TypeDefinition{},
-		schema.InputDefinition{},
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.isSkip {
@@ -2681,17 +3129,21 @@ func TestParser_Parse(t *testing.T) {
 			lexer := schema.NewLexer()
 			parser := schema.NewParser(lexer)
 			got, err := parser.Parse(tt.input)
-			if tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
-				t.Errorf("Parse() error = %v, wantErr %v", err, tt.wantErr)
+			if err != nil {
+				if tt.wantErr == nil {
+					t.Errorf("Parse() error %v", err)
+					return
+				}
+
+				if tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
+					t.Errorf("Parse() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+
 				return
 			}
 
-			if tt.wantErr == nil && err != nil {
-				t.Errorf("Parse() error %v", err)
-				return
-			}
-
-			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(ignores...), cmpopts.IgnoreFields(schema.Schema{}, "Indexes")); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(schema.Schema{}, "Indexes", "Tokens")); diff != "" {
 				t.Errorf("Parse() mismatch (-got +want):\n%s", diff)
 			}
 		})

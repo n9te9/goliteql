@@ -6,7 +6,7 @@ type InterfaceDefinition struct {
 	Name       []byte
 	Fields     FieldDefinitions
 	Extentions []*InterfaceDefinition
-	Interfaces []*InterfaceDefinition
+	Interfaces [][]byte
 	Directives []*Directive
 }
 

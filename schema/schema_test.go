@@ -32,6 +32,16 @@ func TestSchema_Merge(t *testing.T) {
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
 				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Directives: schema.NewBuildInDirectives(),
 				Operations: []*schema.OperationDefinition{
 					{
@@ -107,6 +117,16 @@ func TestSchema_Merge(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.MutationOperation,
@@ -193,6 +213,16 @@ func TestSchema_Merge(t *testing.T) {
 					Subscription: []byte("Subscription"),
 				},
 				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Operations: []*schema.OperationDefinition{
 					{
 						OperationType: schema.SubscriptionOperation,
@@ -243,6 +273,16 @@ func TestSchema_Merge(t *testing.T) {
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
 					Subscription: []byte("Subscription"),
+				},
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
 				},
 				Directives: schema.NewBuildInDirectives(),
 				Types: []*schema.TypeDefinition{
@@ -300,6 +340,16 @@ func TestSchema_Merge(t *testing.T) {
 				createdAt: DateTime!
 			}`),
 			want: &schema.Schema{
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Definition: &schema.SchemaDefinition{
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
@@ -350,6 +400,16 @@ func TestSchema_Merge(t *testing.T) {
 					hogehoge: [String!]!
 			}`),
 			want: &schema.Schema{
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Definition: &schema.SchemaDefinition{
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
@@ -412,6 +472,16 @@ func TestSchema_Merge(t *testing.T) {
 			
 			extend union SearchResult = Comment`),
 			want: &schema.Schema{
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Definition: &schema.SchemaDefinition{
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
@@ -441,6 +511,16 @@ func TestSchema_Merge(t *testing.T) {
 				EDITOR
 			}`),
 			want: &schema.Schema{
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Definition: &schema.SchemaDefinition{
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
@@ -478,6 +558,16 @@ func TestSchema_Merge(t *testing.T) {
 				isActive: Boolean! = false
 			}`),
 			want: &schema.Schema{
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
 				Definition: &schema.SchemaDefinition{
 					Query:        []byte("Query"),
 					Mutation:     []byte("Mutation"),
@@ -532,13 +622,6 @@ func TestSchema_Merge(t *testing.T) {
 		},
 	}
 
-	ignores := []any{
-		schema.Schema{},
-		schema.TypeDefinition{},
-		schema.InputDefinition{},
-		schema.Indexes{},
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lexer := schema.NewLexer()
@@ -555,7 +638,10 @@ func TestSchema_Merge(t *testing.T) {
 				t.Errorf("got error %v, want %v", err, tt.wantErr)
 			}
 
-			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(ignores...), cmpopts.IgnoreFields(schema.Schema{}, "Indexes")); diff != "" {
+			ttWant := schema.WithBuiltin(tt.want)
+			ttWant = schema.WithTypeIntrospection(ttWant)
+
+			if diff := cmp.Diff(got, ttWant, cmpopts.IgnoreFields(schema.Schema{}, "Indexes", "Tokens")); diff != "" {
 				t.Errorf("Parse() mismatch (-got +want):\n%s", diff)
 			}
 		})

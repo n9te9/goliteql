@@ -610,13 +610,12 @@ var (
 	}
 )
 
-func withTypeIntrospection(schema *Schema) *Schema {
+func WithTypeIntrospection(schema *Schema) *Schema {
 	types := []*TypeDefinition{
 		{
 			Name:       []byte("__Schema"),
 			Fields:     schemaIntrospectionFields,
 			Required:   make(map[*FieldDefinition]struct{}),
-			tokens:     schema.tokens,
 			Interfaces: nil,
 			Directives: nil,
 			Extentions: nil,
@@ -625,7 +624,6 @@ func withTypeIntrospection(schema *Schema) *Schema {
 			Name:       []byte("__Type"),
 			Fields:     typeIntrospectionFields,
 			Required:   make(map[*FieldDefinition]struct{}),
-			tokens:     schema.tokens,
 			Interfaces: nil,
 			Directives: nil,
 			Extentions: nil,
@@ -634,7 +632,6 @@ func withTypeIntrospection(schema *Schema) *Schema {
 			Name:       []byte("__Field"),
 			Fields:     fieldIntrospectionFields,
 			Required:   make(map[*FieldDefinition]struct{}),
-			tokens:     schema.tokens,
 			Interfaces: nil,
 			Directives: nil,
 			Extentions: nil,
@@ -643,7 +640,6 @@ func withTypeIntrospection(schema *Schema) *Schema {
 			Name:       []byte("__InputValue"),
 			Fields:     inputValueIntrospectionFields,
 			Required:   make(map[*FieldDefinition]struct{}),
-			tokens:     schema.tokens,
 			Interfaces: nil,
 			Directives: nil,
 			Extentions: nil,
@@ -652,7 +648,6 @@ func withTypeIntrospection(schema *Schema) *Schema {
 			Name:       []byte("__EnumValue"),
 			Fields:     enumValueIntrospectionFields,
 			Required:   make(map[*FieldDefinition]struct{}),
-			tokens:     schema.tokens,
 			Interfaces: nil,
 			Directives: nil,
 			Extentions: nil,
@@ -661,7 +656,6 @@ func withTypeIntrospection(schema *Schema) *Schema {
 			Name:       []byte("__Directive"),
 			Fields:     directiveIntrospectionFields,
 			Required:   make(map[*FieldDefinition]struct{}),
-			tokens:     schema.tokens,
 			Interfaces: nil,
 			Directives: nil,
 			Extentions: nil,

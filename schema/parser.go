@@ -189,7 +189,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 		}
 
 		cur = newCur
-		schema.Definition.Extentions = append(schema.Definition.Extentions, definition)
+		schema.Extends = append(schema.Extends, definition)
 	case ReservedType:
 		cur++
 		if tokens[cur].Type == Identifier {
@@ -198,12 +198,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 				return nil, 0, err
 			}
 			cur = newCur
-			t := get(schema.Indexes, string(typeDefinition.Name), typeDefinition)
-			if t == nil {
-				return nil, 0, fmt.Errorf("%s is not defined", typeDefinition.Name)
-			}
-
-			t.Extentions = append(t.Extentions, typeDefinition)
+			schema.Extends = append(schema.Extends, typeDefinition)
 		}
 
 		if tokens[cur].Type == Query || tokens[cur].Type == Mutate || tokens[cur].Type == Subscription {
@@ -212,13 +207,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 				return nil, 0, err
 			}
 			cur = newCur
-
-			t := get(schema.Indexes, string(operationDefinition.Name), operationDefinition)
-			if t == nil {
-				return nil, 0, fmt.Errorf("%s is not defined", operationDefinition.Name)
-			}
-
-			t.Extentions = append(t.Extentions, operationDefinition)
+			schema.Extends = append(schema.Extends, operationDefinition)
 		}
 	case Input:
 		cur++
@@ -228,12 +217,7 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 				return nil, 0, err
 			}
 			cur = newCur
-			t := get(schema.Indexes, string(inputDefinition.Name), inputDefinition)
-			if t == nil {
-				return nil, 0, fmt.Errorf("%s is not defined", inputDefinition.Name)
-			}
-
-			t.Extentions = append(t.Extentions, inputDefinition)
+			schema.Extends = append(schema.Extends, inputDefinition)
 		}
 	case Enum:
 		enumDefinition, newCur, err := p.parseEnumDefinition(tokens, cur)
@@ -241,59 +225,35 @@ func (p *Parser) parseExtendDefinition(schema *Schema, tokens Tokens, cur int) (
 			return nil, 0, err
 		}
 		cur = newCur
-		t := get(schema.Indexes, string(enumDefinition.Name), enumDefinition)
-		if t == nil {
-			return nil, 0, fmt.Errorf("%s is not defined", enumDefinition.Name)
-		}
-
-		t.Extentions = append(t.Extentions, enumDefinition)
+		schema.Extends = append(schema.Extends, enumDefinition)
 	case Interface:
 		interfaceDefinition, newCur, err := p.parseInterfaceDefinition(tokens, cur, schema)
 		if err != nil {
 			return nil, 0, err
 		}
 		cur = newCur
-		t := get(schema.Indexes, string(interfaceDefinition.Name), interfaceDefinition)
-		if t == nil {
-			return nil, 0, fmt.Errorf("%s is not defined", interfaceDefinition.Name)
-		}
-
-		t.Extentions = append(t.Extentions, interfaceDefinition)
+		schema.Extends = append(schema.Extends, interfaceDefinition)
 	case Union:
 		unionDefinition, newCur, err := p.parseUnionDefinition(tokens, cur)
 		if err != nil {
 			return nil, 0, err
 		}
 		cur = newCur
-		t := get(schema.Indexes, string(unionDefinition.Name), unionDefinition)
-		if t == nil {
-			return nil, 0, fmt.Errorf("%s is not defined", unionDefinition.Name)
-		}
-
-		t.Extentions = append(t.Extentions, unionDefinition)
+		schema.Extends = append(schema.Extends, unionDefinition)
 	case Scalar:
 		scalarDefinition, newCur, err := p.parseScalarDefinition(tokens, cur)
 		if err != nil {
 			return nil, 0, err
 		}
 		cur = newCur
-		t := get(schema.Indexes, string(scalarDefinition.Name), scalarDefinition)
-		if t == nil {
-			return nil, 0, fmt.Errorf("%s is not defined", scalarDefinition.Name)
-		}
-
-		t.Extentions = append(t.Extentions, scalarDefinition)
+		schema.Extends = append(schema.Extends, scalarDefinition)
 	case At:
 		directive, newCur, err := p.parseDirectiveDefinition(tokens, cur)
 		if err != nil {
 			return nil, 0, err
 		}
 		cur = newCur
-		t := get(schema.Indexes, string(directive.Name), directive)
-		if t == nil {
-			return nil, 0, fmt.Errorf("%s is not defined", directive.Name)
-		}
-		t.Extentions = append(t.Extentions, directive)
+		schema.Extends = append(schema.Extends, directive)
 	}
 
 	return schema, cur, nil
@@ -365,7 +325,6 @@ func (p *Parser) parseSchemaDefinition(tokens Tokens, cur int) (*SchemaDefinitio
 }
 
 func (p *Parser) parseTypeDefinition(schema *Schema, tokens Tokens, cur int) (*TypeDefinition, int, error) {
-	start := cur
 	definition := &TypeDefinition{
 		Fields: make([]*FieldDefinition, 0),
 		Name:   tokens[cur].Value,
@@ -392,12 +351,7 @@ func (p *Parser) parseTypeDefinition(schema *Schema, tokens Tokens, cur int) (*T
 				return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
 			}
 
-			i := get(schema.Indexes, string(tokens[cur].Value), &InterfaceDefinition{})
-			if i == nil {
-				return nil, 0, fmt.Errorf("%s is not defined", tokens[cur].Value)
-			}
-
-			definition.Interfaces = append(definition.Interfaces, i)
+			definition.Interfaces = append(definition.Interfaces, tokens[cur].Value)
 			cur++
 		}
 	}
@@ -430,7 +384,6 @@ func (p *Parser) parseTypeDefinition(schema *Schema, tokens Tokens, cur int) (*T
 			definition.Fields = append(definition.Fields, fieldDefinitions...)
 			cur = newCur
 		case CurlyClose:
-			definition.tokens = tokens[start:cur]
 			cur++
 			return definition, cur, nil
 		}
@@ -440,7 +393,6 @@ func (p *Parser) parseTypeDefinition(schema *Schema, tokens Tokens, cur int) (*T
 }
 
 func (p *Parser) parseInputDefinition(tokens Tokens, cur int) (*InputDefinition, int, error) {
-	start := cur
 	definition := &InputDefinition{
 		Fields: make([]*FieldDefinition, 0),
 		Name:   tokens[cur].Value,
@@ -462,7 +414,6 @@ func (p *Parser) parseInputDefinition(tokens Tokens, cur int) (*InputDefinition,
 			definition.Fields = append(definition.Fields, fieldDefinitions...)
 			cur = newCur
 		case CurlyClose:
-			definition.tokens = tokens[start:cur]
 			cur++
 			return definition, cur, nil
 		}
@@ -872,8 +823,9 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int, schema *Schema
 	}
 
 	interfaceDefinition := &InterfaceDefinition{
-		Name:   tokens[cur].Value,
-		Fields: make([]*FieldDefinition, 0),
+		Name:       tokens[cur].Value,
+		Fields:     make([]*FieldDefinition, 0),
+		Interfaces: make([][]byte, 0),
 	}
 	cur++
 
@@ -897,12 +849,7 @@ func (p *Parser) parseInterfaceDefinition(tokens Tokens, cur int, schema *Schema
 				return nil, 0, fmt.Errorf("expected identifier but got %s", string(tokens[cur].Value))
 			}
 
-			i := get(schema.Indexes, string(tokens[cur].Value), &InterfaceDefinition{})
-			if i == nil {
-				return nil, 0, fmt.Errorf("%s is not defined", tokens[cur].Value)
-			}
-
-			interfaceDefinition.Interfaces = append(interfaceDefinition.Interfaces, i)
+			interfaceDefinition.Interfaces = append(interfaceDefinition.Interfaces, tokens[cur].Value)
 			cur++
 		}
 	}
