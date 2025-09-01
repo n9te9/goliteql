@@ -6,7 +6,7 @@ type InterfaceDefinition struct {
 	Name       []byte
 	Fields     FieldDefinitions
 	Extentions []*InterfaceDefinition
-	Interfaces []*InterfaceDefinition
+	Interfaces [][]byte
 	Directives []*Directive
 }
 
@@ -28,4 +28,8 @@ func (i *InterfaceDefinition) GetFieldByName(name []byte) *FieldDefinition {
 
 func (i *InterfaceDefinition) TypeName() []byte {
 	return i.Name
+}
+
+func (i *InterfaceDefinition) IsDefinition() bool {
+	return true
 }

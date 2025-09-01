@@ -23,6 +23,10 @@ func (e *EnumDefinition) Location() *Location {
 	}
 }
 
+func (e *EnumDefinition) IsDefinition() bool {
+	return true
+}
+
 type EnumDefinitions []*EnumDefinition
 
 func (e EnumDefinitions) Has(name string) bool {

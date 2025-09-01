@@ -3,8 +3,8 @@ package schema
 import "bytes"
 
 type UnionDefinition struct {
-	Name []byte
-	Types [][]byte
+	Name       []byte
+	Types      [][]byte
 	Extentions []*UnionDefinition
 	Directives []*Directive
 }
@@ -25,8 +25,12 @@ func (u *UnionDefinition) HasType(name string) bool {
 			return true
 		}
 	}
-	
+
 	return false
+}
+
+func (u *UnionDefinition) IsDefinition() bool {
+	return true
 }
 
 type UnionDefinitions []*UnionDefinition
@@ -37,7 +41,7 @@ func (u UnionDefinitions) Has(name string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

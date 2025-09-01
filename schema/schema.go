@@ -35,11 +35,14 @@ type TypeDefinition struct {
 	Name              []byte
 	Fields            FieldDefinitions
 	Required          map[*FieldDefinition]struct{}
-	tokens            Tokens
 	PrimitiveTypeName []byte
-	Interfaces        []*InterfaceDefinition
+	Interfaces        [][]byte
 	Directives        []*Directive
 	Extentions        []*TypeDefinition
+}
+
+func (t *TypeDefinition) IsDefinition() bool {
+	return true
 }
 
 type TypeDefinitions []*TypeDefinition
@@ -147,6 +150,10 @@ type OperationDefinition struct {
 	Extentions    []*OperationDefinition
 }
 
+func (o *OperationDefinition) IsDefinition() bool {
+	return true
+}
+
 func (f FieldDefinitions) HasDeprecatedDirective() bool {
 	for _, field := range f {
 		for _, directive := range field.Directives {
@@ -182,6 +189,7 @@ type Indexes struct {
 	OperationIndexes map[OperationType]map[string]*OperationDefinition
 	ScalarIndex      map[string]*ScalarDefinition
 	DirectiveIndex   map[string]*DirectiveDefinition
+	ExtendIndex      map[string]ExtendDefinition
 }
 
 func (i *Indexes) GetTypeDefinition(name string) *TypeDefinition {
@@ -201,7 +209,7 @@ func (i *Indexes) GetImplementedType(id *InterfaceDefinition) []*TypeDefinition 
 
 	for _, t := range i.TypeIndex {
 		for _, iface := range t.Interfaces {
-			if bytes.Equal(iface.Name, id.Name) {
+			if bytes.Equal(iface, id.Name) {
 				res = append(res, t)
 			}
 		}
@@ -211,16 +219,17 @@ func (i *Indexes) GetImplementedType(id *InterfaceDefinition) []*TypeDefinition 
 }
 
 type Schema struct {
-	tokens     Tokens
+	Tokens     Tokens
 	Definition *SchemaDefinition
 	Operations []*OperationDefinition
-	Types      TypeDefinitions
+	Types      []*TypeDefinition
 	Enums      []*EnumDefinition
 	Unions     []*UnionDefinition
 	Interfaces []*InterfaceDefinition
 	Directives DirectiveDefinitions
 	Inputs     []*InputDefinition
 	Scalars    []*ScalarDefinition
+	Extends    []ExtendDefinition
 
 	Indexes *Indexes
 }
@@ -232,7 +241,7 @@ func NewSchema(tokens Tokens) *Schema {
 	}
 
 	s := &Schema{
-		tokens: tokens,
+		Tokens: tokens,
 		Definition: &SchemaDefinition{
 			Query:        []byte("Query"),
 			Mutation:     []byte("Mutation"),
@@ -246,35 +255,22 @@ func NewSchema(tokens Tokens) *Schema {
 			InterfaceIndex:   make(map[string]*InterfaceDefinition),
 			InputIndex:       make(map[string]*InputDefinition),
 			ScalarIndex:      make(map[string]*ScalarDefinition),
+			ExtendIndex:      make(map[string]ExtendDefinition),
 		},
 		Directives: NewBuildInDirectives(),
 	}
 
-	s = withTypeIntrospection(s)
-	s = withBuiltin(s)
-
 	return s
 }
 
-func (s *Schema) digOperation(name string, ops []*OperationDefinition) (FieldDefinitions, error) {
+func (s *Schema) extendOperationFields(ops []*OperationDefinition) FieldDefinitions {
 	res := make(FieldDefinitions, 0)
 
 	for _, op := range ops {
-		if string(op.Name) != name {
-			return nil, fmt.Errorf("operation %s not found", name)
-		}
-
 		res = append(res, op.Fields...)
-		if len(op.Extentions) > 0 {
-			field, err := s.digOperation(name, op.Extentions)
-			if err != nil {
-				return nil, err
-			}
-			res = append(res, field...)
-		}
 	}
 
-	return res, nil
+	return res
 }
 
 func (s *Schema) mergeOperation(newSchema *Schema) error {
@@ -284,10 +280,8 @@ func (s *Schema) mergeOperation(newSchema *Schema) error {
 		newOp.Name = t.Name
 		newOp.Fields = t.Fields
 
-		field, err := s.digOperation(string(newOp.Name), t.Extentions)
-		if err != nil {
-			return err
-		}
+		extendDefinitions := getOperationDefinitionsFromExtendDefinitions(t.OperationType, s.Extends)
+		field := s.extendOperationFields(extendDefinitions)
 
 		newOp.Fields = append(newOp.Fields, field...)
 
@@ -309,25 +303,25 @@ func (s *Schema) mergeOperation(newSchema *Schema) error {
 	return nil
 }
 
-func (s *Schema) digTypeDefinition(name string, types []*TypeDefinition) (FieldDefinitions, error) {
-	res := make(FieldDefinitions, 0)
-
-	for _, t := range types {
-		if string(t.Name) != name {
-			return nil, fmt.Errorf("type %s not found", name)
-		}
-
-		res = append(res, t.Fields...)
-		if len(t.Extentions) > 0 {
-			field, err := s.digTypeDefinition(name, t.Extentions)
-			if err != nil {
-				return nil, err
-			}
-			res = append(res, field...)
+func getOperationDefinitionsFromExtendDefinitions(opType OperationType, extendDefinitions []ExtendDefinition) []*OperationDefinition {
+	ret := make([]*OperationDefinition, 0, len(extendDefinitions))
+	for _, ext := range extendDefinitions {
+		if opDef, ok := ext.(*OperationDefinition); ok && opDef.OperationType == opType {
+			ret = append(ret, opDef)
 		}
 	}
 
-	return res, nil
+	return ret
+}
+
+func (s *Schema) extendTypeDefinitionFields(types []*TypeDefinition) FieldDefinitions {
+	res := make(FieldDefinitions, 0)
+
+	for _, t := range types {
+		res = append(res, t.Fields...)
+	}
+
+	return res
 }
 
 func (s *Schema) mergeTypeDefinition(newSchema *Schema) error {
@@ -341,10 +335,7 @@ func (s *Schema) mergeTypeDefinition(newSchema *Schema) error {
 
 		newFields := make(FieldDefinitions, 0)
 
-		field, err := s.digTypeDefinition(string(newType.Name), t.Extentions)
-		if err != nil {
-			return err
-		}
+		field := s.extendTypeDefinitionFields(getTypeDefinitionsFromExtendDefinitions(s.Extends, string(newType.Name)))
 
 		newFields = append(newFields, field...)
 
@@ -366,25 +357,25 @@ func (s *Schema) mergeTypeDefinition(newSchema *Schema) error {
 	return nil
 }
 
-func (s *Schema) digInterfaceDefinition(name string, interfaces []*InterfaceDefinition) (FieldDefinitions, error) {
-	res := make(FieldDefinitions, 0)
-
-	for _, t := range interfaces {
-		if string(t.Name) != name {
-			return nil, fmt.Errorf("interface %s not found", name)
-		}
-
-		res = append(res, t.Fields...)
-		if len(t.Extentions) > 0 {
-			field, err := s.digInterfaceDefinition(name, t.Extentions)
-			if err != nil {
-				return nil, err
-			}
-			res = append(res, field...)
+func getTypeDefinitionsFromExtendDefinitions(extendDefinitions []ExtendDefinition, name string) []*TypeDefinition {
+	ret := make([]*TypeDefinition, 0, len(extendDefinitions))
+	for _, ext := range extendDefinitions {
+		if typeDef, ok := ext.(*TypeDefinition); ok && string(typeDef.Name) == name {
+			ret = append(ret, typeDef)
 		}
 	}
 
-	return res, nil
+	return ret
+}
+
+func (s *Schema) extendInterfaceDefinition(interfaces []*InterfaceDefinition) FieldDefinitions {
+	res := make(FieldDefinitions, 0)
+
+	for _, t := range interfaces {
+		res = append(res, t.Fields...)
+	}
+
+	return res
 }
 
 func (s *Schema) mergeInterfaceDefinition(newSchema *Schema) error {
@@ -396,11 +387,7 @@ func (s *Schema) mergeInterfaceDefinition(newSchema *Schema) error {
 
 		newFields := make(FieldDefinitions, 0)
 
-		field, err := s.digInterfaceDefinition(string(newInterface.Name), t.Extentions)
-		if err != nil {
-			return err
-		}
-
+		field := s.extendInterfaceDefinition(getInterfaceDefinitionsFromExtendDefinitions(s.Extends, string(newInterface.Name)))
 		newFields = append(newFields, field...)
 
 		for _, field := range newInterface.Fields {
@@ -420,26 +407,22 @@ func (s *Schema) mergeInterfaceDefinition(newSchema *Schema) error {
 	return nil
 }
 
-func (s *Schema) digUnionDefinition(name string, unions UnionDefinitions) ([][]byte, error) {
-	var res [][]byte
-
-	if !unions.Has(name) {
-		return nil, fmt.Errorf("union %s not found", name)
+func getInterfaceDefinitionsFromExtendDefinitions(extendDefinitions []ExtendDefinition, name string) []*InterfaceDefinition {
+	ret := make([]*InterfaceDefinition, 0, len(extendDefinitions))
+	for _, ext := range extendDefinitions {
+		if ifaceDef, ok := ext.(*InterfaceDefinition); ok && string(ifaceDef.Name) == name {
+			ret = append(ret, ifaceDef)
+		}
 	}
 
+	return ret
+}
+
+func (s *Schema) extendUnionDefinition(unions UnionDefinitions) ([][]byte, error) {
+	var res [][]byte
+
 	for _, u := range unions {
-		if string(u.Name) == name {
-			res = append(res, u.Types...)
-
-			if len(u.Extentions) > 0 {
-				types, err := s.digUnionDefinition(name, u.Extentions)
-				if err != nil {
-					return nil, err
-				}
-
-				res = append(res, types...)
-			}
-		}
+		res = append(res, u.Types...)
 	}
 
 	return res, nil
@@ -454,48 +437,43 @@ func (s *Schema) mergeUnionDefinition(newSchema *Schema) error {
 
 		newSchema.Unions = append(newSchema.Unions, newUnion)
 
-		if len(t.Extentions) > 0 {
-			types, err := s.digUnionDefinition(string(newUnion.Name), t.Extentions)
-			if err != nil {
-				return err
-			}
-
-			for _, t := range types {
-				if newUnion.HasType(string(t)) {
-					return fmt.Errorf("type %s already exists in union %s", t, newUnion.Name)
-				}
-			}
-
-			newSchema.Indexes.UnionIndex[string(newUnion.Name)] = newUnion
-			newUnion.Types = append(newUnion.Types, types...)
+		types, err := s.extendUnionDefinition(getUnionDefinitionFromExtendDefinition(s.Extends, string(newUnion.Name)))
+		if err != nil {
+			return err
 		}
+
+		for _, t := range types {
+			if newUnion.HasType(string(t)) {
+				return fmt.Errorf("type %s already exists in union %s", t, newUnion.Name)
+			}
+		}
+
+		newSchema.Indexes.UnionIndex[string(newUnion.Name)] = newUnion
+		newUnion.Types = append(newUnion.Types, types...)
+
 	}
 
 	return nil
 }
 
-func (s *Schema) digEnumDefinition(name string, extentions EnumDefinitions) ([]*EnumElement, error) {
-	if !extentions.Has(name) {
-		return nil, fmt.Errorf("enum %s not found", name)
-	}
-
-	res := make([]*EnumElement, 0)
-	for _, ext := range extentions {
-		if string(ext.Name) == name {
-			res = append(res, ext.Values...)
-
-			if len(ext.Extentions) > 0 {
-				elms, err := s.digEnumDefinition(name, ext.Extentions)
-				if err != nil {
-					return nil, err
-				}
-
-				res = append(res, elms...)
-			}
+func getUnionDefinitionFromExtendDefinition(extendDefinitions []ExtendDefinition, name string) []*UnionDefinition {
+	ret := make([]*UnionDefinition, 0, len(extendDefinitions))
+	for _, ext := range extendDefinitions {
+		if unionDef, ok := ext.(*UnionDefinition); ok && string(unionDef.Name) == name {
+			ret = append(ret, unionDef)
 		}
 	}
+	return ret
+}
 
-	return res, nil
+func (s *Schema) extendEnumDefinition(extentions EnumDefinitions) []*EnumElement {
+	res := make([]*EnumElement, 0)
+
+	for _, ext := range extentions {
+		res = append(res, ext.Values...)
+	}
+
+	return res
 }
 
 func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
@@ -507,36 +485,31 @@ func (s *Schema) mergeEnumDefinition(newSchema *Schema) error {
 		newEnum.Type = enum.Type
 
 		newSchema.Enums = append(newSchema.Enums, newEnum)
-		if len(enum.Extentions) > 0 {
-			enumValues, err := s.digEnumDefinition(string(newEnum.Name), enum.Extentions)
-			if err != nil {
-				return err
-			}
+		enumValues := s.extendEnumDefinition(getEnumDefinitionFromExtendDefinitions(s.Extends, string(newEnum.Name)))
 
-			newSchema.Indexes.EnumIndex[string(newEnum.Name)] = newEnum
-			newEnum.Values = append(newEnum.Values, enumValues...)
-		}
+		newSchema.Indexes.EnumIndex[string(newEnum.Name)] = newEnum
+		newEnum.Values = append(newEnum.Values, enumValues...)
 	}
 
 	return nil
 }
 
-func (s *Schema) digInputDefinition(name string, exts []*InputDefinition) (FieldDefinitions, error) {
+func getEnumDefinitionFromExtendDefinitions(extendDefinitions []ExtendDefinition, name string) []*EnumDefinition {
+	ret := make([]*EnumDefinition, 0, len(extendDefinitions))
+	for _, ext := range extendDefinitions {
+		if enumDef, ok := ext.(*EnumDefinition); ok && string(enumDef.Name) == name {
+			ret = append(ret, enumDef)
+		}
+	}
+
+	return ret
+}
+
+func (s *Schema) extendInputDefinition(exts []*InputDefinition) (FieldDefinitions, error) {
 	res := make(FieldDefinitions, 0)
 
 	for _, ext := range exts {
-		if string(ext.Name) == name {
-			res = append(res, ext.Fields...)
-
-			if len(ext.Extentions) > 0 {
-				fields, err := s.digInputDefinition(name, ext.Extentions)
-				if err != nil {
-					return nil, err
-				}
-
-				res = append(res, fields...)
-			}
-		}
+		res = append(res, ext.Fields...)
 	}
 
 	return res, nil
@@ -550,7 +523,7 @@ func (s *Schema) mergeInputDefinition(newSchema *Schema) error {
 
 		newFields := make(FieldDefinitions, 0)
 
-		field, err := s.digInputDefinition(string(newInput.Name), input.Extentions)
+		field, err := s.extendInputDefinition(getInputDefinitionFromExtendDefinitions(s.Extends, string(newInput.Name)))
 		if err != nil {
 			return err
 		}
@@ -574,10 +547,21 @@ func (s *Schema) mergeInputDefinition(newSchema *Schema) error {
 	return nil
 }
 
+func getInputDefinitionFromExtendDefinitions(extendDefinitions []ExtendDefinition, name string) []*InputDefinition {
+	ret := make([]*InputDefinition, 0, len(extendDefinitions))
+	for _, ext := range extendDefinitions {
+		if inputDef, ok := ext.(*InputDefinition); ok && string(inputDef.Name) == name {
+			ret = append(ret, inputDef)
+		}
+	}
+
+	return ret
+}
+
 func (s *Schema) Merge() (*Schema, error) {
 	newSchema := new(Schema)
 	newSchema.Definition = s.Definition
-	newSchema.tokens = s.tokens
+	newSchema.Tokens = s.Tokens
 	newSchema.Indexes = s.Indexes
 	newSchema.Directives = s.Directives
 	newSchema.Scalars = s.Scalars
@@ -605,6 +589,9 @@ func (s *Schema) Merge() (*Schema, error) {
 	if err := s.mergeInputDefinition(newSchema); err != nil {
 		return nil, err
 	}
+
+	newSchema = WithTypeIntrospection(newSchema)
+	newSchema = WithBuiltin(newSchema)
 
 	return newSchema, nil
 }
@@ -691,6 +678,10 @@ type ScalarDefinition struct {
 	Extentions []*ScalarDefinition
 }
 
+func (s *ScalarDefinition) IsDefinition() bool {
+	return true
+}
+
 type SchemaDefinition struct {
 	Query        []byte
 	Mutation     []byte
@@ -698,4 +689,12 @@ type SchemaDefinition struct {
 	Extentions   []*SchemaDefinition
 
 	Directives []*Directive
+}
+
+func (s *SchemaDefinition) IsDefinition() bool {
+	return true
+}
+
+type ExtendDefinition interface {
+	IsDefinition() bool
 }

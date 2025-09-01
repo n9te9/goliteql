@@ -1,6 +1,6 @@
 package schema
 
-func withBuiltin(s *Schema) *Schema {
+func WithBuiltin(s *Schema) *Schema {
 	s.Scalars = append(s.Scalars, &ScalarDefinition{
 		Name: []byte("Int"),
 	})
