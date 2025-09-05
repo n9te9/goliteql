@@ -3588,7 +3588,7 @@ func generateAllPointerFieldStructFromField(typeDefinition *schema.TypeDefinitio
 
 	for _, i := range typeDefinition.Interfaces {
 		fields = append(fields, &ast.Field{
-			Type: ast.NewIdent(fmt.Sprintf("%sResponse", i.Name)),
+			Type: ast.NewIdent(fmt.Sprintf("%sResponse", i)),
 			Tag: &ast.BasicLit{
 				Kind:  token.STRING,
 				Value: "`json:\"-\"`",
