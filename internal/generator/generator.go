@@ -305,13 +305,13 @@ func (g *Generator) generateModel() error {
 		}
 
 		for _, iface := range t.Interfaces {
-			if iface.Name[0] >= 'a' && iface.Name[0] <= 'z' {
-				panic(fmt.Sprintf("interface name %s should start with uppercase letter", iface.Name))
+			if iface[0] >= 'a' && iface[0] <= 'z' {
+				panic(fmt.Sprintf("interface name %s should start with uppercase letter", iface))
 			}
 
 			fields.List = append(fields.List, &ast.Field{
 				Names: []*ast.Ident{},
-				Type:  ast.NewIdent(string(iface.Name)),
+				Type:  ast.NewIdent(string(iface)),
 			})
 		}
 

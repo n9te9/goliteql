@@ -228,15 +228,17 @@ func GenerateTypeObjectCaseStmts(typeDefinition *schema.TypeDefinition) []ast.St
 					},
 				},
 			},
-		}, &ast.CaseClause{
-			List: []ast.Expr{
-				&ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"interfaces"`,
-				},
-			},
-			Body: generateTypeObjectInterfaceCaseStmts(typeDefinition.Interfaces),
-		}, &ast.CaseClause{
+		},
+		// &ast.CaseClause{
+		// 	List: []ast.Expr{
+		// 		&ast.BasicLit{
+		// 			Kind:  token.STRING,
+		// 			Value: `"interfaces"`,
+		// 		},
+		// 	},
+		// 	Body: generateTypeObjectInterfaceCaseStmts(typeDefinition.Interfaces),
+		// },
+		&ast.CaseClause{
 			List: []ast.Expr{
 				&ast.BasicLit{
 					Kind:  token.STRING,
