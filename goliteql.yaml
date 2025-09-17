@@ -1,0 +1,7 @@
+schema_directory: ./graphql/schema
+model_output_file: ./graphql/model/models.go
+query_resolver_output_file: ./graphql/resolver/query.resolver.go
+mutation_resolver_output_file: ./graphql/resolver/mutate.resolver.go
+root_resolver_output_file: ./graphql/resolver/resolver.go
+model_package_name: github.com/n9te9/goliteql/graphql/model
+resolver_package_name: github.com/n9te9/goliteql/graphql/resolver

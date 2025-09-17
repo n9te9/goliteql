@@ -6,11 +6,23 @@ import (
 
 type Node struct {
 	Name       string
-	Directives []*query.Directive
+	Directives Directives
 	Arguments  []*query.Argument
 	Type       string
 	Parent     *Node
 	Children   []*Node
+}
+
+type Directives []*query.Directive
+
+func (d Directives) FindByName(name string) *query.Directive {
+	for _, directive := range d {
+		if name == string(directive.Name) {
+			return directive
+		}
+	}
+
+	return nil
 }
 
 func (n *Node) HasFragment() bool {

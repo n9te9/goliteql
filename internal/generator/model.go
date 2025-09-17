@@ -8,18 +8,52 @@ import (
 	"github.com/n9te9/goliteql/schema"
 )
 
-func generateModelImport() *ast.GenDecl {
-	return &ast.GenDecl{
-		Tok: token.IMPORT,
-		Specs: []ast.Spec{
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"encoding/json"`,
-				},
-			},
+func generateModelImport(s *schema.Schema) ast.Decl {
+	specs := make([]ast.Spec, 0)
+	specs = append(specs, &ast.ImportSpec{
+		Path: &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: `"encoding/json"`,
 		},
+	})
+
+	if hasRequiredField(s) {
+		specs = append(specs, &ast.ImportSpec{
+			Path: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"fmt"`,
+			},
+		})
 	}
+
+	return &ast.GenDecl{
+		Tok:   token.IMPORT,
+		Specs: specs,
+	}
+}
+
+func hasRequiredField(s *schema.Schema) bool {
+	for _, t := range s.Types {
+		for _, field := range t.Fields {
+			if findRequiredField(field.Type) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func findRequiredField(field *schema.FieldType) bool {
+	if !field.Nullable {
+		return true
+	}
+
+	if field.IsList {
+		return findRequiredField(field.ListType)
+	}
+
+	return false
 }
 
 // generateEnumImport generates an empty import declaration for enums.
