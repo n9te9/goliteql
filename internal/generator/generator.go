@@ -52,10 +52,9 @@ type Generator struct {
 }
 
 type ScalarConfig struct {
-	Name               string `yaml:"name"`
-	Package            string `yaml:"package"`
-	Type               string `yaml:"type"`
-	ParseInjectionCode string `yaml:"parse_injection_code"`
+	Name    string `yaml:"name"`
+	Package string `yaml:"package"`
+	Type    string `yaml:"type"`
 }
 
 type Config struct {
@@ -269,7 +268,7 @@ func (g *Generator) Generate() error {
 
 func (g *Generator) generateModel() error {
 	if len(g.Schema.Inputs) > 0 {
-		g.modelAST.Decls = append(g.modelAST.Decls, generateModelImport())
+		g.modelAST.Decls = append(g.modelAST.Decls, generateModelImport(g.Schema.Inputs))
 	}
 	// g.enumAST.Decls = append(g.enumAST.Decls, generateEnumImport())
 

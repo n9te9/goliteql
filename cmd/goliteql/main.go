@@ -58,19 +58,21 @@ func main() {
 }
 
 var initConfig = generator.Config{
-	SchemaDirectory:            "./graphql/schema",
-	ModelOutputFile:            "./graphql/model/models.go",
-	QueryResolverOutputFile:    "./graphql/resolver/query.resolver.go",
-	MutationResolverOutputFile: "./graphql/resolver/mutate.resolver.go",
-	RootResolverOutputFile:     "./graphql/resolver/resolver.go",
-	EnumOutputFile:             "./graphql/model/enum.go",
-	ModelPackageName:           "example.com/graphql/model",
-	ResolverPackageName:        "example.com/graphql/resolver",
-	ScalarOutputFile:           "./graphql/scalar/scalar.go",
+	SchemaDirectory:             "./graphql/schema",
+	ModelOutputFile:             "./graphql/model/models.go",
+	QueryResolverOutputFile:     "./graphql/resolver/query.resolver.go",
+	MutationResolverOutputFile:  "./graphql/resolver/mutate.resolver.go",
+	RootResolverOutputFile:      "./graphql/resolver/resolver.go",
+	EnumOutputFile:              "./graphql/model/enum.go",
+	ModelPackageName:            "example.com/graphql/model",
+	ResolverPackageName:         "example.com/graphql/resolver",
+	ResolverGeneratedOutputFile: "./graphql/resolver/generated.go",
+	ScalarOutputFile:            "./graphql/model/scalar.go",
 	Scalars: []generator.ScalarConfig{
 		{
-			Name: "DateTime",
-			Type: "time.Time",
+			Name:    "DateTime",
+			Package: "time",
+			Type:    "time.Time",
 		},
 	},
 }

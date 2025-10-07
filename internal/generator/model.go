@@ -8,17 +8,33 @@ import (
 	"github.com/n9te9/goliteql/schema"
 )
 
-func generateModelImport() *ast.GenDecl {
-	return &ast.GenDecl{
-		Tok: token.IMPORT,
-		Specs: []ast.Spec{
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"encoding/json"`,
-				},
-			},
+func generateModelImport(inputs []*schema.InputDefinition) *ast.GenDecl {
+	specs := make([]ast.Spec, 0)
+	specs = append(specs, &ast.ImportSpec{
+		Path: &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: `"encoding/json"`,
 		},
+	})
+
+	var aleadyImported bool
+	for _, input := range inputs {
+		for _, field := range input.Fields {
+			if !field.Type.Nullable && !aleadyImported {
+				specs = append(specs, &ast.ImportSpec{
+					Path: &ast.BasicLit{
+						Kind:  token.STRING,
+						Value: `"fmt"`,
+					},
+				})
+				aleadyImported = true
+			}
+		}
+	}
+
+	return &ast.GenDecl{
+		Tok:   token.IMPORT,
+		Specs: specs,
 	}
 }
 
