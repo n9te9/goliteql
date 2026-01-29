@@ -1374,6 +1374,48 @@ func TestParser_Parse(t *testing.T) {
 			},
 		},
 		{
+			name:  "Parse extend schema definition for federation",
+			input: []byte(`extend schema @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key", "@external", "@requires", "@provides", "@shareable"])`),
+			want: &schema.Schema{
+				Definition: &schema.SchemaDefinition{
+					Query:        []byte("Query"),
+					Mutation:     []byte("Mutation"),
+					Subscription: []byte("Subscription"),
+					Extentions:   nil,
+				},
+				Directives: schema.NewBuildInDirectives(),
+				Indexes: &schema.Indexes{
+					TypeIndex:        make(map[string]*schema.TypeDefinition),
+					OperationIndexes: make(map[schema.OperationType]map[string]*schema.OperationDefinition),
+					EnumIndex:        make(map[string]*schema.EnumDefinition),
+					UnionIndex:       make(map[string]*schema.UnionDefinition),
+					InterfaceIndex:   make(map[string]*schema.InterfaceDefinition),
+					InputIndex:       make(map[string]*schema.InputDefinition),
+					ScalarIndex:      make(map[string]*schema.ScalarDefinition),
+					ExtendIndex:      make(map[string]schema.ExtendDefinition),
+				},
+				Extends: []schema.ExtendDefinition{
+					&schema.SchemaDefinition{
+						Directives: []*schema.Directive{
+							{
+								Name: []byte("link"),
+								Arguments: []*schema.DirectiveArgument{
+									{
+										Name:  []byte("url"),
+										Value: []byte(`"https://specs.apollo.dev/federation/v2.0"`),
+									},
+									{
+										Name:  []byte("import"),
+										Value: []byte(`["@key", "@external", "@requires", "@provides", "@shareable"]`),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "Parse extend type definition",
 			input: []byte(`type User {
 				id: ID!

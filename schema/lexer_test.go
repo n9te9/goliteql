@@ -1522,6 +1522,66 @@ func TestLexer_Lex(t *testing.T) {
 				{Type: schema.EOF, Value: nil, Line: 7, Column: 4},
 			},
 		},
+		{
+			name: "Lex extend schema definition",
+			input: []byte(`extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key", "@external", "@requires", "@provides", "@shareable"])
+
+type Product @key(fields: "upc") {
+  upc: String!
+  name: String
+  price: Float
+}
+type Query {
+  products: [Product]
+}`),
+			expected: []*schema.Token{
+				{Type: schema.Extend, Value: []byte("extend"), Line: 1, Column: 1},
+				{Type: schema.ReservedSchema, Value: []byte("schema"), Line: 1, Column: 8},
+				{Type: schema.At, Value: []byte("@"), Line: 2, Column: 3},
+				{Type: schema.Identifier, Value: []byte("link"), Line: 2, Column: 4},
+				{Type: schema.ParenOpen, Value: []byte("("), Line: 2, Column: 8},
+				{Type: schema.Field, Value: []byte("url"), Line: 2, Column: 9},
+				{Type: schema.Colon, Value: []byte(":"), Line: 2, Column: 12},
+				{Type: schema.Value, Value: []byte(`"https://specs.apollo.dev/federation/v2.0"`), Line: 2, Column: 14},
+				{Type: schema.Comma, Value: []byte(","), Line: 2, Column: 56},
+				{Type: schema.Field, Value: []byte("import"), Line: 2, Column: 58},
+				{Type: schema.Colon, Value: []byte(":"), Line: 2, Column: 64},
+				{Type: schema.Value, Value: []byte(`["@key", "@external", "@requires", "@provides", "@shareable"]`), Line: 2, Column: 66},
+				{Type: schema.ParenClose, Value: []byte(")"), Line: 2, Column: 127},
+				{Type: schema.ReservedType, Value: []byte("type"), Line: 4, Column: 1},
+				{Type: schema.Identifier, Value: []byte("Product"), Line: 4, Column: 6},
+				{Type: schema.At, Value: []byte("@"), Line: 4, Column: 14},
+				{Type: schema.Identifier, Value: []byte("key"), Line: 4, Column: 15},
+				{Type: schema.ParenOpen, Value: []byte("("), Line: 4, Column: 18},
+				{Type: schema.Field, Value: []byte("fields"), Line: 4, Column: 19},
+				{Type: schema.Colon, Value: []byte(":"), Line: 4, Column: 25},
+				{Type: schema.Value, Value: []byte(`"upc"`), Line: 4, Column: 27},
+				{Type: schema.ParenClose, Value: []byte(")"), Line: 4, Column: 32},
+				{Type: schema.CurlyOpen, Value: []byte("{"), Line: 4, Column: 34},
+				{Type: schema.Field, Value: []byte("upc"), Line: 5, Column: 3},
+				{Type: schema.Colon, Value: []byte(":"), Line: 5, Column: 6},
+				{Type: schema.Identifier, Value: []byte("String"), Line: 5, Column: 8},
+				{Type: schema.Exclamation, Value: []byte("!"), Line: 5, Column: 14},
+				{Type: schema.Field, Value: []byte("name"), Line: 6, Column: 3},
+				{Type: schema.Colon, Value: []byte(":"), Line: 6, Column: 7},
+				{Type: schema.Identifier, Value: []byte("String"), Line: 6, Column: 9},
+				{Type: schema.Field, Value: []byte("price"), Line: 7, Column: 3},
+				{Type: schema.Colon, Value: []byte(":"), Line: 7, Column: 8},
+				{Type: schema.Identifier, Value: []byte("Float"), Line: 7, Column: 10},
+				{Type: schema.CurlyClose, Value: []byte("}"), Line: 8, Column: 1},
+				{Type: schema.ReservedType, Value: []byte("type"), Line: 9, Column: 1},
+				{Type: schema.Query, Value: []byte("Query"), Line: 9, Column: 6},
+				{Type: schema.CurlyOpen, Value: []byte("{"), Line: 9, Column: 12},
+				{Type: schema.Field, Value: []byte("products"), Line: 10, Column: 3},
+				{Type: schema.Colon, Value: []byte(":"), Line: 10, Column: 11},
+				{Type: schema.BracketOpen, Value: []byte("["), Line: 10, Column: 13},
+				{Type: schema.Identifier, Value: []byte("Product"), Line: 10, Column: 14},
+				{Type: schema.BracketClose, Value: []byte("]"), Line: 10, Column: 21},
+				{Type: schema.CurlyClose, Value: []byte("}"), Line: 11, Column: 1},
+				{Type: schema.EOF, Value: nil, Line: 11, Column: 2},
+			},
+		},
 	}
 
 	for _, tt := range tests {
